@@ -17,6 +17,8 @@ import ethos.adapters.mutation.proof_admission as proof_admission
 import ethos.adapters.repo.release as release
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.hook.protocol import execute_hook
+from ethos.contracts.outcome import OutcomeError
+from ethos.contracts.outcome import refusal
 from ethos.contracts.proof.plan import PROOF_PREDICATES
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import commit_fixture_file
@@ -34,6 +36,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from ethos.adapters.mutation.accepted.retag import RetagReport
+    from ethos.contracts.plan import TransitionPlan
     from ethos.contracts.semantic import Attestation
 
 
@@ -146,21 +149,48 @@ def test_two_tags_on_different_commits_are_recreated_in_one_run(tmp_path: Path) 
     assert git(repo, "rev-parse", "HEAD") == later
 
 
-def test_a_checkout_that_moves_during_a_batch_stops_the_next_tag(tmp_path: Path) -> None:
-    """Each tag states the head the batch was asked from, so a move between two tags refuses."""
+@pytest.mark.parametrize(
+    ("failure", "verdict"),
+    [("moved-checkout", "block"), ("unknown", "unknown"), ("after-the-move", "block")],
+)
+def test_a_batch_stops_only_where_a_refusal_left_its_tag_unmoved(
+    tmp_path: Path, failure: str, verdict: str
+) -> None:
+    """Each tag states the head the batch was asked from, so a move between two tags refuses.
+
+    That refusal leaves the next tag where it stood, so the batch reports it and keeps the moved
+    tag's receipt. A failure of unknown outcome, or one after its tag moved, keeps its verdict.
+    """
     repo, originals, _head = _two_repaired_tags(tmp_path)
     preview = retag.mapped_retag(repo, tags=TWO_TAGS)
-    record = retag.record_attestations
+    execute, plans = retag.execute_git_effect, []
 
-    def record_then_move(root: Path, receipts: tuple[Attestation, ...]) -> None:
-        record(root, receipts)
-        git(repo, "switch", "--detach", "HEAD~1")
+    def second_fails(root: Path, plan: TransitionPlan, **options: str) -> object:
+        plans.append(plan)
+        if len(plans) == 2 and failure == "moved-checkout":
+            git(repo, "switch", "--detach", "HEAD~1")
+        if len(plans) == 1 or failure == "moved-checkout":
+            return execute(root, plan, **options)
+        if failure == "after-the-move":
+            execute(root, plan, **options)
+        rejected = "git_effect_cas_rejected"
+        raise refusal(rejected, verdict=verdict)
 
-    with patch.object(retag, "record_attestations", record_then_move):
-        stopped = _applied(repo, TWO_TAGS, preview)
-    assert stopped["required_gaps"] == ["release_retag_refused:v1.1.0"], stopped
-    assert stopped["data"]["refused"] == {"v1.1.0": ["git_effect_plan_prestate_stale"]}
+    with patch.object(retag, "execute_git_effect", second_fails):
+        if failure == "moved-checkout":
+            stopped = _applied(repo, TWO_TAGS, preview)
+        else:
+            with pytest.raises(OutcomeError) as raised:
+                _applied(repo, TWO_TAGS, preview)
     assert git(repo, "rev-parse", "refs/tags/v1.0.0") != originals[0]
+    if failure != "moved-checkout":
+        assert raised.value.outcome.verdict == verdict
+        return
+    blocked = ("block", "blocked", ["release_retag_refused:v1.1.0"])
+    assert (stopped["verdict"], stopped["state"], stopped["required_gaps"]) == blocked, stopped
+    assert stopped["data"]["refused"] == {"v1.1.0": ["git_effect_plan_prestate_stale"]}
+    (receipt,) = [item["receipt"] for item in stopped["data"]["planned"].values()]
+    assert receipt in {item.id for item in read_attestation_set(repo)[1]}
     assert git(repo, "rev-parse", "refs/tags/v1.1.0") == originals[1]
 
 

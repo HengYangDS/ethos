@@ -32,6 +32,7 @@ from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_object import observe_git_object
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.adapters.repo.release import release_branch_policy
+from ethos.contracts.outcome import outcome_of
 from ethos.contracts.outcome import refused_gaps
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
@@ -41,6 +42,8 @@ from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+    from ethos.contracts.plan import TransitionPlan
 
 RETAG_PREDICATE = "release:mapped-retag"
 _SIGNATURE = "-----BEGIN SSH SIGNATURE-----"
@@ -100,29 +103,45 @@ def mapped_retag(
             gaps.append("release_retag_plan_digest_mismatch")
         if gaps or not apply:
             return _report(root, gaps, planned, refused, digest, originals=original_tags)
-        left = _apply_batch(root, planned, requests, asking=asking)
+        receipts, left = _apply_batch(root, planned, requests, asking=asking)
+        moved = {tag: {**planned[tag], "receipt": receipt} for tag, receipt in receipts.items()}
         gaps = [f"release_retag_refused:{tag}" for tag in left]
-        return _report(root, gaps, planned, left, digest, applied=True, originals=original_tags)
+        return _report(root, gaps, moved, left, digest, applied=True, originals=original_tags)
 
 
 def _apply_batch(
     root: Path, planned: dict[str, dict[str, str]], requests: Path, *, asking: str
-) -> dict[str, list[str]]:
-    """Move each planned tag in turn and return those left unmoved, each with its refusal's gaps.
+) -> tuple[dict[str, str], dict[str, list[str]]]:
+    """Move each planned tag in turn; return each moved tag's receipt and each tag left's gaps.
 
     Each moved tag records its receipt at once, so an interrupted batch leaves no re-created tag
-    without the receipt that publication reads. An effect that refuses, as a checkout moved since
-    the batch began does, stops the batch: every tag not yet moved is refused by its gaps.
+    without the receipt that publication reads. A refusal that leaves its tag where it stood, as
+    one does when the checkout moved since the batch began, stops the batch: that tag and every
+    later one are left with its gaps. Any other failure, one whose outcome is unknown or one
+    after the tag moved, propagates with its own verdict and observation.
     """
+    receipts: dict[str, str] = {}
     for index, (tag, item) in enumerate(planned.items()):
+        effect = GitEffect(
+            updates={
+                f"refs/tags/{tag}": GitRefUpdate(
+                    expected=item["expected"], desired=item["recreated"]
+                )
+            },
+            assertions={},
+        )
         try:
-            receipt = _apply_one(root, tag, item, asking=asking)
+            plan = _moved(root, effect, item, asking=asking)
         except ValueError as error:
-            return {name: list(refused_gaps(error)) for name in list(planned)[index:]}
+            unmoved = ref_head(root, f"refs/tags/{tag}", item["expected"]) == item["expected"]
+            if outcome_of(error).verdict != "block" or not unmoved:
+                raise
+            return receipts, {name: list(refused_gaps(error)) for name in list(planned)[index:]}
+        receipt = _receipt(tag, item, plan, effect)
         record_attestations(root, (receipt,))
         shutil.rmtree(requests / tag, ignore_errors=True)
-        item["receipt"] = receipt.id
-    return {}
+        receipts[tag] = receipt.id
+    return receipts, {}
 
 
 def mapped_retag_move(root: Path, *, ref: str, old: str, new: str) -> bool:
@@ -280,13 +299,10 @@ def _tag_parts(root: Path, oid: str) -> tuple[str, str, list[str]]:
     return tagger, body.split(_SIGNATURE, 1)[0], names
 
 
-def _apply_one(root: Path, tag: str, item: Mapping[str, str], *, asking: str) -> Attestation:
-    """Move the tag ref by exact CAS under its own ref intent, then issue the receipt."""
-    ref = f"refs/tags/{tag}"
-    effect = GitEffect(
-        updates={ref: GitRefUpdate(expected=item["expected"], desired=item["recreated"])},
-        assertions={},
-    )
+def _moved(
+    root: Path, effect: GitEffect, item: Mapping[str, str], *, asking: str
+) -> TransitionPlan:
+    """Move the tag ref by exact CAS under its own ref intent; return the plan that moved it."""
     actor = process_issuer()
     # The plan's pre-state is the asking checkout's head as the batch read it, which the effect
     # leaves where it stands: the tag's own expected value is in the effect, and its target is the
@@ -300,6 +316,13 @@ def _apply_one(root: Path, tag: str, item: Mapping[str, str], *, asking: str) ->
         values={"release_retag": dict(item), "root": root.as_posix()},
     )
     execute_git_effect(root, plan, issuer=actor)
+    return plan
+
+
+def _receipt(
+    tag: str, item: Mapping[str, str], plan: TransitionPlan, effect: GitEffect
+) -> Attestation:
+    """Issue the receipt that binds the re-created tag to its original and its mapping."""
     return Attestation.issue(
         {
             "schema_version": 2,
@@ -327,7 +350,7 @@ def _apply_one(root: Path, tag: str, item: Mapping[str, str], *, asking: str) ->
             "plan_digest": plan.digest,
             "policy_digest": plan.inputs.policy,
             "effect_digest": effect.digest(),
-            "evidence_refs": (f"git:local:{ref}:{item['recreated']}",),
+            "evidence_refs": (f"git:local:refs/tags/{tag}:{item['recreated']}",),
             "mints_authority": False,
         }
     )

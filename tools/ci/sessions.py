@@ -214,10 +214,13 @@ def release_journey(session: Session) -> None:
     parser.add_argument("--classes-only", action="store_true")
     options = parser.parse_args(tuple(session.posargs))
     previous = tuple(name.strip() for name in options.previous.split(",") if name.strip())
-    chosen = {"tag": options.tag, "previous": previous, "classes_only": options.classes_only}
-    if options.rehearse is not None:
-        chosen["assembly"] = options.rehearse
-    import_module("tools.ci.delivery.acceptance.journey").run(session, **chosen)
+    import_module("tools.ci.delivery.acceptance.journey").run(
+        session,
+        tag=options.tag,
+        previous=previous,
+        classes_only=options.classes_only,
+        assembly=options.rehearse,
+    )
 
 
 def host_conformance(session: Session) -> None:

@@ -248,53 +248,46 @@ changes evaluation or recovery; it is not introduced merely to label history.
 
 ## Git-Native Repository Substrate
 
-ETHOS uses Git trees, refs, exact heads and compare-and-swap updates, not a
-generic VCS abstraction. The release binding, `.ethos/release.toml`, maps
-physical names to release, accepted, candidate, authoring and proposal roles;
-dirty, foreign, unknown, unbound and stale resources remain observe-only until
-freshly admitted. A Lease stores only lane, holder, generation and expiry. Git,
-index, worktree, OpenSpec, proof and effect facts are re-observed rather than
-copied into it.
+ETHOS uses Git trees, refs, exact heads and compare-and-swap updates, not a generic VCS abstraction.
+The release binding, `.ethos/release.toml`, maps physical names to release, accepted, candidate,
+authoring and proposal roles; dirty, foreign, unknown, unbound and stale resources remain
+observe-only until freshly admitted. A Lease stores only lane, holder, generation and expiry. Git,
+index, worktree, OpenSpec, proof and effect facts are re-observed rather than copied into it.
 
-Destructive retirement first coordinates every actual writer through disposal,
-then reviews selected content and rechecks the exact preimage. A handoff, lock
-or empty process scan alone does not prove quiescence; drift or unknown liveness
-blocks. The protocol does not isolate uncooperative same-UID writers.
+Destructive retirement first coordinates every actual writer through disposal, then reviews selected
+content and rechecks the exact preimage. A handoff, lock or empty process scan alone does not prove
+quiescence; drift or unknown liveness blocks. The protocol does not isolate uncooperative same-UID
+writers.
 
 ### Lane, Review, And Integration Roles
 
-Authoring refs, named `work/*` by default, author; candidate integrates locally;
-proposal refs, named `proposal/*` by default, project a trusted object for
-review without becoming another lane. ETHOS protects only the accepted and
-release refs, named `dev` and `main` by default; adopters may rename refs but
-preserve the roles. Review admits exact objects and introduced commit ranges
-without requiring a candidate checkout, completed proof or early archive.
-Accepted and release destinations keep their separate obligations. Trusted prior
-policy judges an unaccepted target; detached CI observes without local Lease or
-authority.
+Authoring refs, named `work/*` by default, author; candidate integrates locally; proposal refs,
+named `proposal/*` by default, project a trusted object for review without becoming another lane.
+ETHOS protects only the accepted and release refs, named `dev` and `main` by default; adopters may
+rename refs but preserve the roles. Review admits exact objects and introduced commit ranges without
+requiring a candidate checkout, completed proof or early archive. Accepted and release destinations
+keep their separate obligations. Trusted prior policy judges an unaccepted target; detached CI
+observes without local Lease or authority.
 
-Developers use MR/PR review when they cannot update protected refs; maintainers
-may accept the reviewed object by exact CAS. A proposal retires after its object
-is accepted into the accepted ref and review closes, independently of a later
-release. An unabsorbed closed proposal retires while an owned Work Lane or its
-review's peer ref retains its object. Lease loss preserves Git content. One
-public reconciler uses fresh facts to continue, transfer, reacquire, preserve,
-absorb or retire owned, foreign, expired, missing and unbound lanes. Clean equal
-or ancestor lanes retire by deletion-only CAS only after checking ref, worktree,
-owner and unique content; dirty or ambiguous work remains preserved.
+Developers use MR/PR review when they cannot update protected refs; maintainers may accept the
+reviewed object by exact CAS. A proposal retires after its object is accepted into the accepted ref
+and review closes, independently of a later release. An unabsorbed closed proposal retires while an
+owned Work Lane or its review's peer ref retains its object. Lease loss preserves Git content. One
+public reconciler uses fresh facts to continue, transfer, reacquire, preserve, absorb or retire
+owned, foreign, expired, missing and unbound lanes. Clean equal or ancestor lanes retire by
+deletion-only CAS only after checking ref, worktree, owner and unique content; dirty or ambiguous
+work remains preserved.
 
-A separate clean topic may retire when another distinct local topic ref retains
-all its commits. An immutable receipt binds source, retained ref/OID, accepted
-OID, actor and target coordination; absent Lease need not be resurrected.
-Recovery rechecks objects within CAS. Candidate or protected refs cannot serve
-as retained topics or deletion targets. Reachability preserves history, not
-semantic acceptance; surviving unique meaning remains an obligation. This
-zero-product effect carries no Commitment or authoring authority.
+A separate clean topic may retire when another distinct local topic ref retains all its commits. An
+immutable receipt binds source, retained ref/OID, accepted OID, actor and target coordination;
+absent Lease need not be resurrected. Recovery rechecks objects within CAS. Candidate or protected
+refs cannot serve as retained topics or deletion targets. Reachability preserves history, not
+semantic acceptance; surviving unique meaning remains an obligation. This zero-product effect
+carries no Commitment or authoring authority.
 
-A zero-product Git DAG reconciliation may add a signed descendant only when
-its tree and compiled Commitment are unchanged and its additional parent is an
-observed accepted peer. Exact parents, tree, signature, actor and CAS are bound;
-no merge compatibility carrier is introduced.
+A zero-product Git DAG reconciliation may add a signed descendant only when its tree and compiled
+Commitment are unchanged and its additional parent is an observed accepted peer. Exact parents,
+tree, signature, actor and CAS are bound; no merge compatibility carrier is introduced.
 
 Cooperating lanes may integrate several contributions or a proved synthesis;
 competition may select one or none, and exploration may retain only negative

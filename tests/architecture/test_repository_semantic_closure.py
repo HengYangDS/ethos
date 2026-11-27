@@ -134,7 +134,7 @@ def _closure(
 def test_repository_audit_cannot_pass_when_semantic_closure_is_unknown(monkeypatch) -> None:
     """All legacy component passes cannot conceal an unproved closure."""
     gap = "semantic_carrier_unknown:reference:current/unreadable.toml:current/unreadable.toml"
-    unreadable = {
+    unreadable: dict[str, object] = {
         "relation": "carrier",
         "kind": "reference",
         "identity": "current/unreadable.toml",

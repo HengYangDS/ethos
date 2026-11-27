@@ -18,5 +18,7 @@
       repair mapped. Done when the apply under the preview's plan digest passes from the accepted
       head, each tag peels to its mapped commit, and the effect record's input and freshness name
       the accepted head.
-- [ ] 2.2 Measure the source budget on the patch with the product's budget report. Done when the
+- [x] 2.2 Measure the source budget on the patch with the product's budget report. Done when the
       report states product and tests and the verdict stays clean under the ceilings in force.
+      (The product's budget report at `6afdde8e0`: product 85,067 of 90,000, tests 114,996 of
+      115,000, tools 9,120; verdict pass.)

@@ -100,10 +100,15 @@
       read the three results against decision 9 and the candidate's acceptance cites them.
 - [ ] 4.5 Open the row for the kinds that the archived apply design left out, or record its
       deferral with an owner and a review date. Done when one of the two exists.
-- [ ] 4.6 Name each consumer that the cleanup keeps without reading it. The report lists a
+- [x] 4.6 Name each consumer that the cleanup keeps without reading it. The report lists a
       consumer only when it is absent; one that reads `unknown` (a path below a directory that
       may not be searched, a link that names nothing, a file left at the path) keeps its
       installation and appears under no name. Done when the cleanup's report and the preview of
       the release name such a consumer with the reason it was not read, and a case holds each of
       the three states. Found by the model review of the consumer reader's repair in
       `beta-11-head-move`.
+      (The cleanup's report and the release preview list `unread` consumers with their reason:
+      `not_a_directory` and `dangling_link` in
+      `test_a_consumer_whose_path_is_gone_keeps_its_record_and_installation` and
+      `test_the_preview_names_a_record_whose_consumer_it_could_not_read`, `unanswered` in
+      `test_a_place_the_host_cannot_look_at_is_unknown_and_is_never_planned`.)

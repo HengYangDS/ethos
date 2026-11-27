@@ -213,6 +213,8 @@ def release_journey(session: Session) -> None:
     parser.add_argument("--previous", default="")
     parser.add_argument("--classes-only", action="store_true")
     options = parser.parse_args(tuple(session.posargs))
+    if options.rehearse is not None and options.previous:
+        session.error("a rehearsal reads its predecessors from its head; --previous names a tag's")
     previous = tuple(name.strip() for name in options.previous.split(",") if name.strip())
     import_module("tools.ci.delivery.acceptance.journey").run(
         session,

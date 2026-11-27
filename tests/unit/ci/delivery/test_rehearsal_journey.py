@@ -14,6 +14,9 @@ import pytest
 import ethos.repository.release.pin as pin
 import tools.ci.delivery.acceptance.acquisition as acquisition
 import tools.ci.delivery.acceptance.journey as journey
+from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_tree
 from tools.ci import sessions
 
 if TYPE_CHECKING:
@@ -33,13 +36,15 @@ DIGEST, ELSE = (hashlib.sha256(body).hexdigest() for body in (b"archive", b"othe
 
 
 BUILT = "build/artifacts/native/0123/ethos-0.2.0b13.tar.gz"
+DECLARATION = f"ethos-{VERSION}.mise.toml"
 
 
-def _assembly(home: Path, listed: str = DIGEST) -> Path:
-    """Lay out what a journey leg downloads: its build leg's upload and the checksum file."""
+def _assembly(home: Path, listed: str = DIGEST, declared: str = DIGEST) -> Path:
+    """Lay out what a journey leg downloads: its build leg's upload, the checksums, the pin."""
     (home / BUILT).parent.mkdir(parents=True)
     (home / BUILT).write_bytes(b"archive")
     (home / "SHA256SUMS").write_text(f"{listed}  {ARCHIVE}\n{ELSE}  {OTHER}\n", encoding="utf-8")
+    (home / DECLARATION).write_text(f'checksum = "sha256:{declared}"\n', encoding="utf-8")
     return home
 
 
@@ -92,11 +97,13 @@ def test_a_matching_archive_enters_the_manifest_as_rehearsed(
     assert subject.archive.read_bytes() == b"archive"
     assert subject.archives == {PLATFORM: DIGEST, "macos-arm64": ELSE}
     assert (earlier.version, acquired["downloads"]) == ("0.2.0-beta.12", ["v0.2.0-beta.12"])
-    # The subject has no published pin and no attestation: neither is tried, and nothing says so.
+    # The subject has no published pin and no attestation: neither is tried, and no refusal is
+    # claimed for it.
     assert (acquired["pins"], acquired["refusals"]) == (["0.2.0-beta.12"], [])
     receipt = acquired["receipt"]
     listed = {"archive": ARCHIVE, "sha256": DIGEST, "class": "rehearsed"}
     assert (receipt["assets"][VERSION], receipt["attestation_verified"]) == (listed, None)
+    assert "refusals" not in receipt
 
 
 def test_the_recorded_predecessors_are_the_ones_acquired(
@@ -110,41 +117,52 @@ def test_the_recorded_predecessors_are_the_ones_acquired(
     assert acquired["receipt"]["previous"] == ["v0.2.0-beta.12", "v0.2.0-beta.11"]
 
 
-@pytest.mark.parametrize("fault", ["another-digest", "unlisted", "no-archive", "no-checksums"])
-def test_an_archive_the_checksum_file_does_not_list_is_refused_before_any_install(
+MISSING = {"no-archive": BUILT, "no-checksums": "SHA256SUMS", "no-declaration": DECLARATION}
+
+
+@pytest.mark.parametrize("fault", ["another-digest", "unlisted", "another-declaration", *MISSING])
+def test_an_archive_the_assembly_does_not_name_is_refused_before_any_install(
     tmp_path: Path, fault: str
 ) -> None:
-    """Only the digest that the assembly lists for the published name admits the archive."""
-    home = _assembly(tmp_path / "assembly", ELSE if fault == "another-digest" else DIGEST)
+    """Only the digest that the assembly lists and declares for the published name admits it."""
+    home = _assembly(
+        tmp_path / "assembly",
+        listed=ELSE if fault == "another-digest" else DIGEST,
+        declared=ELSE if fault == "another-declaration" else DIGEST,
+    )
     if fault == "unlisted":
         (home / "SHA256SUMS").write_text(f"{ELSE}  {OTHER}\n", encoding="utf-8")
-    elif fault != "another-digest":
-        (home / (BUILT if fault == "no-archive" else "SHA256SUMS")).unlink()
+    elif fault in MISSING:
+        (home / MISSING[fault]).unlink()
     admit = partial(acquisition.rehearsed_release, VERSION, home, platform=PLATFORM)
 
     with pytest.raises((ValueError, OSError)) as refused:
         admit(tmp_path / "work/assets" / VERSION)
 
     assert not (tmp_path / "work").exists()
-    if fault != "no-checksums":
+    if fault == "another-declaration":
+        assert str(refused.value) == f"release_journey_declaration_mismatch:{ARCHIVE}"
+    elif fault not in {"no-checksums", "no-declaration"}:
         assert str(refused.value) == f"release_journey_checksum_mismatch:{ARCHIVE}"
 
 
+RECORD = '\n[release.upgrade_from]\n"0.2.0-beta.12" = "attested-main"\n'
+
+
 @pytest.mark.parametrize(
-    ("recorded", "previous", "source"),
-    [
-        ({"0.2.0-beta.12": "attested-tag", "0.2.0-beta.11": "attested-tag"}, 2, "record"),
-        (None, 0, "changelog"),
-    ],
+    ("record", "previous", "source"), [(RECORD, 1, "record"), ("", 0, "changelog")]
 )
-def test_a_rehearsal_names_its_subject_and_its_predecessors_from_the_head(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    recorded: dict[str, str] | None,
-    previous: int,
-    source: str,
+def test_a_rehearsal_names_its_subject_and_its_predecessors_from_the_committed_head(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, record: str, previous: int, source: str
 ) -> None:
-    """The version is the head's own, and the receipt says where the predecessors came from."""
+    """The subject and its predecessors are the head's commit; the receipt names their source."""
+    repo = init_git_repo(tmp_path / "product")
+    binding = '[release]\nmirror = "independent"\n'
+    tree = {"VERSION": f"{VERSION}\n", "CHANGELOG.md": CHANGELOG}
+    write_tree(repo, {**tree, ".ethos/release.toml": binding + record})
+    commit_fixture(repo, "chore: declare the release")
+    edited = binding + RECORD.replace("0.2.0-beta.12", "0.2.0-beta.9")
+    write_tree(repo, {"VERSION": "0.2.0-beta.14\n", ".ethos/release.toml": edited})
     calls: list[dict[str, object]] = []
 
     def qualify(tag: str, **options: object) -> dict[str, object]:
@@ -152,7 +170,7 @@ def test_a_rehearsal_names_its_subject_and_its_predecessors_from_the_head(
         return {}
 
     monkeypatch.setattr(journey, "qualify", qualify)
-    monkeypatch.setattr(journey, "rehearsal_identity", lambda _root: (VERSION, recorded))
+    monkeypatch.setattr(journey, "ROOT", repo)
     monkeypatch.setattr(journey, "acceptance_observation", lambda *_a, **_k: nullcontext())
     session, evidence = Mock(), tmp_path / "journey.json"
     session.error.side_effect = AssertionError
@@ -161,7 +179,7 @@ def test_a_rehearsal_names_its_subject_and_its_predecessors_from_the_head(
 
     (call,) = calls
     assert (call["tag"], call["assembly"]) == (f"v{VERSION}", tmp_path / "assembly")
-    assert len(call["previous"]) == previous
+    assert call["previous"] == ("v0.2.0-beta.12",)[:previous]
     assert call["receipt"]["previous_source"] == source
 
 
@@ -175,6 +193,10 @@ def test_the_session_takes_a_tag_or_an_assembly_and_never_both() -> None:
             # Before Python 3.13 a missing required argument ends the parser's process.
             with pytest.raises((argparse.ArgumentError, SystemExit)):
                 sessions.release_journey(Mock(posargs=arguments))
+        named = Mock(posargs=["--rehearse", "x", "--previous", "v0.2.0-beta.11"])
+        named.error.side_effect = SystemExit
+        with pytest.raises(SystemExit):
+            sessions.release_journey(named)
 
     (call,) = calls
     assert str(call["assembly"]) == "build/release/rehearsal"

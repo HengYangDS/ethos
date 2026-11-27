@@ -152,7 +152,10 @@ let qualifyRun = "github.event_name == 'workflow_dispatch' && inputs.qualify_hea
 // the named commit, so its steps name the runner's own commit.
 let rehearsalRun = "github.event_name == 'workflow_dispatch' && inputs.rehearse_head != ''"
 let headMatches = "(inputs.qualify_head == '' || inputs.qualify_head == github.sha) && (inputs.rehearse_head == '' || inputs.rehearse_head == github.sha)"
-let rehearsalLeg = "\(rehearsalRun) && inputs.rehearse_head == github.sha"
+
+// A dispatch that also names a release, a journey, a scan or the supply image rehearses nothing,
+// so a rehearsal job never uploads an artifact name that a release job of the same run uploads.
+let rehearsalLeg = "\(regularRun) && \(rehearsalRun) && inputs.rehearse_head == github.sha"
 let rehearsalArguments = "--release --rehearse --expect-head ${{ github.sha }}"
 
 // The drift schedule runs every tier on the default branch. Saturday 19:00 UTC is provisional

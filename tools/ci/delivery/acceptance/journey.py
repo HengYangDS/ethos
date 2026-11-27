@@ -31,12 +31,10 @@ from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
 from ethos.adapters.repo.runtime.selection import require_installed_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
+from ethos.adapters.repo.upgrade_from import recorded_upgrade_from
 from ethos.adapters.toolchain.mise import mise_version
 from ethos.contracts.digest import file_sha256
-from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
-from ethos.repository.release.configuration import release_config_from_text
-from ethos.repository.release.predecessors import recorded
 from tools.ci.delivery.acceptance.acquisition import PRERELEASE
 from tools.ci.delivery.acceptance.acquisition import acquire
 from tools.ci.delivery.acceptance.acquisition import read_manifest
@@ -320,15 +318,17 @@ def qualify(
 
 
 def rehearsal_identity(root: Path) -> tuple[str, dict[str, str] | None]:
-    """Read what a rehearsal qualifies from its head: the version and the recorded predecessors.
+    """Read what a rehearsal qualifies from its head's commit: the version and the predecessors.
 
-    The version is the one the head's own release identity carries. The predecessors are the
-    releases of `[release.upgrade_from]` in the head's release binding, or None where the head
-    records none.
+    Both come from the committed head, so an edit in the working tree changes neither. The
+    predecessors are the releases of `[release.upgrade_from]` in the head's release binding, or
+    None where it records none; a record that its reader refuses stops the rehearsal by its gaps.
     """
     version = committed_release_version(root, "HEAD")["version"]
-    binding = (root / binding_path("release")).read_text(encoding="utf-8")
-    return version, recorded(release_config_from_text(binding))
+    names, gaps = recorded_upgrade_from(root, "HEAD")
+    if gaps:
+        raise ValueError(",".join(gaps))
+    return version, names
 
 
 def run(
@@ -346,12 +346,7 @@ def run(
     With `assembly` the subject is a rehearsal's own build of this head: the version and the
     predecessors come from the head, and the receipt says which source named the predecessors.
     """
-    source = ""
-    if assembly is not None:
-        version, names = rehearsal_identity(ROOT)
-        tag, previous = f"v{version}", tuple(f"v{name}" for name in names or ())
-        source = "record" if names else "changelog"
-    if PRERELEASE.fullmatch(tag) is None:
+    if assembly is None and PRERELEASE.fullmatch(tag) is None:
         session.error(f"release journey needs a published prerelease tag, not {tag!r}")
     host = mise_target()
     output = evidence if evidence is not None else EVIDENCE / f"journey-{host}.json"
@@ -360,10 +355,17 @@ def run(
     # `CI` reads as a runner, as the product's other readers of that input read it.
     venue = "ci" if os.environ.get("CI") else "local"
     payload: dict[str, object] = {"tag": tag, "platform": host, "venue": venue, "state": "failed"}
-    if source:
-        payload["previous_source"] = source
     failure: Exception | None = None
     try:
+        # A rehearsal reads its subject inside the receipt's reach, so a head that cannot name one
+        # still leaves a failed receipt.
+        if assembly is not None:
+            version, names = rehearsal_identity(ROOT)
+            tag, previous = f"v{version}", tuple(f"v{name}" for name in names or ())
+            payload |= {"tag": tag, "previous_source": "record" if names else "changelog"}
+            if PRERELEASE.fullmatch(tag) is None:
+                message = f"release journey needs a prerelease version, not {tag!r}"
+                raise ValueError(message)
         with acceptance_observation(events, head=tag, wheel_sha256=""):
             try:
                 if work.exists():

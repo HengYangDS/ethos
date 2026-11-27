@@ -545,7 +545,7 @@ jobs:
     name: rehearsal runtime ${{ matrix.host }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '' && inputs.rehearse_head == github.sha }}
+    if: ${{ !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '' && inputs.rehearse_head == github.sha }}
     continue-on-error: ${{ !matrix.required }}
     env:
       ETHOS_COMMIT_ALLOWED_SIGNERS: ${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}
@@ -787,7 +787,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: rehearsal-platforms
-    if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '' && inputs.rehearse_head == github.sha }}
+    if: ${{ !cancelled() && !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '' && inputs.rehearse_head == github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -816,7 +816,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
     needs: rehearsal-assets
-    if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '' && inputs.rehearse_head == github.sha && needs.rehearsal-assets.result == 'success' }}
+    if: ${{ !cancelled() && !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '' && inputs.rehearse_head == github.sha && needs.rehearsal-assets.result == 'success' }}
     permissions:
       contents: read
       attestations: read

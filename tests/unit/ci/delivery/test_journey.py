@@ -528,4 +528,6 @@ def test_the_session_passes_the_named_predecessors(
     monkeypatch.setattr(journey, "run", lambda _session, **options: calls.append(options))
     arguments = ["--tag", "v0.2.0-beta.2", "--previous", value, "--classes-only"]
     sessions.release_journey(Mock(posargs=arguments[: 4 + classes]))
-    assert calls == [{"tag": "v0.2.0-beta.2", "previous": expected, "classes_only": classes}]
+    assert calls == [
+        {"tag": "v0.2.0-beta.2", "previous": expected, "classes_only": classes, "assembly": None}
+    ]

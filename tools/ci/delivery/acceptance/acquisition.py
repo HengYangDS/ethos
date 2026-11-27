@@ -167,10 +167,7 @@ def download_release(
     if listed.get(name) != digest:
         message = f"release_journey_checksum_mismatch:{name}"
         raise ValueError(message)
-    text = (target / declaration).read_text(encoding="utf-8")
-    if f'checksum = "sha256:{digest}"' not in text:
-        message = f"release_journey_declaration_mismatch:{name}"
-        raise ValueError(message)
+    _require_declared(target / declaration, name, digest)
     verified = pin.release_class(version)
     # The signed tag names the source commit that the release's attestation must carry.
     peeled = f"refs/tags/{tag}^{{commit}}"
@@ -196,6 +193,13 @@ def download_release(
     return PublishedRelease(version, archive, digest, verified, _archives(version, listed))
 
 
+def _require_declared(declaration: Path, name: str, digest: str) -> None:
+    """Refuse an archive whose release's Mise declaration does not carry its digest."""
+    if f'checksum = "sha256:{digest}"' not in declaration.read_text(encoding="utf-8"):
+        message = f"release_journey_declaration_mismatch:{name}"
+        raise ValueError(message)
+
+
 def _listed(checksums: Path) -> dict[str, str]:
     """Read a checksum file: each listed name with its digest."""
     lines = checksums.read_text(encoding="utf-8").splitlines()
@@ -215,12 +219,13 @@ def _archives(version: str, listed: dict[str, str]) -> dict[str, str]:
 def rehearsed_release(
     version: str, assembly: Path, target: Path, *, platform: str
 ) -> PublishedRelease:
-    """Admit a rehearsal's own archive for this platform by the assembly's checksum file.
+    """Admit a rehearsal's own archive for this platform by the assembly's checks.
 
     The assembly is the directory that a journey leg downloads from its run: the build leg's
-    upload, which holds the archive under the name its build gave it, and the checksum file that
-    the run's assembler wrote. An archive is admitted only when its digest is the one that file
-    lists for the published name, and only then is it copied, under that name, into the journey's
+    upload, which holds the archive under the name its build gave it, and the checksum file and
+    the Mise declaration that the run's assembler wrote. An archive is admitted only when its
+    digest is the one that file lists for the published name and the one the declaration carries,
+    as for a published release, and only then is it copied, under that name, into the journey's
     work directory, where the manifest requires each archive to lie.
     """
     name = f"ethos-{version}-{platform}.tar.gz"
@@ -230,6 +235,7 @@ def rehearsed_release(
     if not built:
         message = f"release_journey_checksum_mismatch:{name}"
         raise ValueError(message)
+    _require_declared(assembly / f"ethos-{version}.mise.toml", name, digest)
     target.mkdir(parents=True)
     archive = Path(shutil.copy2(built[0], target / name))
     return PublishedRelease(version, archive, digest, REHEARSED, _archives(version, listed))
@@ -352,15 +358,17 @@ def prove_pins(
 
     Each rebound lock is tried right after the prerelease's install, from the lock as Mise wrote
     it. A rehearsed subject has no published pin, so only its predecessors are locked and no
-    rebound lock is tried. The installations are removed afterwards: qualification installs the
-    same verified bytes again, offline.
+    rebound lock is tried: its receipt carries no refusals at all, rather than an empty set that
+    reads as every case refused. The installations are removed afterwards: qualification installs
+    the same verified bytes again, offline.
     """
     locks: dict[str, object] = {}
-    refusals: dict[str, str] = {}
-    receipt |= {"locks": locks, "refusals": refusals}
+    receipt["locks"] = locks
     subject, *earlier = releases
     install = partial(install_pin, mise=mise, environment=environment, locks=locks, token=token)
     if subject.verified != REHEARSED:
+        refusals: dict[str, str] = {}
+        receipt["refusals"] = refusals
         platforms = tuple(subject.archives) if platform == _FULL_LOCK_LEG else (platform,)
         tool = install(subject, work / "pins" / subject.version, platforms=platforms, seed=_SEED)
         prove_refusals(

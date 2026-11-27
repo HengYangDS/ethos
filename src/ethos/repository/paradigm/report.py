@@ -542,11 +542,14 @@ def _changelog_gaps(conventions: ReleaseConventions, text: str | None) -> Iterat
 def _expected_settings(formatter: FormatterBinding, declared: object) -> dict[str, object]:
     """The fixed settings, and each declared key at its own value or, without one, its default.
 
-    A value of another kind than the default is no declaration, so its gap and repair stay.
+    A value of another kind than the default, or an empty text, is no declaration, so its gap and
+    repair stay. The kind is compared exactly, so a boolean is not taken for a number.
     """
     own = {key: _declared_setting(declared, key) for key in formatter.declared}
     kept = {
-        key: value for key, value in own.items() if isinstance(value, type(formatter.declared[key]))
+        key: value
+        for key, value in own.items()
+        if type(value) is type(formatter.declared[key]) and value != ""
     }
     return {**formatter.settings, **formatter.declared, **kept}
 

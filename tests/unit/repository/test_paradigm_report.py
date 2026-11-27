@@ -45,6 +45,7 @@ def test_conforming_repository_passes_with_product_owned_layout(tmp_path: Path) 
         (">=3.14", '"py314"', []),
         (">=3.12+local", '"py312"', ["repository_paradigm_module_floor:pyproject.toml"]),
         (">=3.12", "false", [f"repository_paradigm_formatter_setting:{_RUFF}:target-version"]),
+        (">=3.12", '""', [f"repository_paradigm_formatter_setting:{_RUFF}:target-version"]),
     ],
 )
 def test_a_repository_declares_its_own_python_version(
@@ -107,6 +108,16 @@ _CARRIER_GAPS = {
     ),
     "floor": (
         {"pyproject.toml": '[project]\nname = "sample"\nrequires-python = ">=next"\n'},
+        "repository_paradigm_module_floor:pyproject.toml",
+        "one lower bound >= a version",
+    ),
+    "floor-absent": (
+        {"pyproject.toml": '[project]\nname = "sample"\n'},
+        "repository_paradigm_module_floor:pyproject.toml",
+        "one lower bound >= a version",
+    ),
+    "floor-twice": (
+        {"pyproject.toml": '[project]\nname = "sample"\nrequires-python = ">=3.11,>=3.12"\n'},
         "repository_paradigm_module_floor:pyproject.toml",
         "one lower bound >= a version",
     ),

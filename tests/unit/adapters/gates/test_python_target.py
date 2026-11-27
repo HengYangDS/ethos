@@ -24,6 +24,7 @@ from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_tree
 from tests.support.proof import declare_quality_profile
 from tests.support.proof import run_quality_proof
 
@@ -54,8 +55,7 @@ def test_the_carrier_target_settles_a_render_only_the_shipped_target_disagrees_o
     repo = init_git_repo(tmp_path / "repo")
     base = tmp_path / "base.toml"
     base.write_text(_PY314)
-    (repo / _CARRIER).parent.mkdir(parents=True, exist_ok=True)
-    (repo / _CARRIER).write_text(carrier.format(base=base))
+    write_tree(repo, {_CARRIER: carrier.format(base=base.as_posix())})
     source = _EXCEPT.format("(ValueError, TypeError)").encode()
     if expected == _CONFLICT:
         with pytest.raises(ValueError, match=_CONFLICT):

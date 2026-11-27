@@ -19,6 +19,7 @@ from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.hook.protocol import execute_hook
 from ethos.contracts.proof.plan import PROOF_PREDICATES
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.signature import repair_fixture_history
 from tests.support.signature import signature_repository
@@ -96,6 +97,95 @@ def test_a_pruned_tag_is_recreated_from_the_repair_bundle(tmp_path: Path) -> Non
         old,
     )
     assert body["mapping_attestation_id"]
+
+
+def test_a_tag_behind_the_checked_out_head_is_recreated(tmp_path: Path) -> None:
+    """The tag's mapped commit is an ancestor of the checkout's head, like every tag but the newest.
+
+    The effect moves one tag ref by exact compare-and-swap; the checkout it is asked from stays
+    where it is and is the plan's pre-state.
+    """
+    repo, _old, replacement, original, _root = _repaired_with_tags(tmp_path)
+    later = commit_fixture_file(repo, "later.txt", "later\n", "docs: add a later file")
+    assert later != replacement
+    preview = retag.mapped_retag(repo, tags=("v1.0.0",))
+    assert preview["verdict"] == "pass", preview
+    applied = retag.mapped_retag(
+        repo,
+        tags=("v1.0.0",),
+        apply=True,
+        authorized=True,
+        expect_plan_digest=preview["data"]["plan_digest"],
+    )
+    assert (applied["verdict"], applied["state"]) == ("pass", "retagged"), applied
+    assert git(repo, "rev-parse", "refs/tags/v1.0.0") != original
+    assert git(repo, "rev-parse", "refs/tags/v1.0.0^{}") == replacement
+    assert git(repo, "rev-parse", "HEAD") == later
+
+
+def test_two_tags_on_different_commits_are_recreated_in_one_run(tmp_path: Path) -> None:
+    """One run re-creates the tag at the checkout's head and one behind it under one plan digest."""
+    repo, old, _candidate = signature_repository(tmp_path)
+    second = commit_fixture_file(repo, "second.txt", "second\n", "docs: add a second file")
+    names = ("v1.0.0", "v1.1.0")
+    for name, target in zip(names, (old, second), strict=True):
+        git(repo, "tag", "-s", "-m", f"Release {name}", name, target)
+    originals = [git(repo, "rev-parse", f"refs/tags/{name}") for name in names]
+    head = repair_fixture_history(
+        repo,
+        tmp_path / "original.bundle",
+        corrections={old: {"resign": True}},
+        refs=("refs/heads/dev", *(f"refs/tags/{name}" for name in names)),
+    )
+    preview = retag.mapped_retag(repo, tags=names)
+    assert preview["verdict"] == "pass", preview
+    applied = retag.mapped_retag(
+        repo,
+        tags=names,
+        apply=True,
+        authorized=True,
+        expect_plan_digest=preview["data"]["plan_digest"],
+    )
+    assert (applied["verdict"], applied["state"]) == ("pass", "retagged"), applied
+    assert git(repo, "rev-parse", "refs/tags/v1.0.0^{}") == git(repo, "rev-parse", f"{head}~1")
+    assert git(repo, "rev-parse", "refs/tags/v1.1.0^{}") == head
+    assert [git(repo, "rev-parse", f"refs/tags/{name}") for name in names] != originals
+    assert all(git(repo, "verify-tag", f"refs/tags/{name}") == "" for name in names)
+
+
+@pytest.mark.parametrize("place", ["unborn", "lane", "detached-elsewhere", "detached-at-tag"])
+def test_a_retag_is_asked_from_the_repaired_line(tmp_path: Path, place: str) -> None:
+    """A checkout that is neither at the tag's commit nor at the accepted head is refused by name.
+
+    The preview refuses as the apply would, and no tag moves; the tag's own commit still serves.
+    """
+    repo, old, replacement, original, _root = _repaired_with_tags(tmp_path)
+    commit_fixture_file(repo, "later.txt", "later\n", "docs: add a later file")
+    if place == "unborn":
+        git(repo, "checkout", "--orphan", "empty")
+    elif place == "lane":
+        git(repo, "switch", "-c", "work/elsewhere")
+        commit_fixture_file(repo, "lane.txt", "lane\n", "docs: add a lane file")
+    elif place == "detached-elsewhere":
+        git(repo, "switch", "--detach", old)
+    else:
+        git(repo, "switch", "--detach", replacement)
+    preview = retag.mapped_retag(repo, tags=("v1.0.0",))
+    if place == "detached-at-tag":
+        assert (preview["verdict"], preview["state"]) == ("pass", "ready_to_retag"), preview
+        return
+    assert preview["verdict"] == "block", preview
+    assert preview["data"]["refused"] == {"v1.0.0": ["release_retag_checkout_unrelated"]}
+    applied = retag.mapped_retag(
+        repo,
+        tags=("v1.0.0",),
+        apply=True,
+        authorized=True,
+        expect_plan_digest=preview["data"]["plan_digest"],
+    )
+    assert applied["verdict"] == "block", applied
+    assert applied["data"]["refused"] == {"v1.0.0": ["release_retag_checkout_unrelated"]}
+    assert git(repo, "rev-parse", "refs/tags/v1.0.0") == original
 
 
 @pytest.mark.parametrize(

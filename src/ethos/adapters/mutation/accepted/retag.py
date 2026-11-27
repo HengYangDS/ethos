@@ -22,6 +22,7 @@ from ethos.adapters.repo.commit.creation import create_signed_tag
 from ethos.adapters.repo.commit.signature import RESULT
 from ethos.adapters.repo.commit.signature import repaired_object_provenance
 from ethos.adapters.repo.commit.signature import signature_record_coordinates
+from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
@@ -124,6 +125,8 @@ def _plan_one(
     item, gaps = _resolve(root, tag, original)
     if gaps:
         return {}, gaps
+    if not _asked_from_its_line(root, item["mapped_target"]):
+        return {}, ["release_retag_checkout_unrelated"]
     try:
         recreated = create_signed_tag(
             root,
@@ -174,6 +177,20 @@ def _resolve(
         "tagger": tagger,
         "message": message,
     }, []
+
+
+def _asked_from_its_line(root: Path, mapped: str) -> bool:
+    """Whether the asking checkout stands at the mapped commit, or at the accepted head above it.
+
+    The effect's plan states the asking checkout as its pre-state, so the checkout is one of the
+    two places that the repaired line itself offers; a Work Lane's head is neither.
+    """
+    head = current_tracked_head(root)
+    if head == mapped:
+        return True
+    if not head or head != ref_head(root, release_branch_policy(root).accepted_branch):
+        return False
+    return run_git(root, "merge-base", "--is-ancestor", mapped, head, check=False).returncode == 0
 
 
 def _restore_original(root: Path, original: str) -> None:
@@ -249,11 +266,14 @@ def _apply_one(root: Path, tag: str, item: Mapping[str, str]) -> Attestation:
         assertions={},
     )
     actor = process_issuer()
+    # The plan's pre-state is the checkout that asks, which the effect leaves where it stands: the
+    # tag's own expected value is in the effect, and its target is the re-created object's. A
+    # checkout with no commit states the mapped commit, which the pre-state check then refuses.
     plan = compile_observed_git_effect(
         root,
         None,
         effect,
-        head=item["mapped_target"],
+        head=current_tracked_head(root) or item["mapped_target"],
         policy={"operation": "release.retag", "actor": actor},
         values={"release_retag": dict(item), "root": root.as_posix()},
     )

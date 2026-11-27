@@ -111,8 +111,9 @@ def test_the_fixture_adopter_is_built_and_signed_inside_the_fresh_environment(
     built: list[Path] = []
     upgrade = journey.runtime_acceptance
     monkeypatch.setattr(
-        upgrade, "prove_retained_upgrade", lambda _s, repo, **_k: built.append(repo)
+        upgrade, "prove_retained_upgrade", lambda _s, repo, **_k: built.append(repo) or {}
     )
+    monkeypatch.setattr(journey, "prove_rollback_after_repair", lambda _repo, **_k: {})
     with host_environment.hermetic_environment(tmp_path / "environment", EXECUTABLES) as fresh:
         journey.prove_upgrade(None, None, tmp_path / "store", environment=fresh)
         signed = run_native("git", "log", "--format=%G?", cwd=built[0], env=fresh)

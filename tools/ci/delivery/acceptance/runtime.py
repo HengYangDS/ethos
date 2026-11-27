@@ -441,7 +441,7 @@ def prove_retained_upgrade(
         },
         "interruption_recovery": "not_qualified",
         "live_consumer_safe_uninstall": "not_qualified",
-        # The journey's rollback runs before the declaration repair; no leg yet refuses one after.
+        # This rollback runs before the declaration repair; the journey asks the one after it.
         "rollback_after_declaration_repair": "not_qualified",
     }
 

@@ -33,6 +33,7 @@ from tests.unit.cli.land.publication.support import release_cli
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.adapters.mutation.accepted.retag import RetagReport
     from ethos.contracts.semantic import Attestation
 
 
@@ -58,6 +59,14 @@ def _tag_body(repo: Path, oid: str) -> tuple[list[str], str]:
     header, _, body = raw.partition("\n\n")
     message = body.split("-----BEGIN SSH SIGNATURE-----", 1)[0]
     return [line for line in header.splitlines() if not line.startswith("object ")], message
+
+
+def _applied(repo: Path, tags: tuple[str, ...], preview: RetagReport) -> RetagReport:
+    """Apply what the preview planned, under its plan digest."""
+    digest = preview["data"]["plan_digest"]
+    return retag.mapped_retag(
+        repo, tags=tags, apply=True, authorized=True, expect_plan_digest=digest
+    )
 
 
 def test_a_pruned_tag_is_recreated_from_the_repair_bundle(tmp_path: Path) -> None:
@@ -128,13 +137,7 @@ def test_two_tags_on_different_commits_are_recreated_in_one_run(tmp_path: Path) 
     later = commit_fixture_file(repo, "later.txt", "later\n", "docs: add a later file")
     preview = retag.mapped_retag(repo, tags=TWO_TAGS)
     assert preview["verdict"] == "pass", preview
-    applied = retag.mapped_retag(
-        repo,
-        tags=TWO_TAGS,
-        apply=True,
-        authorized=True,
-        expect_plan_digest=preview["data"]["plan_digest"],
-    )
+    applied = _applied(repo, TWO_TAGS, preview)
     assert (applied["verdict"], applied["state"]) == ("pass", "retagged"), applied
     assert git(repo, "rev-parse", "refs/tags/v1.0.0^{}") == git(repo, "rev-parse", f"{head}~1")
     assert git(repo, "rev-parse", "refs/tags/v1.1.0^{}") == head
@@ -154,13 +157,7 @@ def test_a_checkout_that_moves_during_a_batch_stops_the_next_tag(tmp_path: Path)
         git(repo, "switch", "--detach", "HEAD~1")
 
     with patch.object(retag, "record_attestations", record_then_move):
-        stopped = retag.mapped_retag(
-            repo,
-            tags=TWO_TAGS,
-            apply=True,
-            authorized=True,
-            expect_plan_digest=preview["data"]["plan_digest"],
-        )
+        stopped = _applied(repo, TWO_TAGS, preview)
     assert stopped["required_gaps"] == ["release_retag_refused:v1.1.0"], stopped
     assert stopped["data"]["refused"] == {"v1.1.0": ["git_effect_plan_prestate_stale"]}
     assert git(repo, "rev-parse", "refs/tags/v1.0.0") != originals[0]
@@ -190,13 +187,7 @@ def test_a_retag_is_asked_from_the_repaired_line(tmp_path: Path, place: str) -> 
         return
     assert preview["verdict"] == "block", preview
     assert preview["data"]["refused"] == {"v1.0.0": ["release_retag_checkout_unrelated"]}
-    applied = retag.mapped_retag(
-        repo,
-        tags=("v1.0.0",),
-        apply=True,
-        authorized=True,
-        expect_plan_digest=preview["data"]["plan_digest"],
-    )
+    applied = _applied(repo, ("v1.0.0",), preview)
     assert applied["verdict"] == "block", applied
     assert applied["data"]["refused"] == {"v1.0.0": ["release_retag_checkout_unrelated"]}
     assert git(repo, "rev-parse", "refs/tags/v1.0.0") == original
@@ -306,15 +297,12 @@ def test_a_recreated_tag_publishes_on_its_original_qualification(tmp_path: Path)
     replacement = git(repo, "rev-parse", "HEAD")
     preview = retag.mapped_retag(repo, tags=("v1.2.3",))
     assert preview["verdict"] == "pass", preview
-    digest = preview["data"]["plan_digest"]
     planned = preview["data"]["planned"]["v1.2.3"]["recreated"]
     # The hook takes only the planned move to its intent; any other move stays immutable.
     assert _prepared(repo, original, planned) == ["release_ref_move_no_ref_intent"]
     assert _prepared(repo, original, head) != ["release_ref_move_no_ref_intent"]
     assert _prepared(repo, planned, original) != ["release_ref_move_no_ref_intent"]
-    applied = retag.mapped_retag(
-        repo, tags=("v1.2.3",), apply=True, authorized=True, expect_plan_digest=digest
-    )
+    applied = _applied(repo, ("v1.2.3",), preview)
     assert applied["verdict"] == "pass", applied
     assert git(repo, "rev-parse", "refs/tags/v1.2.3^{}") == replacement != head
     proofs = {i.subject for i in read_attestation_set(repo)[1] if i.predicate in PROOF_PREDICATES}

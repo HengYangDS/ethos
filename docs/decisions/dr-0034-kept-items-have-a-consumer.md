@@ -7,6 +7,7 @@ decision_status: accepted
 date: 2026-11-21
 relations:
   current_owner: ../../openspec/specs/repository-governance/spec.md
+  updated_by: DR-0037
 ---
 
 # DR-0034: A Kept Item Has a Consumer and an Exit, and Five Kept Refs Leave
@@ -43,7 +44,8 @@ corrected need not be kept, once that is established before the deletion (2026-1
   recorded repair from the commits before it; they leave when the product no longer reads them.
 - **Seven kept refs are not decided here**: the three of 2026-07-10 and four snapshots
   (`candidate-legacy-proof`, `cutover-hardening`, `foreign-dirty`, `successor`). Each holds one
-  commit whose content the accepted history lacks.
+  commit whose content the accepted history lacks. (Added to by
+  [DR-0037](dr-0037-seven-kept-refs-leave.md).)
 
 ## Alternatives Rejected
 

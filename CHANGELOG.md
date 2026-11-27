@@ -12,6 +12,45 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Added
+
+- The hosted workflow rehearses a release before its tag. A dispatch with `rehearse_head` set to
+  the ref's head, whose version has no tag yet, builds every release platform from that head
+  under the release's identity, assembles the assets in a job that cannot publish, and runs the
+  adopter journey on that assembly on Linux x64, Linux ARM64 and macOS ARM64, with the predecessors
+  that `[release.upgrade_from]` records or, where the head records none, the previous published
+  release. The job `release rehearsal` gives the verdict and fails for a dispatch at another
+  commit. A rehearsal publishes, tags and lands nothing. `nox -s release_journey` takes
+  `--rehearse <directory>` in place of `--tag`: the subject is the build leg's archive, admitted
+  only by the digest that the run's checksum file lists for its published name, and its class in
+  the journey's receipt is `rehearsed`.
+
+### Changed
+
+- Each governed repository declares its own Python version. The paradigm no longer fixes 3.12: a
+  `pyproject.toml` declares its lower bound as any one `>=` clause of `requires-python` that names
+  a version, and the Ruff carrier declares a `target-version` of its own, still repaired with
+  `py312` while absent. When the shipped and the repository's Ruff settings render a Python file
+  differently, the format check renders it again at the carrier's target and accepts it when the
+  two then agree. Nothing that passed before is refused.
+- The CI model that adopters render their workflows from pins `jdx/mise-action` v5.3.0 (was
+  v5.2.7). The inputs the model sets, `version`, `install` and `cache`, keep their meaning, and the
+  action still runs on Node 24; v5.3.0 adds the input `mise_env`, which the model does not set. A
+  repository whose GitHub workflow is a projection of the model keeps its old file until it
+  regenerates it: in the lane that binds this release, `ethos lane project --json` previews the
+  one-line patch and `ethos lane project --patch <file> --apply --authorize --expect-head <head>`
+  writes it; until then `ethos lane project --check` refuses the drift.
+- ETHOS's own tree requires Mise 2026.11.14 (was 2026.11.9) and holds its three resolvers to a
+  24-hour release age: Mise's `minimum_release_age`, uv's `exclude-newer` and, through the
+  environment Mise gives each command, npm's `min-release-age`. A developer's own `~/.npmrc` is
+  still read. The packaged product reads none of this for a governed repository, whose own Mise
+  configuration is unchanged.
+- This repository's audit policy no longer accepts its two picomatch copies, the 4.0.5 that npm
+  12.2.3 bundles and the 2.3.2 that markdownlint-cli2 reaches: GHSA-fc5q-39xc-vjpf, the advisory
+  they answered, was withdrawn, and the native audit no longer reports it. The acceptances of the
+  glob 13.0.6 and minimatch 10.2.5 that npm bundles, which ended with 2026-12-02, now end with
+  2026-12-16: npm 12.2.3, the registry's latest, still bundles them.
+
 ## [0.2.0-beta.12] - 2026-11-28
 
 ### Added
@@ -64,7 +103,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
   accepted and has no effect, a known defect of this release. A repository at a scanned root that
   names an installation is recorded as its consumer first, so a moved repository keeps what it
   selects. This closes the known open defect of 0.2.0-beta.11 that no command releases an absent
-  consumer. Without the switch the command plans and applies what it did.
+  consumer. Without the switch the command plans and applies what it did. A record whose consumer
+  path is neither a directory nor absent stays, and the preview names it in `data.unread` with the
+  reason: `unanswered` for a place the host does not let it look at, `dangling_link`, or
+  `not_a_directory`. The cleanup of `ethos hook install` names such a consumer in `unread` too,
+  and one whose selection it could not read as `selection_unread`.
 - `ethos prove --execute` reports what its gates left in the lane as `data.footprint`: the files
   and bytes that appeared or changed under the evidence and artifact homes of the artifact
   topology, the new names under `build/runtime/work`, and each new nontracked root, read before

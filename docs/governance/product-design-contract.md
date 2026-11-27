@@ -22,6 +22,10 @@ context and capability composition, collaboration and execution, verification an
 outcomes, feedback, learning and exit. ETHOS owns, once, what governed repositories share, so each
 repository carries only its own purpose.
 
+Rules bind roles. Legislator, author, verifier and approver are roles that a person, an agent or a
+team may hold. No rule asks which kind holds a role; a record states each role's holder as recorded,
+or that none is. Keeping author and approver apart is a target.
+
 A proof-carrying repository change compiler and transaction protocol forms its small trust kernel.
 It compiles accepted intent and fresh observations into a bounded transition, rechecks preconditions
 at effect time, and attests what was observed, decided and effected. ETHOS composes replaceable
@@ -245,11 +249,12 @@ changes evaluation or recovery; it is not introduced merely to label history.
 ## Git-Native Repository Substrate
 
 ETHOS uses Git trees, refs, exact heads and compare-and-swap updates, not a
-generic VCS abstraction. Profiles map physical names to release, accepted,
-candidate, authoring and proposal roles; dirty, foreign, unknown, unbound and
-stale resources remain observe-only until freshly admitted. A Lease stores only
-lane, holder, generation and expiry. Git, index, worktree, OpenSpec, proof and
-effect facts are re-observed rather than copied into it.
+generic VCS abstraction. The release binding, `.ethos/release.toml`, maps
+physical names to release, accepted, candidate, authoring and proposal roles;
+dirty, foreign, unknown, unbound and stale resources remain observe-only until
+freshly admitted. A Lease stores only lane, holder, generation and expiry. Git,
+index, worktree, OpenSpec, proof and effect facts are re-observed rather than
+copied into it.
 
 Destructive retirement first coordinates every actual writer through disposal,
 then reviews selected content and rechecks the exact preimage. A handoff, lock
@@ -258,22 +263,24 @@ blocks. The protocol does not isolate uncooperative same-UID writers.
 
 ### Lane, Review, And Integration Roles
 
-`work/*` authors; candidate integrates locally; `proposal/*` projects a trusted
-object for review without becoming another lane. ETHOS protects only accepted
-`dev` and release `main`; adopters may rename refs but preserve the roles.
-Review admits exact objects and introduced commit ranges without requiring a
-candidate checkout, completed proof or early archive. Accepted and release
-destinations keep their separate obligations. Trusted prior policy judges an
-unaccepted target; detached CI observes without local Lease or authority.
+Authoring refs, named `work/*` by default, author; candidate integrates locally;
+proposal refs, named `proposal/*` by default, project a trusted object for
+review without becoming another lane. ETHOS protects only the accepted and
+release refs, named `dev` and `main` by default; adopters may rename refs but
+preserve the roles. Review admits exact objects and introduced commit ranges
+without requiring a candidate checkout, completed proof or early archive.
+Accepted and release destinations keep their separate obligations. Trusted prior
+policy judges an unaccepted target; detached CI observes without local Lease or
+authority.
 
 Developers use MR/PR review when they cannot update protected refs; maintainers
 may accept the reviewed object by exact CAS. A proposal retires after its object
-is accepted into `dev` and review closes, independently of later `main` release.
-An unabsorbed closed proposal retires while an owned Work Lane or its review's
-peer ref retains its object. Lease loss preserves Git content. One public
-reconciler uses fresh facts to continue, transfer, reacquire, preserve, absorb
-or retire owned, foreign, expired, missing and unbound lanes. Clean equal or
-ancestor lanes retire by deletion-only CAS only after checking ref, worktree,
+is accepted into the accepted ref and review closes, independently of a later
+release. An unabsorbed closed proposal retires while an owned Work Lane or its
+review's peer ref retains its object. Lease loss preserves Git content. One
+public reconciler uses fresh facts to continue, transfer, reacquire, preserve,
+absorb or retire owned, foreign, expired, missing and unbound lanes. Clean equal
+or ancestor lanes retire by deletion-only CAS only after checking ref, worktree,
 owner and unique content; dirty or ambiguous work remains preserved.
 
 A separate clean topic may retire when another distinct local topic ref retains
@@ -594,7 +601,8 @@ their rendered dashboards, indexes, and command output remain projections.
 7. Change relations and experiments derive from existing carriers, not new stores.
 8. Lease owns lane-holder coordination; Git and proof facts are observed afresh.
 9. Local Git owns objects; each declared remote receives the same OIDs or reports its state.
-10. Work, candidate, proposal, dev and main stay distinct; proposal retires after dev, not main.
+10. Work, candidate, proposal, accepted and release stay distinct; proposal retires after accepted,
+    not release.
 11. Runtime activation, state migration, hooks and rollback form one immutable transaction.
 12. Docs, evidence, config, temporary roots and modules need owners, consumers and lifecycles.
 13. Each recovered obligation is accepted, superseded, pending verification or rejected.

@@ -45,6 +45,11 @@ name: ETHOS CI
         required: false
         type: string
         default: ""
+      rehearse_head:
+        description: Rehearse the release of this exact commit, the head of the dispatching ref, before its tag
+        required: false
+        type: string
+        default: ""
       windows_legs:
         description: Add the Windows host conformance legs to this run
         required: false
@@ -65,7 +70,7 @@ jobs:
     name: suite linux-x64 / Python 3.12
     runs-on: ubuntu-latest
     timeout-minutes: 130
-    if: ${{ (!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha)) && ((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || github.event_name == 'schedule') }}
+    if: ${{ (!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && ((inputs.qualify_head == '' || inputs.qualify_head == github.sha) && (inputs.rehearse_head == '' || inputs.rehearse_head == github.sha))) && ((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || (github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '') || github.event_name == 'schedule') }}
     env:
       ETHOS_COMMIT_ALLOWED_SIGNERS: ${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}
       UV_PYTHON_INSTALL_DIR: ${{ github.workspace }}/build/runtime/python
@@ -117,7 +122,7 @@ jobs:
     name: suite linux-x64 / Python 3.13
     runs-on: ubuntu-latest
     timeout-minutes: 130
-    if: ${{ (!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha)) && ((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || github.event_name == 'schedule') }}
+    if: ${{ (!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && ((inputs.qualify_head == '' || inputs.qualify_head == github.sha) && (inputs.rehearse_head == '' || inputs.rehearse_head == github.sha))) && ((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || (github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '') || github.event_name == 'schedule') }}
     env:
       ETHOS_COMMIT_ALLOWED_SIGNERS: ${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}
       UV_PYTHON_INSTALL_DIR: ${{ github.workspace }}/build/runtime/python
@@ -170,7 +175,7 @@ jobs:
     name: suite windows-x64 / Python 3.14
     runs-on: windows-latest
     timeout-minutes: 130
-    if: ${{ (!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha)) && ((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || github.event_name == 'schedule') }}
+    if: ${{ (!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && ((inputs.qualify_head == '' || inputs.qualify_head == github.sha) && (inputs.rehearse_head == '' || inputs.rehearse_head == github.sha))) && ((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || (github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '') || github.event_name == 'schedule') }}
     env:
       ETHOS_COMMIT_ALLOWED_SIGNERS: ${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}
       UV_PYTHON_INSTALL_DIR: ${{ github.workspace }}/build/runtime/python
@@ -287,14 +292,14 @@ jobs:
   host-conformance:
     name: ${{ matrix.platform }} / Python ${{ matrix.python }}
     runs-on: ${{ matrix.runner }}
-    if: ${{ !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha) }}
+    if: ${{ !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && ((inputs.qualify_head == '' || inputs.qualify_head == github.sha) && (inputs.rehearse_head == '' || inputs.rehearse_head == github.sha)) }}
     timeout-minutes: ${{ matrix.timeout }}
     env:
       UV_PYTHON_INSTALL_DIR: ${{ github.workspace }}/build/runtime/python
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || github.event_name == 'schedule') && '[{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.12","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.13","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.14","timeout":35},{"platform":"macos-arm64","runner":"macos-latest","python":"3.12","timeout":35},{"platform":"macos-arm64","runner":"macos-latest","python":"3.13","timeout":35},{"platform":"macos-arm64","runner":"macos-latest","python":"3.14","timeout":35},{"platform":"windows-x64","runner":"windows-latest","python":"3.12","timeout":70},{"platform":"windows-x64","runner":"windows-latest","python":"3.13","timeout":70},{"platform":"windows-x64","runner":"windows-latest","python":"3.14","timeout":70},{"platform":"windows-arm64","runner":"windows-11-arm","python":"cpython-3.14-windows-x86_64-none","timeout":105}]' || inputs.windows_legs && '[{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.12","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.13","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.14","timeout":35},{"platform":"macos-arm64","runner":"macos-latest","python":"3.12","timeout":35},{"platform":"windows-x64","runner":"windows-latest","python":"3.12","timeout":70},{"platform":"windows-x64","runner":"windows-latest","python":"3.13","timeout":70},{"platform":"windows-x64","runner":"windows-latest","python":"3.14","timeout":70},{"platform":"windows-arm64","runner":"windows-11-arm","python":"cpython-3.14-windows-x86_64-none","timeout":105}]' || '[{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.12","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.13","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.14","timeout":35},{"platform":"macos-arm64","runner":"macos-latest","python":"3.12","timeout":35}]') }}
+        include: ${{ fromJSON(((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || (github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '') || github.event_name == 'schedule') && '[{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.12","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.13","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.14","timeout":35},{"platform":"macos-arm64","runner":"macos-latest","python":"3.12","timeout":35},{"platform":"macos-arm64","runner":"macos-latest","python":"3.13","timeout":35},{"platform":"macos-arm64","runner":"macos-latest","python":"3.14","timeout":35},{"platform":"windows-x64","runner":"windows-latest","python":"3.12","timeout":70},{"platform":"windows-x64","runner":"windows-latest","python":"3.13","timeout":70},{"platform":"windows-x64","runner":"windows-latest","python":"3.14","timeout":70},{"platform":"windows-arm64","runner":"windows-11-arm","python":"cpython-3.14-windows-x86_64-none","timeout":105}]' || inputs.windows_legs && '[{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.12","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.13","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.14","timeout":35},{"platform":"macos-arm64","runner":"macos-latest","python":"3.12","timeout":35},{"platform":"windows-x64","runner":"windows-latest","python":"3.12","timeout":70},{"platform":"windows-x64","runner":"windows-latest","python":"3.13","timeout":70},{"platform":"windows-x64","runner":"windows-latest","python":"3.14","timeout":70},{"platform":"windows-arm64","runner":"windows-11-arm","python":"cpython-3.14-windows-x86_64-none","timeout":105}]' || '[{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.12","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.13","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.14","timeout":35},{"platform":"macos-arm64","runner":"macos-latest","python":"3.12","timeout":35}]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -340,7 +345,7 @@ jobs:
     name: quality gates
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 130
-    if: ${{ !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha) }}
+    if: ${{ !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && ((inputs.qualify_head == '' || inputs.qualify_head == github.sha) && (inputs.rehearse_head == '' || inputs.rehearse_head == github.sha)) }}
     env:
       ETHOS_COMMIT_ALLOWED_SIGNERS: ${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}
     steps:
@@ -393,7 +398,7 @@ jobs:
     name: external link health
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    if: ${{ !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha) }}
+    if: ${{ !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && ((inputs.qualify_head == '' || inputs.qualify_head == github.sha) && (inputs.rehearse_head == '' || inputs.rehearse_head == github.sha)) }}
     continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -443,11 +448,11 @@ jobs:
     steps:
       - name: Require the expected result of every per-push job
         env:
-          EXPECTED: ${{ needs.commit-policy.result == ((github.event_name == 'push' || github.event_name == 'pull_request') && 'success' || 'skipped') && needs.host-conformance.result == ((!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha)) && 'success' || 'skipped') && needs.quality.result == ((!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha)) && 'success' || 'skipped') && needs.suite-linux-x64-py312.result == (((!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha)) && ((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || github.event_name == 'schedule')) && 'success' || 'skipped') && needs.suite-linux-x64-py313.result == (((!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha)) && ((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || github.event_name == 'schedule')) && 'success' || 'skipped') }}
+          EXPECTED: ${{ needs.commit-policy.result == ((github.event_name == 'push' || github.event_name == 'pull_request') && 'success' || 'skipped') && needs.host-conformance.result == ((!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && ((inputs.qualify_head == '' || inputs.qualify_head == github.sha) && (inputs.rehearse_head == '' || inputs.rehearse_head == github.sha))) && 'success' || 'skipped') && needs.quality.result == ((!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && ((inputs.qualify_head == '' || inputs.qualify_head == github.sha) && (inputs.rehearse_head == '' || inputs.rehearse_head == github.sha))) && 'success' || 'skipped') && needs.suite-linux-x64-py312.result == (((!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && ((inputs.qualify_head == '' || inputs.qualify_head == github.sha) && (inputs.rehearse_head == '' || inputs.rehearse_head == github.sha))) && ((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || (github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '') || github.event_name == 'schedule')) && 'success' || 'skipped') && needs.suite-linux-x64-py313.result == (((!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && ((inputs.qualify_head == '' || inputs.qualify_head == github.sha) && (inputs.rehearse_head == '' || inputs.rehearse_head == github.sha))) && ((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || (github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '') || github.event_name == 'schedule')) && 'success' || 'skipped') }}
         run: test "$EXPECTED" = true
       - name: Require the head that the dispatch qualifies
         env:
-          QUALIFIED: ${{ inputs.qualify_head == '' || inputs.qualify_head == github.sha }}
+          QUALIFIED: ${{ (inputs.qualify_head == '' || inputs.qualify_head == github.sha) && (inputs.rehearse_head == '' || inputs.rehearse_head == github.sha) }}
         run: test "$QUALIFIED" = true
   release-platforms:
     name: release runtime ${{ matrix.host }}
@@ -523,6 +528,93 @@ jobs:
         run: uv run --frozen python -m nox -s build -- --release --expect-head ${{ inputs.release_head }} --tag ${{ inputs.release_tag }}
       - name: Qualify the release wheel and retain its runtime archive
         run: uv run --frozen python -m nox -s install_smoke -- --release --expect-head ${{ inputs.release_head }} --tag ${{ inputs.release_tag }}
+      - name: Declare the components of the retained runtime archive
+        run: uv run --frozen python -m nox -s supply_chain -- --host ${{ matrix.host }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: release-runtime-${{ matrix.host }}
+          path: |
+            build/artifacts/release/python/
+            build/artifacts/native/
+            build/evidence/local-install/release-smoke.json
+            build/evidence/release/runtime.spdx.json
+            build/evidence/release/runtime.syft.json
+          if-no-files-found: error
+          retention-days: 14
+  rehearsal-platforms:
+    name: rehearsal runtime ${{ matrix.host }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '' && inputs.rehearse_head == github.sha }}
+    continue-on-error: ${{ !matrix.required }}
+    env:
+      ETHOS_COMMIT_ALLOWED_SIGNERS: ${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}
+      UV_PYTHON_INSTALL_DIR: ${{ github.workspace }}/build/runtime/python
+    strategy:
+      fail-fast: false
+      matrix:
+        host:
+          - linux-x64
+          - linux-arm64
+          - macos-arm64
+          - windows-x64
+          - windows-arm64
+        include:
+          - host: linux-x64
+            os: ubuntu-latest
+            python: "3.14"
+            required: true
+            emulated: false
+          - host: linux-arm64
+            os: ubuntu-24.04-arm
+            python: "3.14"
+            required: true
+            emulated: false
+          - host: macos-arm64
+            os: macos-latest
+            python: "3.14"
+            required: true
+            emulated: false
+          - host: windows-x64
+            os: windows-latest
+            python: "3.14"
+            required: false
+            emulated: false
+          - host: windows-arm64
+            os: windows-11-arm
+            python: cpython-3.14-windows-x86_64-none
+            required: false
+            emulated: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: 0.13.8
+          python-version: ${{ matrix.python }}
+      - name: Provision native Python image supply
+        run: uv python install --no-bin ${{ matrix.python }}
+      - name: Synchronize build-only Python dependencies
+        run: uv sync --locked --no-install-project --group dev
+      - name: Prepare locked native build supply
+        env:
+          PYTHONPATH: src
+        run: uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale
+      - name: Install locked npm packages
+        env:
+          PYTHONPATH: src
+        run: uv run --no-sync python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts
+      - name: Synchronize locked Python environment
+        run: uv sync --locked --group dev
+      - name: Bind operator commit trust
+        run: uv run --frozen python -B -I -m ethos.cli hook bind-trust --apply --root . --json
+      - name: Build the release wheel the rehearsed head admits
+        run: uv run --frozen python -m nox -s build -- --release --rehearse --expect-head ${{ github.sha }}
+      - name: Qualify the release wheel and retain its runtime archive
+        run: uv run --frozen python -m nox -s install_smoke -- --release --rehearse --expect-head ${{ github.sha }}
       - name: Declare the components of the retained runtime archive
         run: uv run --frozen python -m nox -s supply_chain -- --host ${{ matrix.host }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -690,3 +782,124 @@ jobs:
           path: build/evidence/release-journey/
           if-no-files-found: error
           retention-days: 14
+  rehearsal-assets:
+    name: rehearsal assembly
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: rehearsal-platforms
+    if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '' && inputs.rehearse_head == github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: 0.13.8
+          python-version: "3.14"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          path: build/release/inputs
+          pattern: release-runtime-*
+      - name: Assemble the rehearsed release assets
+        run: uv run --no-project python -B -I tools/ci/delivery/release_assets.py --tag "v$(< VERSION)" --source build/release/inputs --output build/release/out --base-url "https://github.com/${{ github.repository }}/releases/download/v$(< VERSION)" --changelog CHANGELOG.md --expect-head ${{ github.sha }} --required linux-x64,linux-arm64,macos-arm64 --optional windows-x64,windows-arm64
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: rehearsal-assets
+          path: |-
+            build/release/out/assets/SHA256SUMS
+            build/release/out/assets/ethos-*.mise.toml
+          if-no-files-found: error
+          retention-days: 14
+  rehearsal-journey:
+    name: rehearsal journey ${{ matrix.host }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    needs: rehearsal-assets
+    if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '' && inputs.rehearse_head == github.sha && needs.rehearsal-assets.result == 'success' }}
+    permissions:
+      contents: read
+      attestations: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      UV_PYTHON_INSTALL_DIR: ${{ github.workspace }}/build/runtime/python
+    strategy:
+      fail-fast: false
+      matrix:
+        host:
+          - linux-x64
+          - linux-arm64
+          - macos-arm64
+        include:
+          - host: linux-x64
+            os: ubuntu-latest
+            python: "3.14"
+            required: true
+            emulated: false
+          - host: linux-arm64
+            os: ubuntu-24.04-arm
+            python: "3.14"
+            required: true
+            emulated: false
+          - host: macos-arm64
+            os: macos-latest
+            python: "3.14"
+            required: true
+            emulated: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: 0.13.8
+          python-version: ${{ matrix.python }}
+      - name: Provision native Python image supply
+        run: uv python install --no-bin ${{ matrix.python }}
+      - name: Synchronize build-only Python dependencies
+        run: uv sync --locked --no-install-project --group dev
+      - name: Prepare locked native build supply
+        env:
+          PYTHONPATH: src
+        run: uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale
+      - name: Install locked npm packages
+        env:
+          PYTHONPATH: src
+        run: uv run --no-sync python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts
+      - name: Synchronize locked Python environment
+        run: uv sync --locked --group dev
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: release-runtime-${{ matrix.host }}
+          path: build/release/rehearsal
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: rehearsal-assets
+          path: build/release/rehearsal
+      - name: Qualify the rehearsed release on the adopter journey
+        run: uv run --frozen python -m nox -s release_journey -- --rehearse build/release/rehearsal
+      - name: Upload the rehearsal journey receipt
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: rehearsal-journey-${{ matrix.host }}
+          path: build/evidence/release-journey/
+          if-no-files-found: error
+          retention-days: 14
+  release-rehearsal:
+    name: release rehearsal
+    runs-on: ubuntu-latest
+    needs:
+      - hosted-checks
+      - rehearsal-platforms
+      - rehearsal-assets
+      - rehearsal-journey
+    if: ${{ always() && (github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '') }}
+    timeout-minutes: 5
+    steps:
+      - name: Require every rehearsal job and the hosted checks
+        env:
+          REHEARSED: ${{ needs.hosted-checks.result == 'success' && needs.rehearsal-platforms.result == 'success' && needs.rehearsal-assets.result == 'success' && needs.rehearsal-journey.result == 'success' }}
+        run: test "$REHEARSED" = true

@@ -26,13 +26,17 @@ from typing import TYPE_CHECKING
 
 import tools.ci.delivery.acceptance.adopter as adopter_fixture
 import tools.ci.delivery.acceptance.runtime as runtime_acceptance
+from ethos.adapters.repo.release import committed_release_version
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
 from ethos.adapters.repo.runtime.selection import require_installed_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.toolchain.mise import mise_version
 from ethos.contracts.digest import file_sha256
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
+from ethos.repository.release.configuration import release_config_from_text
+from ethos.repository.release.predecessors import recorded
 from tools.ci.delivery.acceptance.acquisition import PRERELEASE
 from tools.ci.delivery.acceptance.acquisition import acquire
 from tools.ci.delivery.acceptance.acquisition import read_manifest
@@ -44,6 +48,7 @@ from tools.ci.delivery.acceptance.invocation import continuation
 from tools.ci.delivery.acceptance.invocation import invoke
 from tools.ci.delivery.acceptance.invocation import observe_stage
 from tools.ci.delivery.acceptance.invocation import run_native
+from tools.ci.delivery.acceptance.rollback_after_repair import prove_rollback_after_repair
 from tools.ci.delivery.distribution import install_archive
 from tools.ci.delivery.distribution import prove_installed_supply
 from tools.ci.toolchain.native import mise_target
@@ -183,7 +188,11 @@ def prove_upgrade(
     *,
     environment: dict[str, str],
 ) -> dict[str, object]:
-    """Upgrade a retained adopter from the previous release, roll back and upgrade again."""
+    """Upgrade a retained adopter from the previous release, roll back and upgrade again.
+
+    The rollback inside the retained upgrade runs before the declaration repair; the one after
+    it is asked from the repaired lane, and its decision replaces the upgrade's constant.
+    """
     retained = work / "retained-adopter"
     adopter_fixture.materialize_adopter(
         retained,
@@ -191,9 +200,10 @@ def prove_upgrade(
         run=_native(environment),
         retained=True,
     )
-    return runtime_acceptance.prove_retained_upgrade(
+    upgraded = runtime_acceptance.prove_retained_upgrade(
         successor, retained, predecessor=predecessor, environment=environment
     )
+    return {**upgraded, **prove_rollback_after_repair(retained, environment=environment)}
 
 
 def install_acquired(
@@ -257,6 +267,7 @@ def qualify(
     previous: tuple[str, ...] = (),
     classes_only: bool = False,
     receipt: dict[str, object] | None = None,
+    assembly: Path | None = None,
 ) -> dict[str, object]:
     """Acquire one published prerelease, then run every journey step on it offline.
 
@@ -292,6 +303,7 @@ def qualify(
                 environment=environment,
                 token=token,
                 mise=mise,
+                assembly=assembly,
             )
         if mise is None:
             return receipt
@@ -307,16 +319,38 @@ def qualify(
     return receipt
 
 
+def rehearsal_identity(root: Path) -> tuple[str, dict[str, str] | None]:
+    """Read what a rehearsal qualifies from its head: the version and the recorded predecessors.
+
+    The version is the one the head's own release identity carries. The predecessors are the
+    releases of `[release.upgrade_from]` in the head's release binding, or None where the head
+    records none.
+    """
+    version = committed_release_version(root, "HEAD")["version"]
+    binding = (root / binding_path("release")).read_text(encoding="utf-8")
+    return version, recorded(release_config_from_text(binding))
+
+
 def run(
     session: Session,
     *,
-    tag: str,
+    tag: str = "",
     previous: tuple[str, ...] = (),
     classes_only: bool = False,
     evidence: Path | None = None,
     work: Path = WORK,
+    assembly: Path | None = None,
 ) -> None:
-    """Qualify the tag on this host and keep its receipt and stage events, passing or not."""
+    """Qualify the tag on this host and keep its receipt and stage events, passing or not.
+
+    With `assembly` the subject is a rehearsal's own build of this head: the version and the
+    predecessors come from the head, and the receipt says which source named the predecessors.
+    """
+    source = ""
+    if assembly is not None:
+        version, names = rehearsal_identity(ROOT)
+        tag, previous = f"v{version}", tuple(f"v{name}" for name in names or ())
+        source = "record" if names else "changelog"
     if PRERELEASE.fullmatch(tag) is None:
         session.error(f"release journey needs a published prerelease tag, not {tag!r}")
     host = mise_target()
@@ -326,6 +360,8 @@ def run(
     # `CI` reads as a runner, as the product's other readers of that input read it.
     venue = "ci" if os.environ.get("CI") else "local"
     payload: dict[str, object] = {"tag": tag, "platform": host, "venue": venue, "state": "failed"}
+    if source:
+        payload["previous_source"] = source
     failure: Exception | None = None
     try:
         with acceptance_observation(events, head=tag, wheel_sha256=""):
@@ -343,6 +379,7 @@ def run(
                     previous=previous,
                     classes_only=classes_only,
                     receipt=payload,
+                    assembly=assembly,
                 )
                 # Verified classes alone qualify nothing, so that run never reads as passed.
                 payload["state"] = "classes_verified" if classes_only else "passed"

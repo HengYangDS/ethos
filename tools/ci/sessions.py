@@ -179,7 +179,10 @@ def build(session: Session) -> None:
             session, root=RUNTIME.root, scope="production-release"
         )
     owner.DeliveryPipeline.from_runtime(RUNTIME).build(
-        session, release_head=head, release_tag=owner.release_build_tag(tuple(session.posargs))
+        session,
+        release_head=head,
+        release_tag=owner.release_build_tag(tuple(session.posargs)),
+        rehearse=owner.release_build_rehearsal(tuple(session.posargs)),
     )
 
 
@@ -197,20 +200,24 @@ def install_smoke(session: Session) -> None:
         session,
         release_head=head,
         release_tag=owner.release_build_tag(tuple(remaining)),
+        rehearse=owner.release_build_rehearsal(tuple(remaining)),
         predecessor=options.predecessor_runtime,
     )
 
 
 def release_journey(session: Session) -> None:
     parser = argparse.ArgumentParser(add_help=False, exit_on_error=False)
-    parser.add_argument("--tag", required=True)
+    subject = parser.add_mutually_exclusive_group(required=True)
+    subject.add_argument("--tag", default="")
+    subject.add_argument("--rehearse", type=Path, default=None)
     parser.add_argument("--previous", default="")
     parser.add_argument("--classes-only", action="store_true")
     options = parser.parse_args(tuple(session.posargs))
     previous = tuple(name.strip() for name in options.previous.split(",") if name.strip())
-    import_module("tools.ci.delivery.acceptance.journey").run(
-        session, tag=options.tag, previous=previous, classes_only=options.classes_only
-    )
+    chosen = {"tag": options.tag, "previous": previous, "classes_only": options.classes_only}
+    if options.rehearse is not None:
+        chosen["assembly"] = options.rehearse
+    import_module("tools.ci.delivery.acceptance.journey").run(session, **chosen)
 
 
 def host_conformance(session: Session) -> None:

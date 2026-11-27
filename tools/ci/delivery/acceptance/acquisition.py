@@ -13,12 +13,14 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import tomllib
 from dataclasses import asdict
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Literal
 
 from packaging.version import Version
 
@@ -46,6 +48,9 @@ PRERELEASE = re.compile(r"v\d+\.\d+\.\d+-(?:alpha|beta|rc)\.\d+")
 _FULL_LOCK_LEG = "linux-x64"
 # An existing lock in the format adopters hold; relocking the pin into it must keep that format.
 _SEED = "lockfile_version = 3\n"
+# The class of a subject that a rehearsal's own run built: no release publishes it, so it has no
+# pin and no attestation, and the assembly's checksum file is what admits its archive.
+REHEARSED: Literal["rehearsed"] = "rehearsed"
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,7 +60,7 @@ class PublishedRelease:
     version: str
     archive: Path
     sha256: str
-    verified: ReleaseClass
+    verified: ReleaseClass | Literal["rehearsed"]
     archives: dict[str, str]
 
 
@@ -158,14 +163,7 @@ def download_release(
         token=token,
     )
     archive = target / name
-    digest = file_sha256(archive)
-    listed = {
-        name.strip(): listed_digest
-        for listed_digest, _, name in (
-            line.partition("  ")
-            for line in (target / "SHA256SUMS").read_text(encoding="utf-8").splitlines()
-        )
-    }
+    digest, listed = file_sha256(archive), _listed(target / "SHA256SUMS")
     if listed.get(name) != digest:
         message = f"release_journey_checksum_mismatch:{name}"
         raise ValueError(message)
@@ -195,13 +193,46 @@ def download_release(
             failure=f"release_journey_attestation_failed:{name}",
             token=token,
         )
+    return PublishedRelease(version, archive, digest, verified, _archives(version, listed))
+
+
+def _listed(checksums: Path) -> dict[str, str]:
+    """Read a checksum file: each listed name with its digest."""
+    lines = checksums.read_text(encoding="utf-8").splitlines()
+    return {name.strip(): digest for digest, _, name in (line.partition("  ") for line in lines)}
+
+
+def _archives(version: str, listed: dict[str, str]) -> dict[str, str]:
+    """Return each platform whose archive of this version a checksum file lists, with its digest."""
     prefix = f"ethos-{version}-"
-    archives = {
-        published.removeprefix(prefix).removesuffix(".tar.gz"): listed[published]
-        for published in listed
-        if published.startswith(prefix) and published.endswith(".tar.gz")
+    return {
+        name.removeprefix(prefix).removesuffix(".tar.gz"): digest
+        for name, digest in listed.items()
+        if name.startswith(prefix) and name.endswith(".tar.gz")
     }
-    return PublishedRelease(version, archive, digest, verified, archives)
+
+
+def rehearsed_release(
+    version: str, assembly: Path, target: Path, *, platform: str
+) -> PublishedRelease:
+    """Admit a rehearsal's own archive for this platform by the assembly's checksum file.
+
+    The assembly is the directory that a journey leg downloads from its run: the build leg's
+    upload, which holds the archive under the name its build gave it, and the checksum file that
+    the run's assembler wrote. An archive is admitted only when its digest is the one that file
+    lists for the published name, and only then is it copied, under that name, into the journey's
+    work directory, where the manifest requires each archive to lie.
+    """
+    name = f"ethos-{version}-{platform}.tar.gz"
+    listed = _listed(assembly / "SHA256SUMS")
+    digest = listed.get(name, "")
+    built = [path for path in sorted(assembly.rglob("*.tar.gz")) if file_sha256(path) == digest]
+    if not built:
+        message = f"release_journey_checksum_mismatch:{name}"
+        raise ValueError(message)
+    target.mkdir(parents=True)
+    archive = Path(shutil.copy2(built[0], target / name))
+    return PublishedRelease(version, archive, digest, REHEARSED, _archives(version, listed))
 
 
 def lock_gap(
@@ -320,25 +351,27 @@ def prove_pins(
     """Lock and install each release's exact pin as an adopter does, then try the rebound locks.
 
     Each rebound lock is tried right after the prerelease's install, from the lock as Mise wrote
-    it. The installations are removed afterwards: qualification installs the same verified bytes
-    again, offline.
+    it. A rehearsed subject has no published pin, so only its predecessors are locked and no
+    rebound lock is tried. The installations are removed afterwards: qualification installs the
+    same verified bytes again, offline.
     """
     locks: dict[str, object] = {}
     refusals: dict[str, str] = {}
     receipt |= {"locks": locks, "refusals": refusals}
     subject, *earlier = releases
     install = partial(install_pin, mise=mise, environment=environment, locks=locks, token=token)
-    platforms = tuple(subject.archives) if platform == _FULL_LOCK_LEG else (platform,)
-    tool = install(subject, work / "pins" / subject.version, platforms=platforms, seed=_SEED)
-    prove_refusals(
-        tool,
-        subject,
-        work / "refusals",
-        refusals,
-        platform=platform,
-        environment=environment,
-        token=token,
-    )
+    if subject.verified != REHEARSED:
+        platforms = tuple(subject.archives) if platform == _FULL_LOCK_LEG else (platform,)
+        tool = install(subject, work / "pins" / subject.version, platforms=platforms, seed=_SEED)
+        prove_refusals(
+            tool,
+            subject,
+            work / "refusals",
+            refusals,
+            platform=platform,
+            environment=environment,
+            token=token,
+        )
     for release in earlier:
         install(release, work / "pins" / release.version, platforms=(platform,))
     remove_generated_tree(work / "pins")
@@ -355,11 +388,14 @@ def acquire(
     environment: dict[str, str],
     token: str,
     mise: Path | None,
+    assembly: Path | None = None,
 ) -> Path:
     """Fetch and verify the prerelease and its predecessors, and write their manifest.
 
     Nothing after this stage reaches the network. Without `mise` the stage stops once each named
-    release is verified by its class, and proves no pin.
+    release is verified by its class, and proves no pin. With `assembly` the subject is not
+    downloaded: it is the archive that a rehearsal's own run built, admitted by that run's
+    checksum file, and only its predecessors come from the forge.
     """
     version, published = tag.removeprefix("v"), partial(release_published, token=token)
     skipped: tuple[str, ...] = ()
@@ -378,14 +414,13 @@ def acquire(
     }
     releases = []
     with observe_stage("published_assets"):
+        fetch = partial(download_release, platform=platform, environment=environment, token=token)
         for name in (version, *predecessors):
-            release = download_release(
-                f"v{name}",
-                work / "assets" / name,
-                platform=platform,
-                environment=environment,
-                token=token,
-            )
+            target = work / "assets" / name
+            if assembly is not None and name == version:
+                release = rehearsed_release(version, assembly, target, platform=platform)
+            else:
+                release = fetch(f"v{name}", target)
             releases.append(release)
             assets[name] = {
                 "archive": release.archive.name,
@@ -394,7 +429,7 @@ def acquire(
             }
     subject = releases[0]
     # The prerelease's archive, when its class verified an attestation; `class` says against what.
-    attested = None if subject.verified == "checksum" else subject.archive.name
+    attested = None if subject.verified in {"checksum", REHEARSED} else subject.archive.name
     receipt["attestation_verified"] = attested
     if mise is not None:
         prove_pins(

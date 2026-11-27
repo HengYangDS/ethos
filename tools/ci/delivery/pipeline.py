@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 import tools.ci.delivery.acceptance.effect as acceptance_effect
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.repo.git import committed_file_text
+from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import observe_git_object
 from ethos.adapters.repo.release import accepted_release_source
@@ -26,6 +27,7 @@ from ethos.adapters.repo.runtime.source import source_build_identity
 from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.adapters.repo.runtime.transition import materialize_package_wheel
 from ethos.repository.release.changelog import changelog_errors
+from ethos.repository.release.configuration import RELEASE_HISTORY_FILE
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import build_identity
 from ethos.repository.release.identity import build_identity_bytes
@@ -76,12 +78,21 @@ class DeliveryPipeline:
         """Bind delivery inputs only when a delivery operation is selected."""
         return cls(runtime, runtime.node_package_supply())
 
-    def build(self, session: Session, *, release_head: str = "", release_tag: str = "") -> None:
+    def build(
+        self,
+        session: Session,
+        *,
+        release_head: str = "",
+        release_tag: str = "",
+        rehearse: bool = False,
+    ) -> None:
         """Materialize exactly one offline wheel through Hatchling and uv."""
         work = self.runtime.root / "build/runtime/work"
         work.mkdir(parents=True, exist_ok=True)
         source = (
-            release_build_source(self.runtime.root, work, head=release_head, tag=release_tag)
+            release_build_source(
+                self.runtime.root, work, head=release_head, tag=release_tag, rehearse=rehearse
+            )
             if release_head
             else nullcontext(self.runtime.root)
         )
@@ -124,10 +135,13 @@ class DeliveryPipeline:
         release_head: str = "",
         release_tag: str = "",
         predecessor: Path | None = None,
+        rehearse: bool = False,
     ) -> None:
         """Exercise the explicitly selected candidate through the single package workload."""
         if release_head:
-            artifact = prepare_release_candidate(self.runtime.root, release_head, tag=release_tag)
+            artifact = prepare_release_candidate(
+                self.runtime.root, release_head, tag=release_tag, rehearse=rehearse
+            )
             acceptance_effect.run(
                 session,
                 artifact=artifact,
@@ -200,9 +214,11 @@ def publish_built_wheel(
     return artifacts / wheel.name
 
 
-def prepare_release_candidate(repo: Path, head: str, *, tag: str = "") -> PackageArtifact:
+def prepare_release_candidate(
+    repo: Path, head: str, *, tag: str = "", rehearse: bool = False
+) -> PackageArtifact:
     """Select exact accepted-source release bytes without accepting or publishing a release."""
-    expected = _release_source_identity(repo, head, tag=tag)
+    expected = _release_source_identity(repo, head, tag=tag, rehearse=rehearse)
     wheels = tuple((repo / "build/artifacts/release/python").glob("ethos-*.whl"))
     if len(wheels) != 1 or wheels[0].is_symlink() or not wheels[0].is_file():
         message = "release_wheel_output_invalid"
@@ -220,19 +236,25 @@ def release_build_head(arguments: tuple[str, ...]) -> str:
     return _release_arguments(arguments)[0]
 
 
+def release_build_rehearsal(arguments: tuple[str, ...]) -> bool:
+    """Say whether the request rehearses a release head that has no tag yet."""
+    return _release_arguments(arguments)[2]
+
+
 def release_build_tag(arguments: tuple[str, ...]) -> str:
     """Return the signed release tag that admits a hosted build, if the request names one."""
     return _release_arguments(arguments)[1]
 
 
-def _release_arguments(arguments: tuple[str, ...]) -> tuple[str, str]:
+def _release_arguments(arguments: tuple[str, ...]) -> tuple[str, str, bool]:
     """Validate one explicit release request: its exact head and, hosted, its signed tag."""
     if not arguments:
-        return "", ""
+        return "", "", False
     parser = argparse.ArgumentParser(add_help=False, exit_on_error=False)
     parser.add_argument("--release", action="store_true")
     parser.add_argument("--expect-head")
     parser.add_argument("--tag")
+    parser.add_argument("--rehearse", action="store_true")
     try:
         options, unknown = parser.parse_known_args(arguments)
     except argparse.ArgumentError as error:
@@ -246,14 +268,17 @@ def _release_arguments(arguments: tuple[str, ...]) -> tuple[str, str]:
         or len(head) not in (40, 64)
         or set(head) - set("0123456789abcdef")
         or (tag is not None and re.fullmatch(r"v[0-9][0-9A-Za-z.+-]*", tag) is None)
+        or (options.rehearse and tag is not None)
     ):
         message = "release_build_arguments_invalid"
         raise ValueError(message)
 
-    return head, tag or ""
+    return head, tag or "", options.rehearse
 
 
-def _release_source_identity(repo: Path, head: str, *, tag: str = "") -> BuildIdentity:
+def _release_source_identity(
+    repo: Path, head: str, *, tag: str = "", rehearse: bool = False
+) -> BuildIdentity:
     """Require a clean exact accepted source and its proof, or hosted, its signed release tag."""
     source = source_build_identity(repo)
     if source.source_commit != head:
@@ -264,6 +289,8 @@ def _release_source_identity(repo: Path, head: str, *, tag: str = "") -> BuildId
         raise ValueError(message)
     if tag:
         _require_signed_release_tag(repo, head, tag)
+    elif rehearse:
+        _require_rehearsed_head(repo, head)
     else:
         accepted_release_source(repo, head)
         proof, gaps = proof_for_repository_transition(repo, head)
@@ -292,14 +319,39 @@ def _require_signed_release_tag(repo: Path, head: str, tag: str) -> None:
     if tag != f"v{version}":
         message = "release_tag_version_mismatch"
         raise ValueError(message)
-    if errors := changelog_errors(committed_file_text(repo, head, "CHANGELOG.md"), target=version):
+    _require_curated_entry(repo, head, version)
+
+
+def _require_curated_entry(repo: Path, head: str, version: str) -> None:
+    """Refuse release bytes whose committed history has no curated entry for this version."""
+    if errors := changelog_errors(
+        committed_file_text(repo, head, RELEASE_HISTORY_FILE), target=version
+    ):
         raise ValueError(errors[0])
 
 
+def _require_rehearsed_head(repo: Path, head: str) -> None:
+    """Admit hosted release bytes before the tag, by the head's own trusted signature.
+
+    A rehearsal runs before `ethos land --release` signs a tag. The head's signature, its
+    committed version without a tag and its curated entry are what that tag will bind.
+    """
+    if observe_git_object(repo, head, "commit")["required_gaps"]:
+        message = "release_rehearsal_head_untrusted"
+        raise ValueError(message)
+    version = committed_release_version(repo, head)["version"]
+    if ref_head(repo, f"refs/tags/v{version}"):
+        message = f"release_rehearsal_tag_exists:v{version}"
+        raise ValueError(message)
+    _require_curated_entry(repo, head, version)
+
+
 @contextmanager
-def release_build_source(repo: Path, work: Path, *, head: str, tag: str = "") -> Generator[Path]:
+def release_build_source(
+    repo: Path, work: Path, *, head: str, tag: str = "", rehearse: bool = False
+) -> Generator[Path]:
     """Project admitted Git bytes and release identity into one disposable build source."""
-    identity = _release_source_identity(repo, head, tag=tag)
+    identity = _release_source_identity(repo, head, tag=tag, rehearse=rehearse)
     work.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="ethos-release-source-", dir=work) as directory:
         prepared = Path(directory)
@@ -310,6 +362,6 @@ def release_build_source(repo: Path, work: Path, *, head: str, tag: str = "") ->
         carried.parent.mkdir(parents=True, exist_ok=True)
         carried.write_bytes(build_identity_bytes(identity))
         yield prepared
-        if _release_source_identity(repo, head, tag=tag) != identity:
+        if _release_source_identity(repo, head, tag=tag, rehearse=rehearse) != identity:
             message = "release_build_source_changed"
             raise ValueError(message)

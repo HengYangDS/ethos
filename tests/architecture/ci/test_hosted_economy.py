@@ -24,9 +24,11 @@ def test_a_push_runs_the_push_tier_and_only_a_dispatch_or_schedule_runs_more(git
         for tier in re.findall(r"'(\[.*?\])'", selection)
     ]
     assert tiers == [PUSH + MACOS + WINDOWS, PUSH + WINDOWS, PUSH]
-    # A batch head or the drift schedule runs every leg; the typed input adds the Windows legs.
+    # A batch head, a rehearsed head or the drift schedule runs every leg; the typed input adds the
+    # Windows legs.
     assert re.sub(r"'\[.*?\]'", "TIER", selection) == (
         "${{ fromJSON(((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '')"
+        " || (github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '')"
         " || github.event_name == 'schedule') && TIER || inputs.windows_legs && TIER || TIER) }}"
     )
     assert github["on"]["schedule"] == [{"cron": "0 19 * * 6"}]

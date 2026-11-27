@@ -263,7 +263,10 @@ def test_one_aggregate_check_expects_each_per_push_job_to_end_as_its_condition_s
         f"needs.{name}.result == (({jobs[name]['if'][4:-3]}) && 'success' || 'skipped')"
         for name in needed
     )
-    head = "inputs.qualify_head == '' || inputs.qualify_head == github.sha"
+    head = (
+        "(inputs.qualify_head == '' || inputs.qualify_head == github.sha)"
+        " && (inputs.rehearse_head == '' || inputs.rehearse_head == github.sha)"
+    )
     results, qualified = aggregate["steps"]
     assert results["env"] == {"EXPECTED": f"${{{{ {expected} }}}}"}
     assert qualified["env"] == {"QUALIFIED": f"${{{{ {head} }}}}"}

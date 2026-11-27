@@ -23,7 +23,10 @@ LEGS = {
     "suite-linux-x64-py313": ("suite linux-x64 / Python 3.13", "ubuntu-latest", "3.13", False),
     "suite-windows-x64-py314": ("suite windows-x64 / Python 3.14", "windows-latest", "3.14", True),
 }
-FULL = "(github.event_name == 'workflow_dispatch' && inputs.qualify_head != '')"
+FULL = (
+    "(github.event_name == 'workflow_dispatch' && inputs.qualify_head != '')"
+    " || (github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '')"
+)
 REPORTS = "build/evidence/quality/tests/"
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -49,7 +52,8 @@ def test_a_full_run_adds_the_suite_legs_and_only_the_linux_legs_block(
     model = materials[config["compiler"]["source"]]
     (margin,) = re.findall(r"^let suiteSetupSeconds = (\d+)$", model, flags=re.MULTILINE)
     for name, job in legs.items():
-        # A push or pull request runs no leg; a batch head or the drift schedule runs each.
+        # A push or pull request runs no leg; a batch head, a rehearsed head or the drift schedule
+        # runs each.
         assert job["if"] == f"${{{{ ({commit}) && ({FULL} || github.event_name == 'schedule') }}}}"
         # The test gate's deadline bounds the leg's suite, and each generated job outlives it
         # by the model's own setup margin; the test below drives the model to its refusal.

@@ -9,7 +9,11 @@ import pytest
 COMMIT_SCOPED_JOBS = ("host-conformance", "quality", "external-links")
 REGULAR = "!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag"
 MAIN_PUSH = "github.event_name == 'push' && github.ref == 'refs/heads/main'"
-HEAD = "inputs.qualify_head == '' || inputs.qualify_head == github.sha"
+# A dispatch that names a head to qualify or to rehearse runs only at that head.
+HEAD = (
+    "(inputs.qualify_head == '' || inputs.qualify_head == github.sha)"
+    " && (inputs.rehearse_head == '' || inputs.rehearse_head == github.sha)"
+)
 
 
 @pytest.mark.parametrize("job", COMMIT_SCOPED_JOBS)

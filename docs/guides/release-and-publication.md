@@ -30,6 +30,14 @@ See also: [ETHOS source distribution specification](../../openspec/specs/distrib
    waiver is [DR-0030](../decisions/dr-0030-candidate-subject-set.md), which names its shape and
    its runtime.
 2. **Archive, prove and land.** Archive the Change with `ethos lane archive-change`, then prove the archived head once with `ethos prove --execute --full --expect-head <HEAD> --json`. If that proof fails, `ethos lane archive-change --compensate` returns the lane to its pre-archive head. Then land, close out and bootstrap the accepted root.
+   Before the landing, rehearse the release build on GitHub: publish the lane's proposal ref and
+   dispatch `ETHOS CI` on it with `rehearse_head` set to that ref's head, whose version has no tag
+   yet. The run builds every release platform from that head under the release's identity,
+   assembles the assets in a job that cannot publish, qualifies that assembly on the adopter
+   journey of the three declared hosts, with the predecessors that `[release.upgrade_from]`
+   records, and repeats the test suites; the job `release rehearsal` gives the one verdict, and a
+   dispatch at any other commit fails it. A rehearsal publishes nothing, tags nothing and lands
+   nothing. Rehearse again when the release head moves.
 3. **Publish the branches.** Publish `dev`, then `main`, to each declared peer with `ethos publish --probe-remote --ref <ref> --peer <id> --expect-head <HEAD> --json`, followed by the receipt action it returns.
 4. **Qualify the release head, then tag.** A push runs only the push tier of host conformance, and
    GitLab verifies a published ref by admission and conformance alone, so qualify the release head
@@ -60,6 +68,15 @@ See also: [ETHOS source distribution specification](../../openspec/specs/distrib
    repair ([Operational Roots](../reference/operational-roots.md) lists them). A bad global
    release is undone by reinstalling the predecessor as the global `ethos`. Do that before the
    apply: an accepted identity is immutable.
+
+The release lead repairs a defect found before a tag without a separate ask, and reports it on a
+page afterwards, when four conditions hold. The repair changes one reader and adds no refusal. It
+passes on every supported Python version. A review that the lead did not write has read its last
+form. The whole release chain ends before the page that asks for the tag.
+
+Where a condition does not hold, the defect goes into the entry's known open defects and the owner
+is asked. The same applies when a review shows that the repair no longer changes one reader. The
+tag stays the owner's word.
 
 ## Activate A Second Forge
 

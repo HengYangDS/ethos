@@ -144,12 +144,21 @@ let scanRun = "github.event_name == 'workflow_dispatch' && inputs.scan_tag != ''
 // the release lane tags it. A run at any other commit qualifies nothing: its commit-scoped jobs
 // are skipped and the aggregate fails.
 let qualifyRun = "github.event_name == 'workflow_dispatch' && inputs.qualify_head != ''"
-let headMatches = "inputs.qualify_head == '' || inputs.qualify_head == github.sha"
+
+// A rehearsal dispatch names the commit whose release it rehearses before the tag. It
+// qualifies that commit as a batch-head dispatch does, and it also builds every release
+// platform with release identity, assembles the assets without publishing them and runs the
+// adopter journey on them. No script holds the dispatch's value: a rehearsal job runs only at
+// the named commit, so its steps name the runner's own commit.
+let rehearsalRun = "github.event_name == 'workflow_dispatch' && inputs.rehearse_head != ''"
+let headMatches = "(inputs.qualify_head == '' || inputs.qualify_head == github.sha) && (inputs.rehearse_head == '' || inputs.rehearse_head == github.sha)"
+let rehearsalLeg = "\(rehearsalRun) && inputs.rehearse_head == github.sha"
+let rehearsalArguments = "--release --rehearse --expect-head ${{ github.sha }}"
 
 // The drift schedule runs every tier on the default branch. Saturday 19:00 UTC is provisional
 // until the owner confirms it.
 let driftSchedule = "0 19 * * 6"
-let fullRun = "(\(qualifyRun)) || github.event_name == 'schedule'"
+let fullRun = "(\(qualifyRun)) || (\(rehearsalRun)) || github.event_name == 'schedule'"
 
 // A main push moves main to the accepted commit that dev's run of the same commit verifies, so it
 // repeats none of the commit-scoped jobs and only admits its pushed range (decision D11).
@@ -335,6 +344,64 @@ let githubHostSupplyAt = {
 	}]
 }
 
+// One declaration of a release leg's job. A release run checks out the signed tag that admits
+// its bytes; a rehearsal checks out the rehearsed head, which its own signature admits.
+let releaseLegJob = {
+	label:     string
+	condition: string
+	source:    string
+	arguments: string
+	admission: string
+	out: {
+		name:              "\(label) runtime ${{ matrix.host }}"
+		"runs-on":         "${{ matrix.os }}"
+		"timeout-minutes": timeoutMinutes.release
+		if:                "${{ \(condition) }}"
+		// Only a leg that the declaration marks optional may fail without failing the run.
+		"continue-on-error": "${{ !matrix.required }}"
+		env: {
+			ETHOS_COMMIT_ALLOWED_SIGNERS: "${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}"
+			UV_PYTHON_INSTALL_DIR:        "${{ github.workspace }}/build/runtime/python"
+		}
+		strategy: {
+			"fail-fast": false
+			matrix: {
+				host: [for leg in releaseLegs {leg.host}]
+				include: releaseLegs
+			}
+		}
+		steps: list.Concat([(githubHostSupplyAt & {checkout: source, python: "${{ matrix.python }}"}).out, [{
+			name: "Bind operator commit trust"
+			run:  "uv run --frozen \(bindTrust)"
+		}, {
+			name: "Build the release wheel \(admission) admits"
+			run:  "uv run --frozen python -m nox -s build -- \(arguments)"
+		}, {
+			name: "Qualify the release wheel and retain its runtime archive"
+			run:  "uv run --frozen python -m nox -s install_smoke -- \(arguments)"
+		}, {
+			// Syft reads the kept archive here, in a job without write permission.
+			name: "Declare the components of the retained runtime archive"
+			run:  "uv run --frozen python -m nox -s supply_chain -- --host ${{ matrix.host }}"
+		}, {
+			uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+			with: {
+				name: "release-runtime-${{ matrix.host }}"
+				path: """
+					build/artifacts/release/python/
+					build/artifacts/native/
+					build/evidence/local-install/release-smoke.json
+					build/evidence/release/runtime.spdx.json
+					build/evidence/release/runtime.syft.json
+
+					"""
+				"if-no-files-found": "error"
+				"retention-days":    artifactRetentionDays
+			}
+		}]])
+	}
+}
+
 compiled: {
 	checks: {
 		uniqueGates: true & list.UniqueItems(_gateIDs)
@@ -418,6 +485,12 @@ github: {
 			}
 			qualify_head: {
 				description: "Qualify this exact commit, the head of the dispatching ref, on every platform and Python version"
+				required:    false
+				type:        "string"
+				default:     ""
+			}
+			rehearse_head: {
+				description: "Rehearse the release of this exact commit, the head of the dispatching ref, before its tag"
 				required:    false
 				type:        "string"
 				default:     ""
@@ -665,54 +738,8 @@ github: {
 		// The signed tag admits each build: a runner holds no repository proof. The wheel carries
 		// its platform's Node and Vale, so every platform builds and qualifies its own wheel and
 		// retains it beside the archive its release smoke built.
-		"release-platforms": {
-			name:              "release runtime ${{ matrix.host }}"
-			"runs-on":         "${{ matrix.os }}"
-			"timeout-minutes": timeoutMinutes.release
-			if:                "${{ \(releaseRun) }}"
-			// Only a leg that the declaration marks optional may fail without failing the run.
-			"continue-on-error": "${{ !matrix.required }}"
-			env: {
-				ETHOS_COMMIT_ALLOWED_SIGNERS: "${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}"
-				UV_PYTHON_INSTALL_DIR:        "${{ github.workspace }}/build/runtime/python"
-			}
-			strategy: {
-				"fail-fast": false
-				matrix: {
-					host: [for leg in releaseLegs {leg.host}]
-					include: releaseLegs
-				}
-			}
-			steps: list.Concat([(githubHostSupplyAt & {checkout: releaseTagRef, python: "${{ matrix.python }}"}).out, [{
-				name: "Bind operator commit trust"
-				run:  "uv run --frozen \(bindTrust)"
-			}, {
-				name: "Build the release wheel its signed tag admits"
-				run:  "uv run --frozen python -m nox -s build -- \(releaseArguments)"
-			}, {
-				name: "Qualify the release wheel and retain its runtime archive"
-				run:  "uv run --frozen python -m nox -s install_smoke -- \(releaseArguments)"
-			}, {
-				// Syft reads the kept archive here, in a job without write permission.
-				name: "Declare the components of the retained runtime archive"
-				run:  "uv run --frozen python -m nox -s supply_chain -- --host ${{ matrix.host }}"
-			}, {
-				uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
-				with: {
-					name: "release-runtime-${{ matrix.host }}"
-					path: """
-						build/artifacts/release/python/
-						build/artifacts/native/
-						build/evidence/local-install/release-smoke.json
-						build/evidence/release/runtime.spdx.json
-						build/evidence/release/runtime.syft.json
-
-						"""
-					"if-no-files-found": "error"
-					"retention-days":    artifactRetentionDays
-				}
-			}]])
-		}
+		"release-platforms": (releaseLegJob & {label: "release", condition: releaseRun, source: releaseTagRef, arguments: releaseArguments, admission: "its signed tag"}).out
+		"rehearsal-platforms": (releaseLegJob & {label: "rehearsal", condition: rehearsalLeg, source: githubSourceSHA, arguments: rehearsalArguments, admission: "the rehearsed head"}).out
 		"release-publish": {
 			name:              "release publication"
 			"runs-on":         "ubuntu-latest"
@@ -820,6 +847,115 @@ github: {
 					"retention-days":    artifactRetentionDays
 				}
 			}]])
+		}
+		// A rehearsal assembles what the release run would publish and stops there: this job holds
+		// no write permission, attests nothing and creates no release.
+		"rehearsal-assets": {
+			name:              "rehearsal assembly"
+			"runs-on":         "ubuntu-latest"
+			"timeout-minutes": timeoutMinutes.publication
+			needs:             "rehearsal-platforms"
+			if:                "${{ !cancelled() && \(rehearsalLeg) }}"
+			steps: [{
+				uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+				with: {
+					ref:                   githubSourceSHA
+					"persist-credentials": false
+				}
+			}, {
+				uses: "astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2"
+				with: {
+					version:          _inputs.mise.tools.uv
+					"python-version": "3.14"
+				}
+			}, {
+				uses: "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333"
+				with: {
+					path:    "build/release/inputs"
+					pattern: "release-runtime-*"
+				}
+			}, {
+				// The version file is the product version's one carrier; the tag does not exist yet.
+				name: "Assemble the rehearsed release assets"
+				run:  "uv run --no-project python -B -I tools/ci/delivery/release_assets.py --tag \"v$(< VERSION)\" --source build/release/inputs --output build/release/out --base-url \"https://github.com/${{ github.repository }}/releases/download/v$(< VERSION)\" --changelog CHANGELOG.md --expect-head ${{ github.sha }} \(releaseHosts)"
+			}, {
+				uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+				// Only the small files travel: each journey leg takes its archive from its own
+				// build leg's upload and admits it by the checksum file.
+				with: {
+					name:                "rehearsal-assets"
+					path:                "build/release/out/assets/SHA256SUMS\nbuild/release/out/assets/ethos-*.mise.toml"
+					"if-no-files-found": "error"
+					"retention-days":    artifactRetentionDays
+				}
+			}]
+		}
+		// The journey of the release run, on the assembly of this run in place of a published
+		// release: the predecessors still come from the forge, by their exact pins.
+		"rehearsal-journey": {
+			name:              "rehearsal journey ${{ matrix.host }}"
+			"runs-on":         "${{ matrix.os }}"
+			"timeout-minutes": timeoutMinutes.release
+			needs:             "rehearsal-assets"
+			if:                "${{ !cancelled() && \(rehearsalLeg) && needs.rehearsal-assets.result == 'success' }}"
+			permissions: {
+				contents:     "read"
+				attestations: "read"
+			}
+			env: {
+				GH_TOKEN:              "${{ github.token }}"
+				UV_PYTHON_INSTALL_DIR: "${{ github.workspace }}/build/runtime/python"
+			}
+			strategy: {
+				"fail-fast": false
+				matrix: {
+					host: [for leg in journeyLegs {leg.host}]
+					include: journeyLegs
+				}
+			}
+			steps: list.Concat([(githubHostSupplyAt & {checkout: githubSourceSHA, python: "${{ matrix.python }}"}).out, [{
+				uses: "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333"
+				with: {
+					name: "release-runtime-${{ matrix.host }}"
+					path: "build/release/rehearsal"
+				}
+			}, {
+				uses: "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333"
+				with: {
+					name: "rehearsal-assets"
+					path: "build/release/rehearsal"
+				}
+			}, {
+				name: "Qualify the rehearsed release on the adopter journey"
+				run:  "uv run --frozen python -m nox -s release_journey -- --rehearse build/release/rehearsal"
+			}, {
+				name: "Upload the rehearsal journey receipt"
+				if:   "always()"
+				uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+				with: {
+					name:                "rehearsal-journey-${{ matrix.host }}"
+					path:                "build/evidence/release-journey/"
+					"if-no-files-found": "error"
+					"retention-days":    artifactRetentionDays
+				}
+			}]])
+		}
+		// The rehearsal's one verdict and its receipt, written whether the legs passed or not, so a
+		// failed rehearsal is as readable as a passed one. A runner holds no repository proof.
+		"release-rehearsal": {
+			name:      "release rehearsal"
+			"runs-on": "ubuntu-latest"
+			needs: ["hosted-checks", "rehearsal-platforms", "rehearsal-assets", "rehearsal-journey"]
+			if:                "${{ always() && (\(rehearsalRun)) }}"
+			"timeout-minutes": timeoutMinutes.aggregate
+			// One expression over the needed jobs: a leg that skips by a wrong condition, or a
+			// dispatch at another commit than the ref's, fails the verdict. The bound receipt
+			// follows 0.2.0 (DR-0035, Waiver 4), so this job writes none.
+			steps: [{
+				name: "Require every rehearsal job and the hosted checks"
+				env: REHEARSED: "${{ needs.hosted-checks.result == 'success' && needs.rehearsal-platforms.result == 'success' && needs.rehearsal-assets.result == 'success' && needs.rehearsal-journey.result == 'success' }}"
+				run: "test \"$REHEARSED\" = true"
+			}]
 		}
 	}
 }

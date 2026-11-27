@@ -15,6 +15,7 @@ import yaml
 
 from tests.support.fixture_signer import configure_fixture_signer
 from tests.support.release_legs import HEAD
+from tests.support.release_legs import LEGS
 from tests.support.release_legs import qualified_leg
 from tools.ci.delivery import pipeline
 from tools.ci.delivery import release_assets
@@ -93,13 +94,53 @@ def test_hosted_release_source_refuses_every_other_tag(tmp_path, monkeypatch, ca
         pipeline.prepare_release_candidate(repo, head, tag=tag)
 
 
+def test_a_rehearsed_release_source_is_admitted_by_its_trusted_head_before_its_tag(
+    tmp_path, monkeypatch
+):
+    """A rehearsal has no tag and no repository proof: the signed head and its entry admit it."""
+    repo, head = _release_repository(tmp_path)
+    monkeypatch.setattr(pipeline, "accepted_release_source", _unproven)
+    monkeypatch.setattr(pipeline, "proof_for_repository_transition", _unproven)
+    source = pipeline.release_build_source(repo, tmp_path / "work", head=head, rehearse=True)
+    with source as prepared:
+        carried = pipeline.build_input_identity(prepared)
+    assert (carried.distribution_version, carried.source_commit) == ("0.2.0a5", head)
+    arguments = ("--release", "--expect-head", head, "--rehearse")
+    assert pipeline.release_build_rehearsal(arguments)
+    assert not pipeline.release_build_rehearsal(arguments[:3])
+    # A request names a signed tag or a rehearsal, never both.
+    with pytest.raises(ValueError, match="release_build_arguments_invalid"):
+        pipeline.release_build_rehearsal((*arguments, "--tag", _TAG))
+
+
+@pytest.mark.parametrize(
+    ("case", "gap"),
+    [
+        ("unsigned", "release_rehearsal_head_untrusted"),
+        ("tagged", f"release_rehearsal_tag_exists:{_TAG}"),
+        ("entry", "release_changelog_target_missing:0.2.0-alpha.5"),
+        ("stale", "release_build_source_stale"),
+        ("dirty", "release_build_source_dirty"),
+    ],
+)
+def test_a_rehearsal_refuses_every_other_head(tmp_path, monkeypatch, case, gap):
+    """An untrusted head, a tagged version, a missing entry or a moved tree admits nothing."""
+    repo, head = _release_repository(tmp_path, entry=case != "entry")
+    monkeypatch.setattr(pipeline, "proof_for_repository_transition", _unproven)
+    if case == "unsigned":
+        _git(repo, "-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", "bare")
+        head = _git(repo, "rev-parse", "HEAD")
+    elif case == "tagged":
+        _git(repo, "tag", "-s", "-m", f"Release {_TAG}", _TAG)
+    elif case == "stale":
+        _git(repo, "commit", "--quiet", "--allow-empty", "-m", "later source")
+    elif case == "dirty":
+        (repo / "VERSION").write_text("0.2.0-alpha.6\n", encoding="ascii")
+    with pytest.raises(ValueError, match=gap):
+        pipeline.prepare_release_candidate(repo, head, rehearse=True)
+
+
 _SUFFIXES = (".tar.gz", ".spdx.json", ".syft.json")
-_NATIVE = {
-    "linux-x64": ("linux", "x86_64", "linux_x86_64"),
-    "linux-arm64": ("linux", "arm64", "linux_aarch64"),
-    "macos-arm64": ("darwin", "arm64", "macosx_14_0_arm64"),
-    "windows-x64": ("windows", "x86_64", "win_amd64"),
-}
 
 
 def _options(changelog: Path, *, optional: set[str]) -> dict:
@@ -120,7 +161,7 @@ def test_release_assets_publish_only_the_qualified_bytes(tmp_path):
     """
     inputs, changelog = tmp_path / "inputs", tmp_path / "CHANGELOG.md"
     changelog.write_text(_CHANGELOG, encoding="utf-8")
-    qualified = {host: qualified_leg(inputs, host, *leg) for host, leg in _NATIVE.items()}
+    qualified = {host: qualified_leg(inputs, host, *leg) for host, leg in LEGS.items()}
     options = _options(changelog, optional={"windows-x64"})
     unreleased = tmp_path / "UNRELEASED.md"
     unreleased.write_text("# Changelog\n\n## [Unreleased]\n", encoding="utf-8")
@@ -139,8 +180,8 @@ def test_release_assets_publish_only_the_qualified_bytes(tmp_path):
     assert not (tmp_path / "refused").exists()
     sums = release_assets.assemble(inputs, tmp_path / "out", **options)
     assets = tmp_path / "out/assets"
-    published = {f"ethos-0.2.0-alpha.5-{host}{suffix}" for host in _NATIVE for suffix in _SUFFIXES}
-    wheels = {f"ethos-0.2.0a5-py3-none-{leg[2]}.whl" for leg in _NATIVE.values()}
+    published = {f"ethos-0.2.0-alpha.5-{host}{suffix}" for host in LEGS for suffix in _SUFFIXES}
+    wheels = {f"ethos-0.2.0a5-py3-none-{leg[2]}.whl" for leg in LEGS.values()}
     expected = {"SHA256SUMS", "ethos-0.2.0-alpha.5.mise.toml", *published, *wheels}
     assert {path.name for path in assets.iterdir()} == expected
     wheel = hashlib.sha256(b"wheel linux-x64").hexdigest()
@@ -169,14 +210,14 @@ def test_an_emulating_host_publishes_the_archive_itqualified_leg(tmp_path):
     """
     inputs, changelog = tmp_path / "inputs", tmp_path / "CHANGELOG.md"
     changelog.write_text(_CHANGELOG, encoding="utf-8")
-    for host, leg in (_NATIVE | {"windows-arm64": ("windows", "x86_64", "win_amd64")}).items():
+    for host, leg in (LEGS | {"windows-arm64": ("windows", "x86_64", "win_amd64")}).items():
         qualified_leg(inputs, host, *leg)
     options = _options(changelog, optional={"windows-x64", "windows-arm64"})
     sums = release_assets.assemble(inputs, tmp_path / "out", **options)
     declared = tomllib.loads((tmp_path / "out/assets/ethos-0.2.0-alpha.5.mise.toml").read_text())
     platforms = declared["tools"]["http:ethos"]["platforms"]
     emulated = hashlib.sha256(b"windows-arm64").hexdigest()
-    assert set(platforms) == {*_NATIVE, "windows-arm64"}
+    assert set(platforms) == {*LEGS, "windows-arm64"}
     assert sums["ethos-0.2.0-alpha.5-windows-arm64.tar.gz"] == emulated
     assert platforms["windows-arm64"]["checksum"] == f"sha256:{emulated}"
     native = hashlib.sha256(b"wheel windows-x64").hexdigest()

@@ -27,6 +27,7 @@ from ethos.repository.release.resources import canonical_resource
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.fixture_signer import GIT_SECONDS
 from tests.support.fixture_signer import configure_fixture_signer
+from tests.support.fixture_signer import fixture_signer_inputs
 from tests.support.paradigm import PARADIGM_OPENSPEC_CONFIG
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
@@ -178,6 +179,14 @@ def lane_start_arguments(
     )
 
 
+def starter_request(
+    starter: str = "foundation", purpose: str = "Verifiable changes.", **fields: str
+) -> dict[str, object]:
+    """Request a greenfield formation with one starter and the fixture signer."""
+    signer = fixture_signer_inputs()
+    return {"create": True, "purpose": purpose, "starter": starter, **fields, **signer}
+
+
 def write_file(path: Path, text: str) -> Path:
     """Write one UTF-8 fixture file, creating its directory, and return its path."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -269,13 +278,7 @@ def create_change_source_lane(
     git(repo, "worktree", "add", "-b", branch, path.as_posix(), base_branch)
     _write_active_change_carrier(path, change_id=change_id)
     commit_fixture(path, f"docs(openspec): declare {change_id}")
-    now = datetime.now(UTC)
-    acquire_lease(
-        state_database(repo),
-        lease=LaneLease(
-            lane_ref=branch, holder_ref=holder_ref, generation=1, expires_at=now + timedelta(days=1)
-        ),
-    )
+    acquire_lease(state_database(repo), lease=exact_lease(branch=branch, holder_ref=holder_ref))
     return path
 
 
@@ -367,6 +370,13 @@ def commit_active_change(repo: Path, *, change_id: str = "fixture-change") -> st
     return git(repo, "rev-parse", "HEAD")
 
 
+def active_change_repo(tmp_path: Path, files: Mapping[str, str]) -> tuple[Path, str]:
+    """Commit the files and one active OpenSpec Change in a new repository; return it and HEAD."""
+    repo = init_git_repo(tmp_path / "repo")
+    write_tree(repo, files)
+    return repo, commit_active_change(repo)
+
+
 def _enable_openspec_profile(repo: Path) -> None:
     """Select the explicit OpenSpec profile adapter for lifecycle fixtures."""
     profile = repo / ".ethos" / "profile.toml"
@@ -420,6 +430,12 @@ def adopt_and_commit(
         write_release_mirror(repo, release_mirror)
     _write_openspec_baseline(repo)
     return commit_fixture(repo, "chore: adopt ethos governance")
+
+
+def adopted_repository(tmp_path: Path) -> tuple[Path, str]:
+    """Adopt a governed repository at `tmp_path / "repo"`; return it and its adoption commit."""
+    repo = init_git_repo(tmp_path / "repo")
+    return repo, adopt_and_commit(repo)
 
 
 def render_release_mirror(release_mirror: str) -> str:

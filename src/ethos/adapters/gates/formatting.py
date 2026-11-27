@@ -25,6 +25,7 @@ from ethos.adapters.gates.native.inputs import kept_record_files
 from ethos.adapters.gates.native.inputs import native_configurations
 from ethos.adapters.gates.native.inputs import native_repository_configuration
 from ethos.adapters.gates.native.inputs import quality_inventory_failure
+from ethos.adapters.gates.python_target import carrier_target
 from ethos.adapters.process import command_outcome
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.runtime.filesystem import runtime_scripts
@@ -218,6 +219,45 @@ def list_spacing(relative: str, content: bytes) -> bytes:
     return canonical_spacing(content.decode("utf-8")).encode("utf-8")
 
 
+def _ruff(root: Path, relative: str, content: bytes, files: tuple[str, ...] | None) -> bytes:
+    """Render one Python postimage under the shipped and the repository's Ruff settings."""
+    listing = tuple(native_inputs.quality_source_files(root)) if files is None else files
+    configurations = native_configurations(
+        root, "ruff", ".config/checks/ruff/ruff.toml", files=listing
+    )
+
+    def ruff(*target: str) -> tuple[bytes, ...]:
+        return tuple(
+            _run(
+                root,
+                (
+                    str(find_ruff_bin()),
+                    "format",
+                    "--no-cache",
+                    "--no-respect-gitignore",
+                    "--config",
+                    config,
+                    *target,
+                    "--stdin-filename",
+                    relative,
+                    "-",
+                ),
+                content,
+            )
+            for config in configurations
+        )
+
+    rendered = ruff()
+    if any(value != rendered[0] for value in rendered[1:]):
+        # The repository's own target decides where only the shipped target renders otherwise.
+        target = carrier_target(root, listing)
+        rendered = ruff("--target-version", target) if target else rendered
+    if any(value != rendered[0] for value in rendered[1:]):
+        message = f"native_formatter_policy_conflict:{relative}"
+        raise ValueError(message)
+    return rendered[0]
+
+
 def render_source_content(
     root: Path,
     relative: str,
@@ -244,30 +284,7 @@ def render_source_content(
         )
     scripts = runtime_scripts(Path(sys.prefix))
     if owner == "ruff":
-        rendered = tuple(
-            _run(
-                root,
-                (
-                    str(find_ruff_bin()),
-                    "format",
-                    "--no-cache",
-                    "--no-respect-gitignore",
-                    "--config",
-                    config,
-                    "--stdin-filename",
-                    relative,
-                    "-",
-                ),
-                content,
-            )
-            for config in native_configurations(
-                root, "ruff", ".config/checks/ruff/ruff.toml", files=source_files
-            )
-        )
-        if any(value != rendered[0] for value in rendered[1:]):
-            message = f"native_formatter_policy_conflict:{relative}"
-            raise ValueError(message)
-        return rendered[0], False
+        return _ruff(root, relative, content, source_files), False
     if owner == "taplo":
         binary = (
             node or str(resolve_node_runtime().executable),

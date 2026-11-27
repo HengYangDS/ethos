@@ -38,6 +38,25 @@ def test_conforming_repository_passes_with_product_owned_layout(tmp_path: Path) 
     assert report["next_action"] == ""
 
 
+@pytest.mark.parametrize(
+    ("bound", "target", "gaps"),
+    [
+        (">=3.11", '"py311"', []),
+        (">=3.14", '"py314"', []),
+        (">=3.12+local", '"py312"', ["repository_paradigm_module_floor:pyproject.toml"]),
+        (">=3.12", "false", [f"repository_paradigm_formatter_setting:{_RUFF}:target-version"]),
+    ],
+)
+def test_a_repository_declares_its_own_python_version(
+    tmp_path: Path, bound: str, target: str, gaps: list[str]
+) -> None:
+    """The lower bound and the Ruff target are the repository's own; ETHOS fixes neither."""
+    manifest = f'[project]\nname = "sample"\nrequires-python = "{bound}"\n'
+    carrier = f"line-length = 100\ntarget-version = {target}\n"
+    report = paradigm_report(tmp_path, {**CONFORMING, "pyproject.toml": manifest, _RUFF: carrier})
+    assert report["required_gaps"] == gaps
+
+
 def test_community_health_documents_are_admitted_at_the_root(tmp_path: Path) -> None:
     """GitHub reads these files at the root, so the root catalog admits each of them."""
     documents = ("ACCESSIBILITY.md", "CODE_OF_CONDUCT.md", "SECURITY.md", "SUPPORT.md")
@@ -87,24 +106,24 @@ _CARRIER_GAPS = {
         "insert_final_newline = true under [*]",
     ),
     "floor": (
-        {"pyproject.toml": '[project]\nname = "sample"\nrequires-python = ">=3.11"\n'},
+        {"pyproject.toml": '[project]\nname = "sample"\nrequires-python = ">=next"\n'},
         "repository_paradigm_module_floor:pyproject.toml",
-        "lower bound >=3.12",
+        "one lower bound >= a version",
     ),
     "pyproject-invalid": (
         {"pyproject.toml": "[project\n"},
         "repository_paradigm_module_floor:pyproject.toml",
-        "lower bound >=3.12",
+        "one lower bound >= a version",
     ),
     "project-not-table": (
         {"pyproject.toml": 'project = "flat"\n'},
         "repository_paradigm_module_floor:pyproject.toml",
-        "lower bound >=3.12",
+        "one lower bound >= a version",
     ),
     "specifier-not-text": (
         {"pyproject.toml": '[project]\nname = "sample"\nrequires-python = 312\n'},
         "repository_paradigm_module_floor:pyproject.toml",
-        "lower bound >=3.12",
+        "one lower bound >= a version",
     ),
     "npm-unlocked": (
         {"package.json": '{"devDependencies": {"prettier": "3.9.9"}}\n'},

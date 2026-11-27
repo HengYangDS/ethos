@@ -14,15 +14,14 @@ from uv import find_uv_bin
 
 import ethos.adapters.gates.code_quality as native_quality
 import ethos.adapters.gates.python_quality as python_quality
-from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import git
+from tests.support.native_quality import PYTHON_SAMPLE_TEST
+from tests.support.native_quality import QUALITY_SAMPLE
+from tests.support.native_quality import python_sample
 
 if TYPE_CHECKING:
     from types import ModuleType
 
-_FIXTURE = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
-_SOURCE = "def answer() -> int:\n    return 42\n"
-_TEST = "from sample import answer\n\n\ndef test_answer() -> None:\n    assert answer() == 42\n"
 # A carrier whose floor the sample's one test cannot meet: the `zero` branch never runs.
 _UNMET_FLOOR = {
     ".config/checks/coverage/coverage.toml": (
@@ -31,20 +30,13 @@ _UNMET_FLOOR = {
     "src/sample/__init__.py": (
         "def answer(*, zero: bool = False) -> int:\n    if zero:\n        return 0\n    return 42\n"
     ),
-    "tests/test_sample.py": _TEST,
+    "tests/test_sample.py": PYTHON_SAMPLE_TEST,
 }
 
 
 def _sample(tmp_path: Path, files: dict[str, str]) -> Path:
     """Commit the locked sample project with the given sources, tests and carriers."""
-    locked = {
-        name: (_FIXTURE / name).read_text(encoding="utf-8")
-        for name in ("pyproject.toml", "uv.lock")
-    }
-    return committed_source_repo(
-        tmp_path,
-        {**locked, ".gitignore": "__pycache__/\n", "src/sample/__init__.py": _SOURCE, **files},
-    )
+    return python_sample(tmp_path, {".gitignore": "__pycache__/\n", **files})
 
 
 def test_probe_collects_with_the_repository_pytest_carrier(tmp_path: Path) -> None:
@@ -53,7 +45,9 @@ def test_probe_collects_with_the_repository_pytest_carrier(tmp_path: Path) -> No
         tmp_path,
         {
             ".config/checks/pytest/pytest.toml": '[pytest]\npython_functions = ["check_*"]\n',
-            "tests/test_sample.py": _TEST.replace("def test_answer", "def check_answer"),
+            "tests/test_sample.py": PYTHON_SAMPLE_TEST.replace(
+                "def test_answer", "def check_answer"
+            ),
         },
     )
 
@@ -106,10 +100,12 @@ def test_a_leg_fails_where_the_project_does_not_admit_its_interpreter(tmp_path: 
     """
     ranges = {"pyproject.toml": ">=3.12,<3.15", "uv.lock": ">=3.12, <3.15"}
     excluded = {
-        name: (_FIXTURE / name).read_text(encoding="utf-8").replace(f'"{declared}"', '">=3.99"')
+        name: (QUALITY_SAMPLE / name)
+        .read_text(encoding="utf-8")
+        .replace(f'"{declared}"', '">=3.99"')
         for name, declared in ranges.items()
     }
-    repo = _sample(tmp_path, {**excluded, "tests/test_sample.py": _TEST})
+    repo = _sample(tmp_path, {**excluded, "tests/test_sample.py": PYTHON_SAMPLE_TEST})
 
     report = python_quality.behavior_report(repo, leg=True)
 
@@ -126,7 +122,7 @@ def test_probe_runs_within_the_gate_timeout(
     tmp_path: Path, provider: ModuleType, declared: float | None
 ) -> None:
     """A gate's declared timeout bounds the test run; otherwise 600 seconds do."""
-    repo = _sample(tmp_path, {"tests/test_sample.py": _TEST})
+    repo = _sample(tmp_path, {"tests/test_sample.py": PYTHON_SAMPLE_TEST})
 
     with patch.object(python_quality, "run_command", wraps=python_quality.run_command) as run:
         report = provider.behavior_report(repo, timeout_seconds=declared)

@@ -28,6 +28,9 @@ _TAPLO = ".config/checks/taplo/taplo.toml"
 _EDITOR_DEFAULTS = "[*]\ncharset = utf-8\nend_of_line = lf\ninsert_final_newline = true\n"
 _WORKSPACE = ".ethos/workspace.toml"
 _SCOPES = '[commit_policy]\nscopes = ["cli"]\n'
+_OWN_GRAMMAR = "[commit_policy]\nsubject_pattern = '^(feat|fix): .+'\n"
+_MULTI_LINE_WIDTH = 'printWidth = [\n  80,\n]\nproseWrap = "preserve"\n'
+_INLINE_PACKAGE = f'package = {{ name = "root" }}\n\n{_SCOPES}'
 
 
 def _plan(root: Path, changes: dict[str, str | None]) -> tuple[RepairPlan, dict]:
@@ -163,13 +166,6 @@ def test_a_deterministic_repair_edits_only_its_carrier(
     assert _apply(tmp_path, plan, files) == []
 
 
-def test_a_setting_that_cannot_be_rewritten_stays_report_only(tmp_path: Path) -> None:
-    """A multi-line value would break the document, so the gap keeps its canonical repair."""
-    plan, _ = _plan(tmp_path, {_PRETTIER: 'printWidth = [\n  80,\n]\nproseWrap = "preserve"\n'})
-    assert plan.edits == ()
-    assert [gap.carrier for gap in plan.report_only] == [f"{_PRETTIER}:printWidth"]
-
-
 def test_an_untracked_carrier_leaves_the_baseline_in_force(tmp_path: Path) -> None:
     """A carrier present on disk but untracked is no repository truth, so it is no gap to repair."""
     report = paradigm_report(tmp_path, CONFORMING, untracked=(_TAPLO,))
@@ -177,19 +173,40 @@ def test_an_untracked_carrier_leaves_the_baseline_in_force(tmp_path: Path) -> No
     assert plan.edits == plan.actions == ()
 
 
-@pytest.mark.parametrize(
-    "text",
-    [
-        "# Guide\n",
-        "<!--\n---\nsubject: sample:guide\n",
-        "<!--\n---\nsubject: sample:guide\n---\n# Guide\n",
-    ],
+_GUIDE = "docs/guide.md"
+_OPEN_FRONT_MATTER = "<!--\n---\nsubject: sample:guide\n"
+_UNWRAPPED_FRONT_MATTER = f"{_OPEN_FRONT_MATTER}---\n# Guide\n"
+_UNREADABLE_PEER = (
+    '[[publication.peers]]\nid = "gitlab"\ngit_remote = "upstream"\nmatrix = [\n  ["a"],\n]\n'
 )
-def test_front_matter_that_needs_authoring_stays_report_only(tmp_path: Path, text: str) -> None:
-    """A document without a complete comment-wrapped block needs a written front matter."""
-    plan, _ = _plan(tmp_path, {"docs/guide.md": text})
+_LEGACY_ROLE_FIELD = f"{_WORKSPACE}:branch_roles.accepted_branch"
+_LEGACY_ROLE = '[branch_roles]\naccepted_branch = "accepted/x"\n'
+_JUDGMENT = {
+    # A multi-line value would break the document.
+    "multi-line-setting": (_PRETTIER, _MULTI_LINE_WIDTH, "carrier", f"{_PRETTIER}:printWidth"),
+    # A document without a complete comment-wrapped block needs a written front matter.
+    "front-matter-absent": (_GUIDE, "# Guide\n", "obligation", "front-matter"),
+    "front-matter-open": (_GUIDE, _OPEN_FRONT_MATTER, "obligation", "front-matter"),
+    "front-matter-unwrapped": (_GUIDE, _UNWRAPPED_FRONT_MATTER, "obligation", "front-matter"),
+    # A block whose lines start like a table cannot be edited without guessing its end.
+    "peer-block": (".ethos/release.toml", _UNREADABLE_PEER, "obligation", "peer-remote"),
+    # A legacy name is still the ref closeout renames.
+    "legacy-role-name": (_WORKSPACE, _LEGACY_ROLE, "carrier", _LEGACY_ROLE_FIELD),
+    # A grammar of the repository's own needs judgment.
+    "repository-commit-grammar": (_WORKSPACE, _OWN_GRAMMAR, "obligation", "commit-grammar"),
+    # Only whole table blocks are deleted; an inline declaration keeps its gap.
+    "inline-workspace-value": (_WORKSPACE, _INLINE_PACKAGE, "obligation", "workspace-binding"),
+}
+
+
+@pytest.mark.parametrize(("path", "text", "field", "expected"), _JUDGMENT.values(), ids=_JUDGMENT)
+def test_a_carrier_that_needs_judgment_stays_report_only(
+    tmp_path: Path, path: str, text: str, field: str, expected: str
+) -> None:
+    """A carrier the plan cannot rewrite without guessing keeps its gap and canonical repair."""
+    plan, _ = _plan(tmp_path, {path: text})
     assert plan.edits == ()
-    assert [gap.obligation for gap in plan.report_only] == ["front-matter"]
+    assert [getattr(gap, field) for gap in plan.report_only] == [expected]
 
 
 def test_a_peer_remote_is_named_after_its_peer(tmp_path: Path) -> None:
@@ -200,16 +217,6 @@ def test_a_peer_remote_is_named_after_its_peer(tmp_path: Path) -> None:
     assert 'id = "github"\ngit_remote = "github"\nprovider = "github"\n' in release.after
     assert plan.actions == ("git remote rename origin gitlab",)
     assert not _apply(tmp_path, plan, files, "repository_paradigm_peer_remote")
-
-
-def test_a_peer_block_that_cannot_be_read_alone_stays_report_only(tmp_path: Path) -> None:
-    """A block whose lines start like a table cannot be edited without guessing its end."""
-    release = (
-        '[[publication.peers]]\nid = "gitlab"\ngit_remote = "upstream"\nmatrix = [\n  ["a"],\n]\n'
-    )
-    plan, _ = _plan(tmp_path, {".ethos/release.toml": release})
-    assert plan.edits == ()
-    assert [gap.obligation for gap in plan.report_only] == ["peer-remote"]
 
 
 def test_gaps_without_a_deterministic_repair_stay_report_only(tmp_path: Path) -> None:
@@ -251,15 +258,6 @@ def test_restated_standard_role_names_are_deleted(tmp_path: Path) -> None:
     assert plan.repaired == tuple(gaps)
 
 
-def test_legacy_role_names_stay_until_closeout_renames_the_refs(tmp_path: Path) -> None:
-    """A legacy name is still the ref closeout renames, so its gap stays report-only."""
-    plan, _ = _plan(tmp_path, {_WORKSPACE: '[branch_roles]\naccepted_branch = "accepted/x"\n'})
-    assert plan.edits == ()
-    assert [gap.carrier for gap in plan.report_only] == [
-        f"{_WORKSPACE}:branch_roles.accepted_branch"
-    ]
-
-
 def test_a_restated_shared_commit_grammar_is_deleted(tmp_path: Path) -> None:
     """A subject pattern equal to the shared grammar goes, and the report no longer names it."""
     grammar = load_repository_paradigm().commit.subject_pattern()
@@ -269,27 +267,25 @@ def test_a_restated_shared_commit_grammar_is_deleted(tmp_path: Path) -> None:
     assert not _apply(tmp_path, plan, files, "repository_paradigm_commit_grammar")
 
 
-def test_a_repository_commit_grammar_stays_report_only(tmp_path: Path) -> None:
-    """A grammar of the repository's own needs judgment, so its gap keeps the canonical repair."""
-    workspace = "[commit_policy]\nsubject_pattern = '^(feat|fix): .+'\n"
-    plan, _ = _plan(tmp_path, {_WORKSPACE: workspace})
-    assert plan.edits == ()
-    assert [gap.obligation for gap in plan.report_only] == ["commit-grammar"]
+_NOTE = 'note = """\nrelease_branch = "x"\n"""\n'
 
 
 @pytest.mark.parametrize(
-    "workspace",
+    ("workspace", "field"),
     [
-        '[branch_roles]\nrelease_branch = "main"\nrelease_branch = "main"\n',
-        'branch_roles.release_branch = "main"\n',
-        '[branch_roles]\nnote = """\nrelease_branch = "x"\n"""\nrelease_branch = "main"\n',
+        ('[branch_roles]\nrelease_branch = "main"\nrelease_branch = "main"\n', "release_branch"),
+        ('branch_roles.release_branch = "main"\n', "release_branch"),
+        (f'[branch_roles]\n{_NOTE}release_branch = "main"\n', "release_branch"),
+        # A gap that names a retired field the binding no longer declares plans no edit.
+        ('[branch_roles]\nrelease_mirror = "independent"\n', "canonical_sibling_worktrees"),
     ],
+    ids=["duplicate", "dotted", "in-a-string", "retired-field-absent"],
 )
 def test_a_standard_name_the_plan_cannot_isolate_stays_report_only(
-    tmp_path: Path, workspace: str
+    tmp_path: Path, workspace: str, field: str
 ) -> None:
     """A field that is not one plain line of its own table, beside other fields, keeps its gap."""
-    gap = ParadigmGap("branch-roles", f"{_WORKSPACE}:branch_roles.release_branch", "remove it")
+    gap = ParadigmGap("branch-roles", f"{_WORKSPACE}:branch_roles.{field}", "remove it")
     plan = _workspace_plan(tmp_path, workspace, [gap])
     assert plan.edits == ()
     assert plan.report_only == (gap,)
@@ -342,14 +338,6 @@ def test_an_accepted_mirror_moves_to_the_release_binding(
     assert _apply(tmp_path, plan, files) == []
 
 
-def test_an_unread_value_outside_a_table_header_stays_report_only(tmp_path: Path) -> None:
-    """Only whole table blocks are deleted; an inline declaration keeps its gap."""
-    workspace = 'package = { name = "root" }\n\n[commit_policy]\nscopes = ["cli"]\n'
-    plan, _ = _plan(tmp_path, {_WORKSPACE: workspace})
-    assert plan.edits == ()
-    assert [gap.obligation for gap in plan.report_only] == ["workspace-binding"]
-
-
 @pytest.mark.parametrize("value", ["true", "false"])
 def test_the_retired_sibling_worktree_setting_is_deleted(tmp_path: Path, value: str) -> None:
     """No reader consults the setting, so either value goes and the report no longer names it."""
@@ -360,15 +348,6 @@ def test_the_retired_sibling_worktree_setting_is_deleted(tmp_path: Path, value: 
     plan, files = _plan(tmp_path, {_WORKSPACE: workspace})
     assert [(edit.path, edit.after) for edit in plan.edits] == [(_WORKSPACE, _SCOPES)]
     assert not _apply(tmp_path, plan, files, "repository_paradigm_branch_roles")
-
-
-def test_a_retired_field_the_binding_no_longer_declares_stays_report_only(tmp_path: Path) -> None:
-    """A gap that names an absent field plans no edit."""
-    carrier = f"{_WORKSPACE}:branch_roles.canonical_sibling_worktrees"
-    gap = ParadigmGap("branch-roles", carrier, "remove it")
-    plan = _workspace_plan(tmp_path, '[branch_roles]\nrelease_mirror = "independent"\n', [gap])
-    assert plan.edits == ()
-    assert plan.report_only == (gap,)
 
 
 _RULES = ".ethos/rules.toml"

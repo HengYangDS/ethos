@@ -131,6 +131,8 @@ class FormatterBinding(BaseModel):
     tool: str
     suffixes: FrozenTuple[str]
     settings: FrozenMapping[str | int | bool]
+    # Keys the carrier must set to a value of its own; each maps to the value a repair writes.
+    declared: FrozenMapping[str | int | bool] = Field(default_factory=dict)
 
 
 class ReleaseConventions(BaseModel):
@@ -329,7 +331,8 @@ class EcosystemModule(BaseModel):
     lock: str
     lock_scope: Literal["manifest", "dependencies"]
     runner_entries: FrozenTuple[str] = ()
-    floor: str = ""
+    # The dotted manifest key that states the language's lower bound as one >= clause.
+    version_key: str = ""
 
 
 class ToolCarrier(BaseModel):

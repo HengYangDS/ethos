@@ -289,7 +289,8 @@ def _check_staged_python_format(
     if not paths:
         return
     carrier = tools.NATIVE_TOOL_LOCATIONS["ruff"]
-    # A repository's own carrier keeps the shipped settings; without one they apply directly.
+    # A repository's own carrier keeps the shipped width and declares its target; without one
+    # the shipped settings apply directly.
     policy = (
         carrier
         if (configuration / carrier).is_file()

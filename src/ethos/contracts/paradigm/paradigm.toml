@@ -452,7 +452,8 @@ settings = { "formatting.column_width" = 100 }
 [[formatter]]
 tool = "ruff"
 suffixes = [".py", ".pyi"]
-settings = { line-length = 100, target-version = "py312" }
+settings = { line-length = 100 }
+declared = { target-version = "py312" }
 
 [[module]]
 id = "python"
@@ -460,7 +461,7 @@ manifest = "pyproject.toml"
 lock = "uv.lock"
 lock_scope = "manifest"
 runner_entries = ["noxfile.py"]
-floor = "3.12"
+version_key = "project.requires-python"
 
 [[module]]
 id = "node"

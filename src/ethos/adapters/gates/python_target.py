@@ -27,6 +27,8 @@ from ethos.adapters.repo.git import run_git
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from collections.abc import Iterable
     from pathlib import Path
 
     from ethos.contracts.paradigm.declaration import ToolCarrier
@@ -54,52 +56,62 @@ class PythonTarget:
 
 
 class _Tree:
-    """Read tracked TOML declarations once from one exact committed tree."""
+    """Read tracked TOML declarations once from one listing and one way to read a listed file."""
 
-    def __init__(self, root: Path, tree: str) -> None:
-        self.root = root
-        self.tree = tree
-        listing = run_git(
-            root,
-            "ls-tree",
-            "-r",
-            "--name-only",
-            "-z",
-            tree,
-            check=False,
-            text=False,
-            observation=True,
-        )
-        if listing.returncode:
-            _invalid()
-        # A path that is not UTF-8 cannot name a declaration, so it is kept only as listed.
-        names = listing.stdout.decode(errors="surrogateescape").split("\0")
-        self.paths = frozenset(path for path in names if path)
+    def __init__(self, paths: Iterable[str], read: Callable[[str], bytes]) -> None:
+        self.paths = frozenset(path for path in paths if path)
+        self._read = read
         self._documents: dict[str, dict[str, object]] = {}
 
     def document(self, path: str) -> dict[str, object]:
         if path not in self._documents:
-            blob = run_git(
-                self.root,
-                "cat-file",
-                "blob",
-                f"{self.tree}:{path}",
-                check=False,
-                text=False,
-                observation=True,
-            )
-            if blob.returncode:
-                _invalid()
             try:
-                self._documents[path] = tomllib.loads(blob.stdout.decode())
+                self._documents[path] = tomllib.loads(self._read(path).decode())
             except (UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
                 _invalid(error)
         return self._documents[path]
 
 
+def _committed(root: Path, tree: str) -> _Tree:
+    """List one exact committed tree; each declaration is read from it as a blob."""
+    listing = run_git(
+        root, "ls-tree", "-r", "--name-only", "-z", tree, check=False, text=False, observation=True
+    )
+    if listing.returncode:
+        _invalid()
+
+    def read(path: str) -> bytes:
+        blob = run_git(
+            root, "cat-file", "blob", f"{tree}:{path}", check=False, text=False, observation=True
+        )
+        if blob.returncode:
+            _invalid()
+        return blob.stdout
+
+    # A path that is not UTF-8 cannot name a declaration, so it is kept only as listed.
+    return _Tree(listing.stdout.decode(errors="surrogateescape").split("\0"), read)
+
+
+def carrier_target(root: Path, paths: tuple[str, ...]) -> str | None:
+    """Return the target-version the working tree's paradigm carrier declares, if it can be read.
+
+    A format run asks only after the shipped and the repository's settings rendered a file
+    differently, so a declaration this reader cannot follow leaves that refusal as it was.
+    """
+    ruff = next(tool for tool in load_repository_paradigm().tool if tool.id == "ruff")
+    if ruff.carrier not in paths:
+        return None
+    view = _Tree(paths, lambda path: (root / path).read_bytes())
+    try:
+        chained = _chain(view, ruff, ruff.carrier, view.document(ruff.carrier))
+    except (ValueError, OSError):
+        return None
+    return None if chained is None else f"py3{chained[0]}"
+
+
 def compatibility_target(root: Path, tree: str, paths: tuple[str, ...]) -> PythonTarget:
     """Resolve the one declared target that governs every checked path."""
-    committed = _Tree(root, tree)
+    committed = _committed(root, tree)
     ruff = next(tool for tool in load_repository_paradigm().tool if tool.id == "ruff")
     target = _directory_target(committed, ruff, "")
     if target is None:

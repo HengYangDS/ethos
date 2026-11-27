@@ -12,6 +12,9 @@ import re
 import tomllib
 from typing import TYPE_CHECKING
 
+from packaging.specifiers import InvalidSpecifier
+from packaging.specifiers import Specifier
+
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.verdict import close_verdict
 from ethos.repository.paradigm.documents import document_gaps
@@ -47,6 +50,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from ethos.contracts.paradigm.declaration import EcosystemModule
+    from ethos.contracts.paradigm.declaration import FormatterBinding
     from ethos.contracts.paradigm.declaration import ReleaseConventions
     from ethos.contracts.paradigm.declaration import RepositoryParadigm
     from ethos.repository.paradigm.names import IdentifierNames
@@ -355,11 +359,11 @@ def _module_gaps(
             yield ParadigmGap(
                 "module-lock", module.manifest, f"lock {module.manifest} with {module.lock}"
             )
-        if module.floor and _python_floor(source) != module.floor:
+        if module.version_key and not _lower_bound(source, module.version_key):
             yield ParadigmGap(
                 "module-floor",
                 module.manifest,
-                f"declare requires-python with the lower bound >={module.floor}",
+                f"declare {module.version_key} with one lower bound >= a version",
             )
 
 
@@ -378,7 +382,7 @@ def _formatter_gaps(
             declared = tomllib.loads(source)
         except tomllib.TOMLDecodeError:
             declared = {}
-        for key, expected in formatter.settings.items():
+        for key, expected in _expected_settings(formatter, declared).items():
             if _declared_setting(declared, key) != expected:
                 yield ParadigmGap(
                     "formatter-setting",
@@ -535,6 +539,18 @@ def _changelog_gaps(conventions: ReleaseConventions, text: str | None) -> Iterat
         )
 
 
+def _expected_settings(formatter: FormatterBinding, declared: object) -> dict[str, object]:
+    """The fixed settings, and each declared key at its own value or, without one, its default.
+
+    A value of another kind than the default is no declaration, so its gap and repair stay.
+    """
+    own = {key: _declared_setting(declared, key) for key in formatter.declared}
+    kept = {
+        key: value for key, value in own.items() if isinstance(value, type(formatter.declared[key]))
+    }
+    return {**formatter.settings, **formatter.declared, **kept}
+
+
 def _declared_setting(declared: object, key: str) -> object:
     """Read one dotted formatter setting from its native declaration."""
     for part in key.split("."):
@@ -557,19 +573,15 @@ def _requires_lock(module: EcosystemModule, source: str) -> bool:
     )
 
 
-def _python_floor(source: str) -> str:
-    """Return the single lower bound of the declared requires-python specifier."""
+def _lower_bound(source: str, key: str) -> bool:
+    """Return whether the manifest's version key holds exactly one >= clause a specifier admits."""
     try:
-        project = tomllib.loads(source).get("project", {})
-    except tomllib.TOMLDecodeError:
-        return ""
-    specifier = project.get("requires-python") if isinstance(project, dict) else None
-    if not isinstance(specifier, str):
-        return ""
-    bounds = [
-        part.strip()[2:].strip() for part in specifier.split(",") if part.strip().startswith(">=")
-    ]
-    return bounds[0] if len(bounds) == 1 else ""
+        specifier = _declared_setting(tomllib.loads(source), key)
+        clauses = specifier.split(",") if isinstance(specifier, str) else []
+        bounds = [Specifier(part) for part in clauses if part.strip().startswith(">=")]
+    except (tomllib.TOMLDecodeError, InvalidSpecifier):
+        return False
+    return len(bounds) == 1
 
 
 def editor_defaults(source: str) -> dict[str, str]:

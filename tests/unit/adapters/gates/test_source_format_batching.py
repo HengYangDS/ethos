@@ -17,6 +17,7 @@ from ethos.adapters.gates.formatting import prepare_source_format
 from tests.support.governed_repository import write_tree
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 
@@ -33,22 +34,55 @@ def _recorded_launches(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, ...]]
     return launched
 
 
+def _pages(size: int) -> dict[str, str]:
+    return {f"docs/page{index}.md": f"# Page {index}\n\nText.\n" for index in range(size)}
+
+
+def _mixed_sources(size: int) -> dict[str, str]:
+    return {
+        **_pages(size),
+        **{f"src/module{index}.py": f"VALUE = {index}\n" for index in range(size)},
+        **{f"settings{index}.toml": f"value = {index}\n" for index in range(size)},
+    }
+
+
+def _pages_beside_an_ignored_page(size: int) -> dict[str, str]:
+    return {"docs/untouched.md": "# Untouched\n\n\n\ntext   \n", **_pages(size)}
+
+
+@pytest.mark.parametrize(
+    ("unselected", "sources_of", "ignored"),
+    [
+        pytest.param({}, _mixed_sources, None, id="every-formatter"),
+        pytest.param(
+            {".config/checks/prettier/prettierignore": "../../../docs/untouched.md\n"},
+            _pages_beside_an_ignored_page,
+            ["docs/untouched.md"],
+            id="under-an-ignore-file",
+        ),
+    ],
+)
 def test_clean_selection_costs_the_same_native_checks_at_any_size(
-    lane: Path, monkeypatch: pytest.MonkeyPatch
+    lane: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    unselected: dict[str, str],
+    sources_of: Callable[[int], dict[str, str]],
+    ignored: list[str] | None,
 ) -> None:
-    """Each formatter checks a clean selection in one native run, however many files it owns."""
+    """Each formatter checks a clean selection in one native run, however many files it owns.
+
+    A repository's Prettier ignore file is asked about every file in one native run.
+    """
     launched = _recorded_launches(monkeypatch)
     counts = []
     for size in (2, 6):
-        sources = {
-            **{f"docs/page{index}.md": f"# Page {index}\n\nText.\n" for index in range(size)},
-            **{f"src/module{index}.py": f"VALUE = {index}\n" for index in range(size)},
-            **{f"settings{index}.toml": f"value = {index}\n" for index in range(size)},
-        }
-        write_tree(lane, sources)
+        sources = sources_of(size)
+        write_tree(lane, {**unselected, **sources})
         launched.clear()
         report = formatting_gate.source_format_report(lane, paths=tuple(sources))
         assert (report["verdict"], report["changed_paths"]) == ("pass", []), report
+        if ignored is not None:
+            assert report["ignored_paths"] == ignored, report
         counts.append(len(launched))
     assert counts[0] == counts[1], launched
 
@@ -77,28 +111,6 @@ def test_a_clean_selection_lists_the_repository_equally_often_at_any_size(
         assert lint["native"][0]["required_gaps"] == [], lint
         counts.append((formatted, len(listings) - formatted))
     assert counts[0] == counts[1], counts
-
-
-def test_a_clean_selection_under_an_ignore_file_costs_the_same_at_any_size(
-    lane: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A repository's Prettier ignore file is asked about every file in one native run."""
-    launched = _recorded_launches(monkeypatch)
-    counts = []
-    for size in (2, 6):
-        sources = {
-            ".config/checks/prettier/prettierignore": "../../../docs/untouched.md\n",
-            "docs/untouched.md": "# Untouched\n\n\n\ntext   \n",
-            **{f"docs/page{index}.md": f"# Page {index}\n\nText.\n" for index in range(size)},
-        }
-        write_tree(lane, sources)
-        launched.clear()
-        pages = tuple(name for name in sources if name.endswith(".md"))
-        report = formatting_gate.source_format_report(lane, paths=pages)
-        assert (report["verdict"], report["changed_paths"]) == ("pass", []), report
-        assert report["ignored_paths"] == ["docs/untouched.md"], report
-        counts.append(len(launched))
-    assert counts[0] == counts[1], launched
 
 
 def test_under_an_ignore_file_drift_is_reported_and_an_excluded_file_is_left(lane: Path) -> None:

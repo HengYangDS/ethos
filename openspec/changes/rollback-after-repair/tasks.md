@@ -26,10 +26,12 @@
 
 ## 2. Documents
 
-- [ ] 2.1 Say in the release guide's step on what a beta does not qualify, and in the changelog,
+- [x] 2.1 Say in the release guide's step on what a beta does not qualify, and in the changelog,
       that the rollback after the declaration repair is now decided by the journey, and name the
       two limits that remain. Done when both texts name `receipted_rollback` and
       `pin_across_landings` as not qualified and the documentation checks pass.
+      (The release guide's step 5 and the unreleased changelog entry name both limits; the static
+      pre-check, documentation gates included, passes at `0ec07e9e2`.)
 
 ## 3. Lane, hosted and owner tasks
 
@@ -39,6 +41,8 @@
       `v0.2.0-beta.11` and `journey_previous` `v0.2.0-beta.10`. Done when every declared leg's
       receipt holds `admitted` or `refused` under `rollback_after_declaration_repair`, and the
       lane's record names each leg's value and the seconds that the stage took.
-- [ ] 3.3 Replace the line of the next release entry that names the rollback after the
+- [x] 3.3 Replace the line of the next release entry that names the rollback after the
       declaration repair as not qualified with the two narrower limits. Done when the entry
       names them and no entry says that this rollback is not qualified.
+      (The unreleased entry names `receipted_rollback` and `pin_across_landings`, and no line of it
+      calls this rollback not qualified; the released entry of 0.2.0-beta.12 is frozen.)

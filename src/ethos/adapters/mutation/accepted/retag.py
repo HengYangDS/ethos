@@ -24,6 +24,7 @@ from ethos.adapters.repo.commit.signature import repaired_object_provenance
 from ethos.adapters.repo.commit.signature import signature_record_coordinates
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
@@ -78,10 +79,16 @@ def mapped_retag(
     requests = Path(git_common_dir(root)) / "ethos/requests/release-retag"
     requests.mkdir(parents=True, exist_ok=True)
     with FileLock(requests / ".lock", mode=0o600, timeout=seconds("lock")):
+        # One reading of the asking checkout serves the whole batch: each tag's effect states it as
+        # its pre-state, so a checkout that moves while the batch runs is refused before the next
+        # tag moves.
+        asking = current_tracked_head(root)
         planned: dict[str, dict[str, str]] = {}
         refused: dict[str, list[str]] = {}
         for tag in dict.fromkeys(tags):
-            item, gaps = _plan_one(root, tag, (original_tags or {}).get(tag, ""), requests)
+            item, gaps = _plan_one(
+                root, tag, (original_tags or {}).get(tag, ""), requests, asking=asking
+            )
             if gaps:
                 refused[tag] = gaps
             else:
@@ -95,7 +102,7 @@ def mapped_retag(
         # Each moved tag records its receipt at once, so an interrupted batch leaves no
         # re-created tag without the receipt that publication reads.
         for tag, item in planned.items():
-            receipt = _apply_one(root, tag, item)
+            receipt = _apply_one(root, tag, item, asking=asking)
             record_attestations(root, (receipt,))
             shutil.rmtree(requests / tag, ignore_errors=True)
             item["receipt"] = receipt.id
@@ -119,13 +126,13 @@ def mapped_retag_move(root: Path, *, ref: str, old: str, new: str) -> bool:
 
 
 def _plan_one(
-    root: Path, tag: str, original: str, requests: Path
+    root: Path, tag: str, original: str, requests: Path, *, asking: str
 ) -> tuple[dict[str, str], list[str]]:
     """Resolve one tag, then sign its re-created object and record the request."""
     item, gaps = _resolve(root, tag, original)
     if gaps:
         return {}, gaps
-    if not _asked_from_its_line(root, item["mapped_target"]):
+    if not _asked_from_its_line(root, item["mapped_target"], asking):
         return {}, ["release_retag_checkout_unrelated"]
     try:
         recreated = create_signed_tag(
@@ -179,18 +186,17 @@ def _resolve(
     }, []
 
 
-def _asked_from_its_line(root: Path, mapped: str) -> bool:
-    """Whether the asking checkout stands at the mapped commit, or at the accepted head above it.
+def _asked_from_its_line(root: Path, mapped: str, head: str) -> bool:
+    """Whether the asking checkout's head is the mapped commit, or the accepted head above it.
 
     The effect's plan states the asking checkout as its pre-state, so the checkout is one of the
     two places that the repaired line itself offers; a Work Lane's head is neither.
     """
-    head = current_tracked_head(root)
     if head == mapped:
         return True
     if not head or head != ref_head(root, release_branch_policy(root).accepted_branch):
         return False
-    return run_git(root, "merge-base", "--is-ancestor", mapped, head, check=False).returncode == 0
+    return is_ancestor(root, mapped, head)
 
 
 def _restore_original(root: Path, original: str) -> None:
@@ -258,7 +264,7 @@ def _tag_parts(root: Path, oid: str) -> tuple[str, str, list[str]]:
     return tagger, body.split(_SIGNATURE, 1)[0], names
 
 
-def _apply_one(root: Path, tag: str, item: Mapping[str, str]) -> Attestation:
+def _apply_one(root: Path, tag: str, item: Mapping[str, str], *, asking: str) -> Attestation:
     """Move the tag ref by exact CAS under its own ref intent, then issue the receipt."""
     ref = f"refs/tags/{tag}"
     effect = GitEffect(
@@ -266,14 +272,15 @@ def _apply_one(root: Path, tag: str, item: Mapping[str, str]) -> Attestation:
         assertions={},
     )
     actor = process_issuer()
-    # The plan's pre-state is the checkout that asks, which the effect leaves where it stands: the
-    # tag's own expected value is in the effect, and its target is the re-created object's. A
-    # checkout with no commit states the mapped commit, which the pre-state check then refuses.
+    # The plan's pre-state is the asking checkout's head as the batch read it, which the effect
+    # leaves where it stands: the tag's own expected value is in the effect, and its target is the
+    # re-created object's. A checkout with no commit states the mapped commit, which the pre-state
+    # check then refuses.
     plan = compile_observed_git_effect(
         root,
         None,
         effect,
-        head=current_tracked_head(root) or item["mapped_target"],
+        head=asking or item["mapped_target"],
         policy={"operation": "release.retag", "actor": actor},
         values={"release_retag": dict(item), "root": root.as_posix()},
     )

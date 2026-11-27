@@ -99,49 +99,37 @@ def test_a_pruned_tag_is_recreated_from_the_repair_bundle(tmp_path: Path) -> Non
     assert body["mapping_attestation_id"]
 
 
-def test_a_tag_behind_the_checked_out_head_is_recreated(tmp_path: Path) -> None:
-    """The tag's mapped commit is an ancestor of the checkout's head, like every tag but the newest.
-
-    The effect moves one tag ref by exact compare-and-swap; the checkout it is asked from stays
-    where it is and is the plan's pre-state.
-    """
-    repo, _old, replacement, original, _root = _repaired_with_tags(tmp_path)
-    later = commit_fixture_file(repo, "later.txt", "later\n", "docs: add a later file")
-    assert later != replacement
-    preview = retag.mapped_retag(repo, tags=("v1.0.0",))
-    assert preview["verdict"] == "pass", preview
-    applied = retag.mapped_retag(
-        repo,
-        tags=("v1.0.0",),
-        apply=True,
-        authorized=True,
-        expect_plan_digest=preview["data"]["plan_digest"],
-    )
-    assert (applied["verdict"], applied["state"]) == ("pass", "retagged"), applied
-    assert git(repo, "rev-parse", "refs/tags/v1.0.0") != original
-    assert git(repo, "rev-parse", "refs/tags/v1.0.0^{}") == replacement
-    assert git(repo, "rev-parse", "HEAD") == later
+TWO_TAGS = ("v1.0.0", "v1.1.0")
 
 
-def test_two_tags_on_different_commits_are_recreated_in_one_run(tmp_path: Path) -> None:
-    """One run re-creates the tag at the checkout's head and one behind it under one plan digest."""
+def _two_repaired_tags(tmp_path: Path) -> tuple[Path, list[str], str]:
+    """Tag the replaced commit and the head above it, then repair both onto a re-signed line."""
     repo, old, _candidate = signature_repository(tmp_path)
     second = commit_fixture_file(repo, "second.txt", "second\n", "docs: add a second file")
-    names = ("v1.0.0", "v1.1.0")
-    for name, target in zip(names, (old, second), strict=True):
+    for name, target in zip(TWO_TAGS, (old, second), strict=True):
         git(repo, "tag", "-s", "-m", f"Release {name}", name, target)
-    originals = [git(repo, "rev-parse", f"refs/tags/{name}") for name in names]
+    originals = [git(repo, "rev-parse", f"refs/tags/{name}") for name in TWO_TAGS]
     head = repair_fixture_history(
         repo,
         tmp_path / "original.bundle",
         corrections={old: {"resign": True}},
-        refs=("refs/heads/dev", *(f"refs/tags/{name}" for name in names)),
+        refs=("refs/heads/dev", *(f"refs/tags/{name}" for name in TWO_TAGS)),
     )
-    preview = retag.mapped_retag(repo, tags=names)
+    return repo, originals, head
+
+
+def test_two_tags_on_different_commits_are_recreated_in_one_run(tmp_path: Path) -> None:
+    """One run re-creates the tag at the checkout's head and one behind it under one plan digest.
+
+    Each effect moves one tag ref by exact compare-and-swap; the checkout it is asked from stays
+    where it is and is the plan's pre-state.
+    """
+    repo, originals, head = _two_repaired_tags(tmp_path)
+    preview = retag.mapped_retag(repo, tags=TWO_TAGS)
     assert preview["verdict"] == "pass", preview
     applied = retag.mapped_retag(
         repo,
-        tags=names,
+        tags=TWO_TAGS,
         apply=True,
         authorized=True,
         expect_plan_digest=preview["data"]["plan_digest"],
@@ -149,8 +137,34 @@ def test_two_tags_on_different_commits_are_recreated_in_one_run(tmp_path: Path) 
     assert (applied["verdict"], applied["state"]) == ("pass", "retagged"), applied
     assert git(repo, "rev-parse", "refs/tags/v1.0.0^{}") == git(repo, "rev-parse", f"{head}~1")
     assert git(repo, "rev-parse", "refs/tags/v1.1.0^{}") == head
-    assert [git(repo, "rev-parse", f"refs/tags/{name}") for name in names] != originals
-    assert all(git(repo, "verify-tag", f"refs/tags/{name}") == "" for name in names)
+    assert [git(repo, "rev-parse", f"refs/tags/{name}") for name in TWO_TAGS] != originals
+    assert all(git(repo, "verify-tag", f"refs/tags/{name}") == "" for name in TWO_TAGS)
+    assert git(repo, "rev-parse", "HEAD") == head
+
+
+def test_a_checkout_that_moves_during_a_batch_stops_the_next_tag(tmp_path: Path) -> None:
+    """Each tag states the head the batch was asked from, so a move between two tags refuses."""
+    repo, originals, _head = _two_repaired_tags(tmp_path)
+    preview = retag.mapped_retag(repo, tags=TWO_TAGS)
+    record = retag.record_attestations
+
+    def record_then_move(root: Path, receipts: tuple[Attestation, ...]) -> None:
+        record(root, receipts)
+        git(repo, "switch", "--detach", "HEAD~1")
+
+    with (
+        patch.object(retag, "record_attestations", record_then_move),
+        pytest.raises(ValueError, match="git_effect_plan_prestate_stale"),
+    ):
+        retag.mapped_retag(
+            repo,
+            tags=TWO_TAGS,
+            apply=True,
+            authorized=True,
+            expect_plan_digest=preview["data"]["plan_digest"],
+        )
+    assert git(repo, "rev-parse", "refs/tags/v1.0.0") != originals[0]
+    assert git(repo, "rev-parse", "refs/tags/v1.1.0") == originals[1]
 
 
 @pytest.mark.parametrize("place", ["unborn", "lane", "detached-elsewhere", "detached-at-tag"])

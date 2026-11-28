@@ -35,6 +35,12 @@ qualification. Read against this Change's base, step by step:
 So the limit that the entries name is narrower than the plan's steps, and the plan's steps are
 wider than this row's size. The design reads them as three slices.
 
+DR-0035 states the part of this row that 0.2.0 requires: the journey records `admitted` or
+`refused` as the product decides, and a pinned tree's rollback writes its receipt. This Change is
+the first slice and delivers the first half. The second half is the receipted rollback, which the
+receipt keeps as `receipted_rollback`, `not_qualified`; it holds the row open until its slice is
+archived under a passed full proof.
+
 ## What Changes
 
 This Change is a draft: it holds this proposal and the design, and no tasks.

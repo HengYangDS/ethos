@@ -85,8 +85,8 @@ DR-0035).
       and compares its output with the tables. The product's present signal for a removed step,
       `openspec_spec_obligation_removed`, does not see a step written as a list item, which is every
       step of these specifications: fed the edit's 82 removed step lines as first drafted, it names
-      none, and the 16 added on 2026-11-28 are list items too. That defect enters the repository as
-      a known-defect entry with this Change.
+      none, and the 16 added on 2026-11-28 are list items too. That defect is a known-defect entry
+      on `dev` (`defects/removed-spec-steps-in-list-form-not-reported.md`).
     - The owner's acceptance: the product's acceptance covers delta entries only, so the retired
       names and texts go to the owner in person, with the reworded and the added text, before the
       landing; the lane does not land without his answer.

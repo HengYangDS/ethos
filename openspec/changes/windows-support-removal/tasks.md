@@ -69,9 +69,10 @@
       of 2026-11-26 and his answer of task 1.3, each by its date and without his verbatim words, and
       the changelog entry names the step an adopter takes as task 5.4 measured it.
 - [ ] 4.5 Close the known-defect entry on a finished queue run (its `fixed_in` filled by the release
-      Change), reword and rename the entry on a slot bound to its holder to its remaining reach, and
-      add an entry on removed steps that `openspec_spec_obligation_removed` does not see. Done when
-      the known-defect entries' own check passes and each of the three entries names this Change.
+      Change), and reword and rename the entry on a slot bound to its holder to its remaining reach;
+      the entry on removed steps that `openspec_spec_obligation_removed` does not see is on `dev`
+      already. Done when the known-defect entries' own check passes and the lane's diff holds the
+      two edits.
 
 ## 5. Verification
 

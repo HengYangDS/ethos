@@ -68,10 +68,11 @@ DR-0035).
   - _Rests on:_ the inventory; `rg -i 'windows|win32|os\.name' src/ethos` in the clone.
   - _Considered:_ keeping the branches unreached behind one constant. Rejected: the owner asked for
     no residue, and an unreached branch is tested by nothing.
-- **Scenarios leave accepted requirements by a retiring edit.** The Change's first commit edits the
-  accepted specifications directly: it deletes exactly the 32 scenarios listed below from 22
-  requirements and changes nothing else (no line added, statements untouched, every requirement
-  keeps at least one scenario). The delta specifications then carry only what is reworded or new.
+- **Scenarios leave accepted requirements by a retiring edit.** The Change edits the accepted
+  specifications directly: its commits delete exactly the 32 scenarios listed below from 22
+  requirements and change nothing else in them (no line added, statements untouched, every
+  requirement keeps at least one scenario). The delta specifications then carry only what is
+  reworded or new.
   - _Rests on:_ OpenSpec 2.0.0 refuses a `MODIFIED` block that omits a scenario of the current
     specification and has no operation that removes one (its validator's message: "archive refuses
     to drop them"). The specification-governance resolution of 2026-11-16 names the retiring edit as
@@ -94,7 +95,11 @@ DR-0035).
       tables give the author's answer for each scenario. The independent review answers it again for
       each of the 38, and the section "Review of the retirements" below records the reviewer, the
       commit and each answer that differs, resolved before the archive.
-    - A commit of its own: the first commit, which holds nothing else.
+    - A commit of its own: not kept. The deletions sit in two commits with other work (febefa7fe and
+      40dda38e1, which added the five that the model review of 2026-11-28 found), so the comparison
+      runs over the lane's base and the last commit that touches the accepted specifications
+      (18f14d9e8). The cost: one revert no longer restores them; each comes back by its own edit.
+      The owner approved it with the acceptance text on 2026-11-28 (task 1.3).
     - Open deltas: no open Change's delta names one of the 20 titles or a retired scenario (searched
       at `3c6260017`); the search is repeated at the lane's base and before the landing.
     - Arrival under 1.4: the edit refuses nothing.
@@ -264,22 +269,22 @@ path any more. A scenario name in that column is the reworded successor in the s
 
 `distribution`
 
-| Requirement                                                          | Retired scenario                                 | Still done, or stated by                |
-| -------------------------------------------------------------------- | ------------------------------------------------ | --------------------------------------- |
-| Content-addressed package publication is host portable               | Windows publishes an immutable package           | No                                      |
-| Native trust preflight preserves identity and failure meaning        | A foreign SID has no resolvable account name     | No                                      |
-| Platform support is established by native delivered behavior         | An emulating host qualifies an x64 runtime       | No                                      |
-| Platform support is established by native delivered behavior         | An emulated interpreter selects its runtime      | No                                      |
-| Hosted package construction uses runner supply and one Node resolver | Windows build resolves the installed Node layout | No                                      |
-| A published runtime archive declares what it ships                   | An optional archive's declaration is incomplete  | An archive lacks one of its inventories |
-| A published runtime archive declares what it ships                   | The catalog misses a locked executable           | No                                      |
-| A published runtime archive declares what it ships                   | A declared executable differs from its supply    | No                                      |
-| A release names each declared platform that it does not publish      | An optional leg fails before it uploads          | No                                      |
-| A release names each declared platform that it does not publish      | The workflow tolerates only optional failures    | The workflow tolerates no failed leg    |
-| Release platforms catalog their archives on every hosted commit run  | A commit's Windows leg catalogs its archive      | No                                      |
-| One owner gives every journey child a fresh environment              | A Windows host runs a stage                      | No                                      |
-| Windows runtime archives fit the Windows path limit                  | A deep install root runs the interpreter         | No                                      |
-| Windows runtime archives fit the Windows path limit                  | The archive layout outgrows the budget           | No                                      |
+| Requirement                                                          | Retired scenario                                 | Still done, or stated by                                     |
+| -------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------ |
+| Content-addressed package publication is host portable               | Windows publishes an immutable package           | No                                                           |
+| Native trust preflight preserves identity and failure meaning        | A foreign SID has no resolvable account name     | No                                                           |
+| Platform support is established by native delivered behavior         | An emulating host qualifies an x64 runtime       | No                                                           |
+| Platform support is established by native delivered behavior         | An emulated interpreter selects its runtime      | No                                                           |
+| Hosted package construction uses runner supply and one Node resolver | Windows build resolves the installed Node layout | No                                                           |
+| A published runtime archive declares what it ships                   | An optional archive's declaration is incomplete  | No; refused instead: An archive lacks one of its inventories |
+| A published runtime archive declares what it ships                   | The catalog misses a locked executable           | No                                                           |
+| A published runtime archive declares what it ships                   | A declared executable differs from its supply    | No                                                           |
+| A release names each declared platform that it does not publish      | An optional leg fails before it uploads          | No                                                           |
+| A release names each declared platform that it does not publish      | The workflow tolerates only optional failures    | The workflow tolerates no failed leg                         |
+| Release platforms catalog their archives on every hosted commit run  | A commit's Windows leg catalogs its archive      | The requirement's statement; no scenario                     |
+| One owner gives every journey child a fresh environment              | A Windows host runs a stage                      | No                                                           |
+| Windows runtime archives fit the Windows path limit                  | A deep install root runs the interpreter         | No                                                           |
+| Windows runtime archives fit the Windows path limit                  | The archive layout outgrows the budget           | No                                                           |
 
 `proof-hosts`
 
@@ -414,9 +419,9 @@ it holds no document.
   patch and the Python-version patch, which land before this Change): tests 113,568, product 84,479,
   verdict pass; the shared test helper `tests/support/release_legs.py`, which the cleanup patch
   adds, holds the one host set after it.
-- Specifications: the retiring edit removes 27 scenario headings and 82 step lines in 20
-  requirements and adds no line; the Change then validates strictly; an archive in a copy leaves all
-  twelve specifications valid.
+- Specifications: the retiring edit, over its two commits, removes 32 scenario headings and 98 step
+  lines and adds no line (read on 2026-11-28 from the diff of e7792f9d3 and 18f14d9e8); the Change
+  then validates strictly; an archive in a copy leaves all twelve specifications valid.
 
 ## Rejected alternatives
 
@@ -453,8 +458,25 @@ state is migrated.
 
 ## Review of the retirements
 
-(Written by task 1.4: the reviewer, the retiring commit, and each of the 38 answers that differs
-from the tables above, with its resolution.)
+Reviewer: an independent agent reader that had not seen the work, on 2026-11-28. Its comparison
+over e7792f9d3..18f14d9e8 names 32 removed pairs, equal to the list above, no added line and no
+changed statement. Of its 38 answers, 36 agree with the tables; the two that differed are resolved:
+
+- _An optional archive's declaration is incomplete_: the tables named _An archive lacks one of its
+  inventories_ as its successor. The reviewer is right: the promise (the incomplete optional archive
+  left out, the other platforms published) leaves with the optional legs, and the named scenario
+  states the opposite outcome, a refused release. The table now says so.
+- _A commit's Windows leg catalogs its archive_: the tables said No. The reviewer is right: the
+  macOS and Linux host-conformance legs still catalog their kept archive on every commit run (the
+  generated workflow runs the supply-chain session on linux-x64, linux-arm64 and macos-arm64 at
+  Python 3.14), as the kept requirement's statement says; no remaining scenario states that
+  success path. The table now names the statement.
+
+The reviewer also named two promises that the added requirements keep only in part: reading every
+process's command line without starting a child process (the process lister is itself a child
+process), and the lister's timeout, which only the statement's bound covers (on a timeout the
+observation raises the command timeout before any generation is deleted, read in the code, not run).
+Both were named to the owner in the acceptance text, which he approved on 2026-11-28 (task 1.3).
 
 ## Open Questions
 

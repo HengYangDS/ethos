@@ -83,7 +83,10 @@ GitLab macOS job for ETHOS is a Change of its own.
 Decided by the owner. On 2026-11-25: Windows support is removed entirely, leaving no remnant in
 ETHOS's current text, with the plan, its release and the platforms each Forge runs; ETHOS's GitLab
 macOS runner is left to the release lead. On 2026-11-26: the removal lands before 0.2.0, and the
-four pieces stay. The
+four pieces stay. On 2026-11-28: the accepted text that the Change retires, rewords and adds, the
+two sentences of the product design contract and this record enter as he was shown them, each
+with its Chinese meaning, including the deletions in two commits and the two effects that no
+earlier release reported. The
 census of the governed checkouts, the run and the readings are in the design of the Change
 `windows-support-removal`. Revisit at each release: the first piece when a release ships the
 activation repair; the second and third from `ethos/runtime/CURRENT` and `ethos/runtime/ROLLBACK`

@@ -15,18 +15,21 @@
       2026-11-28: `retire-compare.py` over e7792f9d3..18f14d9e8 names 32 removed pairs, the 32
       listed, 0 added lines and 0 changed statements; `openspec validate --specs --strict` passes 12
       of 12.
-- [ ] 1.3 Put the retired, reworded and added accepted text to the owner with its Chinese meaning:
+- [x] 1.3 Put the retired, reworded and added accepted text to the owner with its Chinese meaning:
       the 32 retired scenarios and the 6 that leave with a removed requirement, by name and text;
       the reworded statements and scenarios; the two added requirements; the contract's two
       sentences; the decision record; and by name the two effects that no earlier release reported
       (a pipeline declaration naming `windows` stops compiling; a bind with a Mise pin that keeps
       the Windows rows, as task 5.4 measures it). The four pieces that stay are decided (the owner's
       decision of 2026-11-26). Done when his answer is recorded in the decision record; the lane
-      does not land before.
-- [ ] 1.4 Have the lane's independent review rerun the comparison of task 1.2 on the retiring commit
+      does not land before. Read 2026-11-28: he approved all of it as shown; DR-0038 records his
+      answer.
+- [x] 1.4 Have the lane's independent review rerun the comparison of task 1.2 on the retiring commit
       and answer, for each of the 38 scenarios of the design's tables, whether the product still
       does it or which title states it. Done when the design's section "Review of the retirements"
-      names the reviewer and the commit and resolves each answer that differs.
+      names the reviewer and the commit and resolves each answer that differs. Read 2026-11-28: an
+      independent agent reader reran the comparison over e7792f9d3..18f14d9e8 (32 pairs, as listed)
+      and agreed with 36 of the 38 answers; the two that differed are resolved in that section.
 
 ## 2. The product
 
@@ -74,9 +77,11 @@
 
 ## 4. Tests and records
 
-- [ ] 4.1 Remove the Windows-only test cases and `tests/support/windows_host.py`, and the Windows
+- [x] 4.1 Remove the Windows-only test cases and `tests/support/windows_host.py`, and the Windows
       leg of `tests/support/release_legs.py`; lower the decision-density baseline to the measured
-      scores. Done when the whole pre-check passes.
+      scores. Done when the whole pre-check passes. Read 2026-11-28: it passed at 420984cfc (9,345
+      tests passed, 1 skipped, 0 findings); its coverage phase was cut at 59 % on purpose, so the
+      90 % check of the added lines is left to the coverage floor of the full proof.
 - [x] 4.2 Carry the reworded and the new requirement texts into the seven delta specifications. Done
       when `openspec validate windows-support-removal --strict` passes and the archive simulation
       validates every accepted specification. Read 2026-11-28 14:58 at ba1b78f79: `openspec validate

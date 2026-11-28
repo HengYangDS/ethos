@@ -27,13 +27,15 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Changed
 
-- **BREAKING**: ETHOS supports macOS and Linux only. No release from this one on publishes a
-  Windows archive or a Windows wheel: the published platforms are `linux-x64`, `linux-arm64` and
+- **BREAKING**: ETHOS supports macOS and Linux only. No release from this one on publishes a Windows
+  archive or a Windows wheel: the published platforms are `linux-x64`, `linux-arm64` and
   `macos-arm64`, each required. The product keeps one path, the POSIX one; the gap codes
   `git_object_trust_anchor_observation_unavailable`, `hook_launcher_platform_invalid`,
   `native_node_archive_members_invalid`, `native_security_api_missing` and
-  `unsupported_access_entry` leave with their only producers. What a governed repository meets
-  at its bind:
+  `unsupported_access_entry` leave with their only producers. Each entry (the `ethos` console,
+  `python -m ethos.cli` and the Git hook entry) refuses any other host with
+  `host_platform_unsupported:<platform>` before it reads the repository. What a governed repository
+  meets at its bind:
   - A Mise pin that lists `windows-x64` or `windows-arm64` for ETHOS's archive: an upgrade by
     `ethos lane repair-paradigm --pin` replaces the table with the release's bare entry, so the
     rows leave with it; a table written by hand for this release: remove the rows.

@@ -213,7 +213,7 @@ Non-Goals:
    - **Applies to:** `hosted checks`, which holds the required suite legs; the three required
      platforms, through the legs' own optional mark; the assembly; and each journey host.
 9. **The rehearsal writes no receipt in this Change.**
-   - **Rests on:** [DR-0035](../../../docs/decisions/dr-0035-release-candidate-gate-scope.md),
+   - **Rests on:** [DR-0035](../../../../docs/decisions/dr-0035-release-candidate-gate-scope.md),
      Waiver 4, which places the bound receipt, its Attestation and its command after 0.2.0; and
      decision 5 of `hosted-observation`: a record without a reader is unproved.
    - **Considered:** building the receipt's writer here, estimated at 110 to 160 tools and 130 to

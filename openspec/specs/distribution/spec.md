@@ -623,7 +623,8 @@ policy gap.
 
 #### Scenario: A hosted platform qualifies a signed release
 
-- **WHEN** a hosted runner without the repository proof builds or qualifies release bytes
+- **WHEN** a hosted runner without the repository proof builds or qualifies release bytes outside
+  a rehearsal
 - **THEN** only the trusted signed tag of that exact clean source, its committed version and
   curated entry admit the release identity
 - **AND** an unsigned, untrusted, misplaced or mismatched tag is refused before any build effect
@@ -1453,3 +1454,86 @@ run every journey step. Each leg's receipt SHALL name its venue.
 
 - **WHEN** a leg writes its receipt
 - **THEN** `venue` SHALL read `ci` under a CI runner and `local` otherwise
+
+### Requirement: A release head is rehearsed on hosted runners before its tag
+
+The hosted workflow SHALL offer a dispatch that names one commit. At that commit alone it SHALL
+build and qualify the release wheel on every declared release platform, assemble the release's
+assets and run the adopter journey on each declared host, before a tag of that version exists. A
+rehearsal job SHALL hold no permission to publish or attest, and one job SHALL give the
+rehearsal's verdict.
+
+#### Scenario: A dispatch names the head of its ref
+
+- **WHEN** a dispatch names the commit that is the head of its ref
+- **THEN** the run qualifies that commit as a batch-head dispatch does
+- **AND** it builds every declared release platform, assembles the assets and runs the journey
+- **AND** nothing is attested, published or tagged.
+
+#### Scenario: A dispatch names another commit
+
+- **WHEN** a dispatch names a commit that is not the head of its ref
+- **THEN** no rehearsal job builds, assembles or installs anything
+- **AND** the rehearsal's verdict job fails.
+
+#### Scenario: A dispatch also names a release, a journey, a scan or the supply image
+
+- **WHEN** a dispatch names a head to rehearse and one of the workflow's other selecting inputs
+- **THEN** no rehearsal job builds, assembles or installs anything
+- **AND** the rehearsal's verdict job fails.
+
+#### Scenario: A required leg fails
+
+- **WHEN** a required platform's leg, the assembly or a declared host's journey fails
+- **THEN** the rehearsal's verdict job fails
+- **AND** a failed optional platform is named among the platforms left out and fails nothing.
+
+### Requirement: A rehearsal build carries release identity before the tag
+
+A rehearsal build SHALL carry release identity only when its checkout is clean at the named
+commit, that commit's signature passes the bound commit trust, its committed version has no tag
+and its changelog entry passes the release tag policy. Outside a rehearsal, a hosted release
+build SHALL still be admitted by its signed tag alone. A rehearsal SHALL accept, attest and
+publish nothing.
+
+#### Scenario: The version already has a tag
+
+- **WHEN** a rehearsal build names a head whose committed version has a tag
+- **THEN** the build refuses with `release_rehearsal_tag_exists:v<version>` before any build
+  effect.
+
+#### Scenario: The head's signature is not trusted
+
+- **WHEN** the bound commit trust does not pass the signature of the named head
+- **THEN** the build refuses with `release_rehearsal_head_untrusted` before any build effect.
+
+#### Scenario: A rehearsal request names a tag
+
+- **WHEN** a build request carries both the rehearsal mark and a tag
+- **THEN** it is refused as an invalid release request.
+
+### Requirement: A rehearsal's journey installs the run's own assembly
+
+A rehearsal's journey SHALL install the candidate offline from its platform's archive of the same
+run, admitted only when its digest is the one that the run's checksum file lists, and SHALL
+acquire each predecessor through its exact pin. Its predecessors SHALL be the releases that the
+release binding records at the head, or the previous published release when it records none.
+
+#### Scenario: The archive is not the assembled one
+
+- **WHEN** the archive's digest differs from the checksum file's line for its published name
+- **THEN** the journey fails before it installs the archive
+- **AND** the leg still uploads its receipt and stage events.
+
+#### Scenario: The head records its predecessors
+
+- **WHEN** the release binding at the head records releases under `[release.upgrade_from]`
+- **THEN** the journey upgrades from each of them, and rolls back to it, in its own host store
+- **AND** its receipt names the record as the source of the set.
+
+#### Scenario: The head records no predecessor
+
+- **WHEN** the release binding at the head records no release
+- **THEN** the journey upgrades from the first earlier changelog entry whose release the forge
+  published
+- **AND** its receipt names the changelog as the source of the set.

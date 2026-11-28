@@ -44,7 +44,7 @@ for 0.2.0-beta.6 to 0.2.0-beta.11:
   predecessors are the releases that the release binding records at the head.
 - `release-rehearsal` gives the rehearsal one verdict: one expression over the jobs it needs. It
   writes no receipt: the bound receipt follows 0.2.0
-  ([DR-0035](../../../docs/decisions/dr-0035-release-candidate-gate-scope.md), Waiver 4).
+  ([DR-0035](../../../../docs/decisions/dr-0035-release-candidate-gate-scope.md), Waiver 4).
 - The release guide's fourth step names the rehearsal dispatch for a release head.
 
 Not breaking: no existing input, job name, artifact or session argument changes, and the four

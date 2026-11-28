@@ -65,21 +65,21 @@ DR-0035).
   `strict` mode of the process listing and the `cmd` console launcher. A function that took the
   platform's name as a parameter for tests (`process_commands`, `load_hook_contract`, the Node and
   native supply readers) loses the parameter. Branches between macOS and Linux stay.
-  - _Rests on:_ the inventory; `rg -i 'windows|win32|os\.name' src/ethos` in the clone.
-  - _Considered:_ keeping the branches unreached behind one constant. Rejected: the owner asked for
+  - *Rests on:* the inventory; `rg -i 'windows|win32|os\.name' src/ethos` in the clone.
+  - *Considered:* keeping the branches unreached behind one constant. Rejected: the owner asked for
     no residue, and an unreached branch is tested by nothing.
 - **Scenarios leave accepted requirements by a retiring edit.** The Change edits the accepted
   specifications directly: its commits delete exactly the 32 scenarios listed below from 22
   requirements and change nothing else in them (no line added, statements untouched, every
   requirement keeps at least one scenario). The delta specifications then carry only what is
   reworded or new.
-  - _Rests on:_ OpenSpec 2.0.0 refuses a `MODIFIED` block that omits a scenario of the current
+  - *Rests on:* OpenSpec 2.0.0 refuses a `MODIFIED` block that omits a scenario of the current
     specification and has no operation that removes one (its validator's message: "archive refuses
     to drop them"). The specification-governance resolution of 2026-11-16 names the retiring edit as
     the route "until OpenSpec ships an operation for it" (2.3, 2.5); the open Change
     `specification-governance` records that the owner confirmed on 2026-11-16 that ETHOS implements
     the resolution.
-  - _How each clause of 2.5 is met here, since the product builds none of them yet:_
+  - *How each clause of 2.5 is met here, since the product builds none of them yet:*
     - The list: the tables below, by requirement title and scenario name, each with its reason.
     - The comparison of base and head: no product reader exists. The author's script derives the
       retired pairs from the two trees; the lane's independent review runs it again on the commit
@@ -103,10 +103,10 @@ DR-0035).
     - Open deltas: no open Change's delta names one of the 20 titles or a retired scenario (searched
       at `3c6260017`); the search is repeated at the lane's base and before the landing.
     - Arrival under 1.4: the edit refuses nothing.
-  - _Considered:_ keeping each scenario's name and rewriting its body, as the Change
+  - *Considered:* keeping each scenario's name and rewriting its body, as the Change
     `ci-emulation-retirement` did on 2026-11-02 (its design: "keeps its name"). Rejected: a scenario
     that is named for Windows and says that Windows is not supported is residue and retirement
-    vocabulary (resolution 5.2). _Considered:_ `REMOVED` and `ADDED` under a new title for all 22
+    vocabulary (resolution 5.2). *Considered:* `REMOVED` and `ADDED` under a new title for all 22
     requirements. Rejected: it changes 22 identities that keep their promise.
 - **A requirement that would keep no scenario leaves by `REMOVED` and names its successor.** Three
   leave, with 6 scenarios. "Native metadata comparisons preserve observation semantics" (one
@@ -125,37 +125,37 @@ DR-0035).
 - **The hook declaration and the launcher keep their bytes.** The shipped declaration keeps the
   entry `nt`, the launcher keeps the alternative of its path pattern that admits a drive-letter
   runtime path, and the reader takes the `posix` entry and accepts `nt` as the only other key.
-  - _Rests on, run on 2026-11-25:_ an activation writes the launchers of the build that runs it and
+  - *Rests on, run on 2026-11-25:* an activation writes the launchers of the build that runs it and
     judges them against the declaration of the runtime that it selects. With the running build's
     launchers changed by exactly this alternative, the activation of a runtime that holds the
     present declaration ended with `hook_runtime_activation_invalid`, a `launcher_drift` gap for
     each of the four hooks and `hook_generation_digest`, and the selection went back to the earlier
     runtime. The product's one supported rollback, the current runtime activating the held one, is
     such an activation.
-  - _Rests on, read and not run:_ the reader of every release through 0.2.0-beta.12 requires exactly
+  - *Rests on, read and not run:* the reader of every release through 0.2.0-beta.12 requires exactly
     the keys `posix` and `nt`, and a predecessor's reader meets a successor's declaration at a
     self-landing.
-  - _So:_ the hook generation of this release equals that of `dev` today and of every release from
+  - *So:* the hook generation of this release equals that of `dev` today and of every release from
     0.2.0-alpha.19 to 0.2.0-beta.11 (one declaration, one digest, pinned by a test), and no
     activation between this release and one of them meets a difference in launchers or generation.
     0.2.0-beta.12 is tagged from `dev`.
-  - _Considered:_ removing the alternative now. Rejected by the run above: the rollback from this
+  - *Considered:* removing the alternative now. Rejected by the run above: the rollback from this
     release to its predecessor would be refused.
 - **A retention record that names `windows` is read one release longer and reported.** The
   paradigm's platforms are `darwin` and `linux`; `windows` stands under `leaving_platforms`. An
   entry that names it stays complete, its step stays retained, and the audit reports
   `repository_paradigm_retained_step_platform` with its repair. The obligation
   `retained-step-platform` enters in the reporting state.
-  - _Rests on:_ resolution 1.4, "Each new refusal reports for one release before it refuses", and
+  - *Rests on:* resolution 1.4, "Each new refusal reports for one release before it refuses", and
     R14 of DR-0029; the obligation `retained-step` is armed, so without this an entry naming
     `windows` would refuse a tree that passes today (one repository, two entries).
-  - _Follows:_ the entry becomes incomplete no earlier than the next release, by the owner's
+  - *Follows:* the entry becomes incomplete no earlier than the next release, by the owner's
     decision recorded in the Change that arms it, which cites this release's reports.
 - **Three gap codes leave with their only producers.**
   `git_object_trust_anchor_observation_unavailable` (raised only by the access-control reading),
   `hook_launcher_platform_invalid` (raised only for a platform without a declared entry) and
   `native_node_archive_members_invalid` (raised only for the zip archive of Node).
-  - _Rests on:_ the registry is read from the package for a code's repair text; nothing in
+  - *Rests on:* the registry is read from the package for a code's repair text; nothing in
     `src/ethos` or `tools` asks whether a code is registered (`rg '\bregistered\('` finds the
     definition alone), so no governed tree, stored receipt or entry is validated against it.
 - **Protections that leave, each with its reach on a POSIX host.**
@@ -188,14 +188,14 @@ DR-0035).
   modules whose Windows branch left keep no host check of their own. The Nox child
   `python -m ethos.domain.quality.nox` keeps none either: it reaches no removed branch (it runs Ruff
   through the standard library and writes one record), and the domain layer imports no adapters.
-  - _Rests on:_ the lane's model review of 2026-11-28 found nine paths where, with the branch gone,
+  - *Rests on:* the lane's model review of 2026-11-28 found nine paths where, with the branch gone,
     a host without POSIX process groups, permission bits, `ps` or `lsof` would continue rather than
     refuse (its comments F50, F60 to F62, F65, F69 to F71). One owner refuses them all, and a test
     drives each entry. An independent reader of the files that review left unfinished found the
     hook entry outside the CLI's check (2026-11-28).
-  - _Considered:_ a guard in each of the nine modules. Rejected: nine copies of one fact, each
+  - *Considered:* a guard in each of the nine modules. Rejected: nine copies of one fact, each
     reached by no supported host and tested by nothing.
-  - _Follows:_ ETHOS's own CI tools refuse such a host before an operator's Mise is used, since they
+  - *Follows:* ETHOS's own CI tools refuse such a host before an operator's Mise is used, since they
     start no `ethos` command first.
 - **The locks resolve for macOS and Linux.** The Python lock declares its two environments; the
   constraint `uv<0.13.9` leaves with its reason, a Windows defect of that resolver; the Mise lock
@@ -209,7 +209,7 @@ DR-0035).
   observed on a date about ETHOS and about other tools, Windows included; they claim no support. Two
   passages leave because they exist to steer Windows work in ETHOS: the section on native Windows
   security metadata and the items on Windows on Arm runners.
-  - _Considered:_ removing every sentence that names Windows there. Rejected: it would rewrite what
+  - *Considered:* removing every sentence that names Windows there. Rejected: it would rewrite what
     a dated record found about other tools.
 - **Two known-defect entries name Windows.** The entry on a finished queue run that reports
   `host_admission_unavailable` is wholly a Windows defect and is closed; the release that first
@@ -222,10 +222,10 @@ DR-0035).
   loses "/Windows".
 - **The common CI model declares no Windows runner system.** A pipeline declaration that names the
   system `windows` no longer compiles against the model that this release ships.
-  - _Rests on:_ the census: seven governed repositories name the common model in their tracked
+  - *Rests on:* the census: seven governed repositories name the common model in their tracked
     configuration, and none of them names Windows in a CI file. Within that reading, no tree that
     passes today is refused.
-  - _Considered:_ keeping the system in the model for one release. Rejected: the model cannot
+  - *Considered:* keeping the system in the model for one release. Rejected: the model cannot
     report, only compile or not, and no declaration that the census read uses the value.
 
 ### What stays, and until when
@@ -462,11 +462,11 @@ Reviewer: an independent agent reader that had not seen the work, on 2026-11-28.
 over e7792f9d3..18f14d9e8 names 32 removed pairs, equal to the list above, no added line and no
 changed statement. Of its 38 answers, 36 agree with the tables; the two that differed are resolved:
 
-- _An optional archive's declaration is incomplete_: the tables named _An archive lacks one of its
-  inventories_ as its successor. The reviewer is right: the promise (the incomplete optional archive
+- *An optional archive's declaration is incomplete*: the tables named *An archive lacks one of its
+  inventories* as its successor. The reviewer is right: the promise (the incomplete optional archive
   left out, the other platforms published) leaves with the optional legs, and the named scenario
   states the opposite outcome, a refused release. The table now says so.
-- _A commit's Windows leg catalogs its archive_: the tables said No. The reviewer is right: the
+- *A commit's Windows leg catalogs its archive*: the tables said No. The reviewer is right: the
   macOS and Linux host-conformance legs still catalog their kept archive on every commit run (the
   generated workflow runs the supply-chain session on linux-x64, linux-arm64 and macos-arm64 at
   Python 3.14), as the kept requirement's statement says; no remaining scenario states that

@@ -163,7 +163,7 @@ class _WorkflowRun:
 
 
 def _workflow_runs(path: Path, content: bytes) -> Iterator[_WorkflowRun]:
-    """Use native YAML and Actions default-shell precedence; never execute source."""
+    """Use native YAML and Actions' shell precedence (bash on Linux, macOS); never run source."""
     workflow = yaml.safe_load(content)
     workflow_shell = workflow.get("defaults", {}).get("run", {}).get("shell", "")
     for name, job in workflow["jobs"].items():

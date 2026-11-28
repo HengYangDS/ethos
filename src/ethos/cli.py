@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 
 from ethos.application.console import command_boundary
 from ethos.application.console import invocation_parameters
-from ethos.application.console import require_supported_host
 from ethos.application.console import run_console
 from ethos.contracts.admission import ethos_command_path
 from ethos.contracts.admission import ethos_options
@@ -33,7 +32,6 @@ def main() -> None:
     options = ethos_options(argv)
     command = "version" if "--version" in options else root_command(argv) or "ethos"
     with command_boundary(command, argv, _emit):
-        require_supported_host()
         if "--version" in options:
             sys.stdout.write(f"{version_text()}\n")
             return

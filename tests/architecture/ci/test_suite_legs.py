@@ -14,13 +14,13 @@ from ethos.adapters.projections.cue import compile_projections
 from ethos.adapters.toolchain.mise import locked_tool
 from tests.support.registries import repository_registry_path
 
-# Job name, runner, Python version and whether the leg may fail; the aggregate's own test names
-# the legs it needs. With the quality job on Linux arm64 and the local proof on macOS arm64, both
+# Job name, runner and Python version; no leg may fail, and the aggregate's own test names the
+# legs it needs. With the quality job on Linux arm64 and the local proof on macOS arm64, both
 # at Python 3.14, these legs complete two operating systems, two architectures and three Python
 # versions.
 LEGS = {
-    "suite-linux-x64-py312": ("suite linux-x64 / Python 3.12", "ubuntu-latest", "3.12", False),
-    "suite-linux-x64-py313": ("suite linux-x64 / Python 3.13", "ubuntu-latest", "3.13", False),
+    "suite-linux-x64-py312": ("suite linux-x64 / Python 3.12", "ubuntu-latest", "3.12"),
+    "suite-linux-x64-py313": ("suite linux-x64 / Python 3.13", "ubuntu-latest", "3.13"),
 }
 FULL = (
     "(github.event_name == 'workflow_dispatch' && inputs.qualify_head != '')"
@@ -30,7 +30,7 @@ REPORTS = "build/evidence/quality/tests/"
 ROOT = Path(__file__).resolve().parents[3]
 
 
-def test_a_full_run_adds_the_suite_legs_and_only_the_linux_legs_block(
+def test_a_full_run_adds_the_suite_legs_and_every_leg_blocks(
     github: dict[str, Any], ci_materials: tuple[dict[str, Any], dict[str, str]]
 ) -> None:
     jobs = github["jobs"]
@@ -40,10 +40,10 @@ def test_a_full_run_adds_the_suite_legs_and_only_the_linux_legs_block(
             job["name"],
             job["runs-on"],
             job["steps"][1]["with"]["python-version"],
-            job.get("continue-on-error", False),
         )
         for name, job in legs.items()
     } == LEGS
+    assert not any("continue-on-error" in job for job in legs.values())
     gates = tomllib.loads(repository_registry_path().read_text(encoding="utf-8"))["gates"]
     (deadline,) = (gate["timeout_seconds"] for gate in gates if gate["id"] == "unit-architecture")
     commit = jobs["quality"]["if"][4:-3]

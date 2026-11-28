@@ -176,14 +176,16 @@ DR-0035).
   named the platforms a release leaves out is renamed "A release publishes every declared platform",
   and an archive without both inventories is refused like any other. The inventory owner no longer
   declares a Node that the catalog misses: the catalog missed only a Windows `node.exe`.
-- **One refusal at the command entry stands for every host that is not macOS or Linux.** The `ethos`
-  console and `python -m ethos.cli` refuse such a host with `host_platform_unsupported:<platform>`
-  before a command observes or changes anything; the hook launcher and the MCP server start through
-  them. The modules whose Windows branch left keep no host check of their own.
+- **One refusal at each entry stands for every host that is not macOS or Linux.** The `ethos`
+  console, `python -m ethos.cli` and the Git hook entry that the hook launcher runs refuse such a
+  host with `host_platform_unsupported:<platform>` before they read the repository; the MCP server
+  starts through the CLI. The check has one owner, `ethos.adapters.host`, beneath all three. The
+  modules whose Windows branch left keep no host check of their own.
   - _Rests on:_ the lane's model review of 2026-11-28 found nine paths where, with the branch gone,
     a host without POSIX process groups, permission bits, `ps` or `lsof` would continue rather than
     refuse (its comments F50, F60 to F62, F65, F69 to F71). One owner refuses them all, and a test
-    drives it.
+    drives each entry. An independent reader of the files that review left unfinished found the
+    hook entry outside the CLI's check (2026-11-28).
   - _Considered:_ a guard in each of the nine modules. Rejected: nine copies of one fact, each
     reached by no supported host and tested by nothing.
   - _Follows:_ ETHOS's own CI tools refuse such a host before an operator's Mise is used, since they

@@ -12,6 +12,7 @@ from importlib import import_module
 from pathlib import Path
 from typing import IO
 
+from ethos.adapters.host import require_supported_host
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
@@ -119,6 +120,7 @@ def main() -> None:
     """Consume Git's positional hook protocol from the package-selected launcher."""
     name, *arguments = sys.argv[1:] or [""]
     try:
+        require_supported_host()
         root = repository_root(Path.cwd()) if name in HOOK_NAMES else Path.cwd()
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         sys.stderr.write(json.dumps(blocked_report(name, str(error)), sort_keys=True) + "\n")

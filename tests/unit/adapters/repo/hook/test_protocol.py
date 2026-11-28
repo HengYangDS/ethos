@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import platform
 import subprocess
 import sys
 from io import StringIO
@@ -12,6 +13,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.repo.hook.admission as hook_admission
+import ethos.adapters.repo.hook.protocol as protocol
 from ethos.adapters.repo.hook.protocol import execute_hook
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -193,6 +195,18 @@ def test_native_entrypoint_rejects_an_unavailable_repository(tmp_path: Path) -> 
     assert failure["hook"] == "reference-transaction"
     assert failure["verdict"] == "block"
     assert failure["required_gaps"]
+
+
+def test_the_hook_entry_refuses_a_host_other_than_macos_or_linux_before_its_repository(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(platform, "system", lambda: "Windows")
+    monkeypatch.setattr(protocol, "repository_root", lambda _: pytest.fail("root resolved"))
+    monkeypatch.setattr(sys, "argv", ["protocol", "pre-push"])
+    with pytest.raises(SystemExit, match=r"^1$"):
+        protocol.main()
+    failure = json.loads(capsys.readouterr().err)
+    assert failure["required_gaps"] == ["host_platform_unsupported:Windows"]
 
 
 @pytest.mark.parametrize("verdict", ["pass", "block", "unknown"])

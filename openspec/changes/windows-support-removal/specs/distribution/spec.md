@@ -34,9 +34,9 @@ architecture that the interpreter executes.
 
 #### Scenario: A command starts on a host that ETHOS does not support
 
-- **WHEN** an `ethos` command starts on a host other than macOS or Linux
+- **WHEN** an `ethos` command or an installed Git hook starts on a host other than macOS or Linux
 - **THEN** it refuses with `host_platform_unsupported:<platform>`
-- **AND** it observes and changes nothing
+- **AND** it observes and changes nothing in the repository
 
 ### Requirement: A runtime archive names its runtime by a digest prefix
 

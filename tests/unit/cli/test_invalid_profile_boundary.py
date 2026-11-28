@@ -8,6 +8,7 @@ import subprocess
 import sys
 from contextlib import nullcontext
 from pathlib import Path
+from typing import Any
 from typing import cast
 
 import pytest
@@ -310,11 +311,18 @@ def test_public_boundary_normalizes_contract_failures_without_traceback(
 def test_a_host_other_than_macos_or_linux_is_refused_first(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys, entrypoint
 ) -> None:
-    """Both entries refuse the host before a command reads or writes its root."""
-    before = sorted(tmp_path.rglob("*"))
+    """Both entries refuse the host before a process reads the root."""
+    # The refusal's own runtime identity still reads ETHOS's source, so only the root is banned.
+    popen = subprocess.Popen
+
+    def reads_no_root(args: Any, *rest: Any, **options: Any) -> Any:
+        if tmp_path.name in f"{args} {options.get('cwd')}":
+            pytest.fail("a process read the root")
+        return popen(args, *rest, **options)
+
     monkeypatch.setattr(platform, "system", lambda: "Windows")
+    monkeypatch.setattr(subprocess, "Popen", reads_no_root)
     payload = _invoke(
         monkeypatch, capsys, "status", "--root", str(tmp_path), "--json", entrypoint=entrypoint
     )
     assert payload["required_gaps"] == ["host_platform_unsupported:Windows"]
-    assert sorted(tmp_path.rglob("*")) == before

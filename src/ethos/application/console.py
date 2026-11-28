@@ -9,7 +9,6 @@ oversized detail of its result.
 from __future__ import annotations
 
 import os
-import platform
 import shlex
 import sys
 from contextlib import contextmanager
@@ -19,6 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Protocol
 
+from ethos.adapters.host import require_supported_host
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import command_scope
 from ethos.adapters.repo.git import GitExecutionError
@@ -72,13 +72,6 @@ def resolved_root() -> Path | None:
     return _RESOLVED_ROOT.get()
 
 
-def require_supported_host() -> None:
-    """Refuse a host other than macOS or Linux before a command observes or changes anything."""
-    if (system := platform.system()) not in {"Darwin", "Linux"}:
-        message = f"host_platform_unsupported:{system}"
-        raise ValueError(message)
-
-
 def run_console(argv: list[str], main: Callable[[], None]) -> EthosResult | None:
     """Run `main` under the target repository's selected runtime, re-executing into it if needed.
 
@@ -122,6 +115,8 @@ def command_boundary(command: str, argv: list[str], emit: Emit) -> Generator[Non
     json_output = "--json" in ethos_options(argv)
     with command_scope(handle_termination=True):
         try:
+            # A refused host never reaches the command: emitting its refusal exits.
+            require_supported_host()
             yield
         except ProcessExecutionError as exc:
             emit(

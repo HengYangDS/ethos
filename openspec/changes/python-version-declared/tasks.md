@@ -20,4 +20,13 @@
 
 - [x] 2.1 Record the change in the changelog under Unreleased.
       (Under Changed in the unreleased section of the changelog.)
-- [ ] 2.2 Pass the lane's pre-check and readiness, then the full proof.
+- [x] 2.2 Pass readiness and hand the full proof to the landing. Done when readiness passes and the
+      Workflow follow-up states that the full proof runs on the archived head.
+      (Readiness passed at `1af6179e5`; the Workflow follow-up below states the proof. The lane's
+      full pre-check at `cb73eee88` failed only on the stale supply image that the next commit
+      rebound, and left no pass.)
+
+## Workflow follow-up
+
+- Landing: the full proof runs on the archived head, and its receipt is the landing's. The hosted
+  runs of that head are read before the landing.

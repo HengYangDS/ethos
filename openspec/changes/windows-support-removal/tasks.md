@@ -99,9 +99,12 @@ windows` over the contract, `docs/guides` and `docs/reference` names nothing; th
 
 ## 5. Verification
 
-- [ ] 5.1 After the tests and documents are committed, publish the proposal and rebuild the supply
+- [x] 5.1 After the tests and documents are committed, publish the proposal and rebuild the supply
       image on the lane's GitHub proposal ref, then bind its digest and source commit in
       `.config/ci/pipeline.cue`. Done when the projection check reports no `supply_image_stale`.
+      Read 2026-11-28: the supply build on the proposal ref at 7d4d8036c (GitHub run 46121969824)
+      published the image digest 14278318b33a; both are bound, the projection check conforms, and
+      the CI architecture tests pass (84, the supply image currency test among them).
 - [ ] 5.2 Run the whole pre-check and the readiness tier at the lane head, then the full proof; read
       the patch size and the source budget at that head into the design's "Measured". Done when the
       proof is proven at that head and "Measured" names that head.

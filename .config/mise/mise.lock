@@ -28,32 +28,32 @@ url = "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_dar
 url_api = "https://api.github.com/repos/cue-lang/cue/releases/assets/479014348"
 
 [[tools."github:anchore/grype"]]
-version = "0.122.0"
+version = "0.122.1"
 backend = "github:anchore/grype"
-specifiers = ["0.122.0"]
+specifiers = ["0.122.1"]
 
 [tools."github:anchore/grype"."platforms.linux-arm64"]
-checksum = "sha256:7ebb44a7e69f8ca2491040e140a802117b2bf3ca8360d3856b3e0b9fe79962c4"
-url = "https://github.com/anchore/grype/releases/download/v0.122.0/grype_0.122.0_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/anchore/grype/releases/assets/756374295"
+checksum = "sha256:819e5be3d9516432fedb7b6b56df7306c3a16607606dfc05826eefbb00e471da"
+url = "https://github.com/anchore/grype/releases/download/v0.122.1/grype_0.122.1_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/anchore/grype/releases/assets/763662048"
 provenance = "github-attestations"
 
 [tools."github:anchore/grype"."platforms.linux-x64"]
-checksum = "sha256:e697e6f7224637df87e267e4318cc027feae99a8e1b80280241d32b9ee5d4920"
-url = "https://github.com/anchore/grype/releases/download/v0.122.0/grype_0.122.0_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/anchore/grype/releases/assets/756374293"
+checksum = "sha256:f1ba7e2917ee1395618de20a98da0aa7c0fb1788927797651047c50502a37538"
+url = "https://github.com/anchore/grype/releases/download/v0.122.1/grype_0.122.1_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/anchore/grype/releases/assets/763662038"
 provenance = "github-attestations"
 
 [tools."github:anchore/grype"."platforms.macos-arm64"]
-checksum = "sha256:ca8907493c82181b0ceb6fe782ebdcb98b30dcd477319aaad7be89aa7590461b"
-url = "https://github.com/anchore/grype/releases/download/v0.122.0/grype_0.122.0_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/anchore/grype/releases/assets/756374404"
+checksum = "sha256:8bbb3c01695d1e954875cf9f7403c5d3cdb652caf763867955fad520e3cd6c00"
+url = "https://github.com/anchore/grype/releases/download/v0.122.1/grype_0.122.1_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/anchore/grype/releases/assets/763662203"
 provenance = "github-attestations"
 
 [tools."github:anchore/grype"."platforms.macos-x64"]
-checksum = "sha256:26a121b7264882785464a95452036bb93cb6dd4ddba380592d3169025e1b1501"
-url = "https://github.com/anchore/grype/releases/download/v0.122.0/grype_0.122.0_darwin_amd64.tar.gz"
-url_api = "https://api.github.com/repos/anchore/grype/releases/assets/756374416"
+checksum = "sha256:8063aef11b52e6da342068aa6980e92f40b28849eff990c8375a0a8e6b6dfbc5"
+url = "https://github.com/anchore/grype/releases/download/v0.122.1/grype_0.122.1_darwin_amd64.tar.gz"
+url_api = "https://api.github.com/repos/anchore/grype/releases/assets/763662225"
 provenance = "github-attestations"
 
 [[tools."github:anchore/syft"]]
@@ -165,32 +165,32 @@ url_api = "https://api.github.com/repos/rhysd/actionlint/releases/assets/3849248
 provenance = "github-attestations"
 
 [[tools."github:vale-cli/vale"]]
-version = "3.27.0"
+version = "3.29.0"
 backend = "github:vale-cli/vale"
-specifiers = ["3.27.0"]
+specifiers = ["3.29.0"]
 
 [tools."github:vale-cli/vale"."platforms.linux-arm64"]
-checksum = "sha256:dcaee812fd892c5750702d16ed348a1f7113be57c73cf36fe9e016c789cae6e2"
-url = "https://github.com/vale-cli/vale/releases/download/v3.27.0/vale_3.27.0_Linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/vale-cli/vale/releases/assets/740781556"
+checksum = "sha256:ffff63b3aaf97ca3c7e0a0c5226a8ddf7c21f21f1695e40461b0037d2189ba74"
+url = "https://github.com/vale-cli/vale/releases/download/v3.29.0/vale_3.29.0_Linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/vale-cli/vale/releases/assets/796243519"
 provenance = "github-attestations"
 
 [tools."github:vale-cli/vale"."platforms.linux-x64"]
-checksum = "sha256:c80d62f6bce87b81843ac5b512a26e63213927b957adba0a64fc594570da2000"
-url = "https://github.com/vale-cli/vale/releases/download/v3.27.0/vale_3.27.0_Linux_64-bit.tar.gz"
-url_api = "https://api.github.com/repos/vale-cli/vale/releases/assets/740781554"
+checksum = "sha256:00356ae1bacd1160aa415664f3ed0d34ce9ef5319c61d31123a97366ea1a2f64"
+url = "https://github.com/vale-cli/vale/releases/download/v3.29.0/vale_3.29.0_Linux_64-bit.tar.gz"
+url_api = "https://api.github.com/repos/vale-cli/vale/releases/assets/796243509"
 provenance = "github-attestations"
 
 [tools."github:vale-cli/vale"."platforms.macos-arm64"]
-checksum = "sha256:91bcd6352a832e5995a61dde73ee6367c5006669c6efa4091e0404ec8d7dd7e3"
-url = "https://github.com/vale-cli/vale/releases/download/v3.27.0/vale_3.27.0_macOS_arm64.tar.gz"
-url_api = "https://api.github.com/repos/vale-cli/vale/releases/assets/740781550"
+checksum = "sha256:62b0eb911aa9255ad4520afa5284d0b8a27f11eea5ffe40390a1eaaca9baab73"
+url = "https://github.com/vale-cli/vale/releases/download/v3.29.0/vale_3.29.0_macOS_arm64.tar.gz"
+url_api = "https://api.github.com/repos/vale-cli/vale/releases/assets/796243521"
 provenance = "github-attestations"
 
 [tools."github:vale-cli/vale"."platforms.macos-x64"]
-checksum = "sha256:0288ab603ee6d67240ac5b97e67b0915efcfc28bb33f212a885110a2a5a6e2bc"
-url = "https://github.com/vale-cli/vale/releases/download/v3.27.0/vale_3.27.0_macOS_64-bit.tar.gz"
-url_api = "https://api.github.com/repos/vale-cli/vale/releases/assets/740781555"
+checksum = "sha256:5c983d634074ea0a7a9b40e6450dff1035f2b406a3f79b130ec4cddd8ff14675"
+url = "https://github.com/vale-cli/vale/releases/download/v3.29.0/vale_3.29.0_macOS_64-bit.tar.gz"
+url_api = "https://api.github.com/repos/vale-cli/vale/releases/assets/796243505"
 provenance = "github-attestations"
 
 [[tools.go]]
@@ -261,31 +261,30 @@ url = "https://github.com/astral-sh/python-build-standalone/releases/download/20
 provenance = "github-attestations"
 
 [[tools.uv]]
-version = "0.13.8"
+version = "0.13.10"
 backend = "aqua:astral-sh/uv"
-specifiers = ["0.13.8"]
+specifiers = ["0.13.10"]
 
 [tools.uv."platforms.linux-arm64"]
-checksum = "sha256:74f2f5c6024d397481db228db8fc25eed420db192243f88438c118e7e013e585"
-url = "https://github.com/astral-sh/uv/releases/download/0.13.8/uv-aarch64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/740313629"
+checksum = "sha256:14590f644805a6234ffe071154340669e38137f38e60aa9629690119704107d2"
+url = "https://github.com/astral-sh/uv/releases/download/0.13.10/uv-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/788884668"
 provenance = "github-attestations"
 
 [tools.uv."platforms.linux-x64"]
-checksum = "sha256:5acfd9177cfecf0bf87578f059728215ccc884388988f55f7a65041b57387d91"
-url = "https://github.com/astral-sh/uv/releases/download/0.13.8/uv-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/740313966"
+checksum = "sha256:bf65ac1a0af10f92c522d91ac096c7c0a39657647b155577e7836c2cbbb4526c"
+url = "https://github.com/astral-sh/uv/releases/download/0.13.10/uv-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/788885027"
 provenance = "github-attestations"
 
 [tools.uv."platforms.macos-arm64"]
-checksum = "sha256:6b71028a6b904f2ae3340ef52e595512de807d06c0a20eaef2f692581b246558"
-url = "https://github.com/astral-sh/uv/releases/download/0.13.8/uv-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/740313603"
+checksum = "sha256:e419bf07533bdbf48795fc793601c834dd79db57a8c49ce8e25cfe3a8639958d"
+url = "https://github.com/astral-sh/uv/releases/download/0.13.10/uv-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/788884643"
 provenance = "github-attestations"
 
 [tools.uv."platforms.macos-x64"]
-checksum = "sha256:a04c2ffeac28b2003a2c13caf538ab425fcd7def3e4a41571f4a8fb370a66af3"
-url = "https://github.com/astral-sh/uv/releases/download/0.13.8/uv-x86_64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/740313917"
+checksum = "sha256:153e03197588204c04fc4c81cc4bafbfa4280222a385e4ee36a87aeec0ae63b4"
+url = "https://github.com/astral-sh/uv/releases/download/0.13.10/uv-x86_64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/788884988"
 provenance = "github-attestations"
-

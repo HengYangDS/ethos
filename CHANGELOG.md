@@ -76,6 +76,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
   they answered, was withdrawn, and the native audit no longer reports it. The acceptances of the
   glob 13.0.6 and minimatch 10.2.5 that npm bundles, which ended with 2026-12-02, now end with
   2026-12-16: npm 12.2.3, the registry's latest, still bundles them.
+- The package requires uv 0.13.10 or later (was 0.13.8), and the native tools that the product locks
+  for every consumer take Grype 0.122.1 (was 0.122.0) and Vale 3.29.0 (was 3.27.0); each is its
+  latest stable release. uv's Mise pin, its Python lock entry, the floor of its requirement and the
+  CI supply image's base move together, as the notes of 0.2.0-beta.11 said they would: uv stayed at
+  0.13.8 because the Windows executable of 0.13.9 carries no dependency data, and no Windows runtime
+  remains. The hosted workflow's uv steps take the new pin.
 
 ## [0.2.0-beta.12] - 2026-11-28
 

@@ -11,15 +11,15 @@ idiomatic_version_file_enable_tools = []
 [tools]
 node = "26.13.1"
 python = "3.14.10"
-uv = "0.13.8"
+uv = "0.13.10"
 cue = "0.17.1"
 go = "1.27.4"
 "github:rhysd/actionlint" = "1.7.12"
 "github:boyter/scc" = "4.1.0"
 "github:gitleaks/gitleaks" = "8.30.1"
 "github:anchore/syft" = "1.57.2"
-"github:anchore/grype" = "0.122.0"
-"github:vale-cli/vale" = "3.27.0"
+"github:anchore/grype" = "0.122.1"
+"github:vale-cli/vale" = "3.29.0"
 [tasks.bootstrap]
 description = "Synchronize the locked Python environment, native tools, npm packages and test fixtures"
 run = [

@@ -35,14 +35,25 @@
 
 ## 3. Lane, hosted and owner tasks
 
-- [ ] 3.1 Run the tests of tasks 1.1 to 1.3 on Python 3.12 and 3.13. Done when each
+- [x] 3.1 Run the tests of tasks 1.1 to 1.3 on Python 3.12 and 3.13. Done when each
       interpreter's result line is in the lane's record.
-- [ ] 3.2 Dispatch the release journey of the ref that holds this Change with `journey_tag`
+      (Qualification run 46085068518 at `bb2f14783`, the whole suite on each interpreter, the tests
+      of tasks 1.1 to 1.3 among them: Python 3.12.16 "10214 passed, 5 skipped in 3852.63s"; Python
+      3.13.18 "10214 passed, 5 skipped in 2732.07s".)
+- [x] 3.2 Dispatch the release journey of the ref that holds this Change with `journey_tag`
       `v0.2.0-beta.11` and `journey_previous` `v0.2.0-beta.10`. Done when every declared leg's
       receipt holds `admitted` or `refused` under `rollback_after_declaration_repair`, and the
       lane's record names each leg's value and the seconds that the stage took.
+      (Run 46083106494 at `1af6179e5`, success 2026-11-28 07:46: each of the three legs holds
+      `admitted`; the stage took 17.6 s on linux-x64, 14.8 s on linux-arm64 and 19.0 s on
+      macos-arm64, read from each leg's stage events.)
 - [x] 3.3 Replace the line of the next release entry that names the rollback after the
       declaration repair as not qualified with the two narrower limits. Done when the entry
       names them and no entry says that this rollback is not qualified.
       (The unreleased entry names `receipted_rollback` and `pin_across_landings`, and no line of it
       calls this rollback not qualified; the released entry of 0.2.0-beta.12 is frozen.)
+
+## Workflow follow-up
+
+- Landing: the full proof runs on the archived head, and its receipt is the landing's. The hosted
+  runs of that head are read before the landing.

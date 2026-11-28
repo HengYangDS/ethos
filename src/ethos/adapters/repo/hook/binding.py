@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import re
 import stat
 import tomllib
@@ -20,9 +19,7 @@ class HookContract(TypedDict):
     generation_digest: str
 
 
-def load_hook_contract(
-    path: Path | None = None, *, platform_name: str | None = None
-) -> HookContract:
+def load_hook_contract(path: Path | None = None) -> HookContract:
     """Read the package declaration without executing its interpreter or source."""
     declaration = path or Path(__file__).with_suffix(".toml")
     if declaration.is_symlink():
@@ -39,7 +36,7 @@ def load_hook_contract(
         )
         and len(scripts) == len(set(scripts))
         and isinstance(platforms, dict)
-        and set(platforms) == {"posix", "nt"}
+        and {"posix"} <= set(platforms) <= {"posix", "nt"}
         and all(
             isinstance(value, str)
             and bool(re.fullmatch(r"[A-Za-z0-9_./-]+", value))
@@ -55,13 +52,9 @@ def load_hook_contract(
     if not valid:
         message = "hook_launcher_declaration_invalid"
         raise ValueError(message)
-    platform = platform_name or os.name
-    if platform not in platforms:
-        message = "hook_launcher_platform_invalid"
-        raise ValueError(message)
     names = tuple(scripts)
     launchers = {
-        name: template.replace("@PYTHON@", platforms[platform]).replace("@HOOK@", name)
+        name: template.replace("@PYTHON@", platforms["posix"]).replace("@HOOK@", name)
         for name in names
     }
     return HookContract(
@@ -107,7 +100,7 @@ def require_hook_projection(hooks: Path, contract: HookContract) -> None:
                 not (path := hooks / name).is_symlink()
                 and path.is_file()
                 and path.read_bytes() == content.encode()
-                and (os.name == "nt" or stat.S_IMODE(path.stat().st_mode) == 0o755)
+                and stat.S_IMODE(path.stat().st_mode) == 0o755
                 for name, content in expected.items()
             )
         )

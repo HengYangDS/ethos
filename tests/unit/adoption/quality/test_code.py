@@ -190,8 +190,7 @@ def test_declared_mise_supply_precedes_ambient_path(
         executable.chmod(0o755)
     operator = tmp_path / "operator"
     operator.mkdir()
-    suffix = ".exe" if os.name == "nt" else ""
-    selected_mise = operator / f"selected-mise{suffix}"
+    selected_mise = operator / "selected-mise"
     selected_mise.write_bytes(b"selected mise")
     selected_mise.chmod(0o755)
     selected: list[str] = []

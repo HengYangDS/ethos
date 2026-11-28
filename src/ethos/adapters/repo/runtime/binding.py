@@ -70,15 +70,7 @@ def runtime_binding(
             selected_identity = invoking_build_identity()
             native_source = schema_root == source_root / "system/schemas"
             version = ".".join(selected.python_version.split(".")[:2])
-            site = (
-                selected.root
-                / "python"
-                / (
-                    "Lib/site-packages"
-                    if selected.platform == "windows"
-                    else f"lib/python{version}/site-packages"
-                )
-            )
+            site = selected.root / "python" / f"lib/python{version}/site-packages"
             package = site / "ethos"
             native_package = (
                 runner_module_path == package / "__init__.py"

@@ -179,16 +179,7 @@ def test_a_pattern_in_another_case_marks_nothing_on_any_host(
     assert native_inputs.authored_source_files(repo, paths=(_NOTE,)) == [_NOTE]
 
 
-@pytest.mark.parametrize(
-    "state",
-    [
-        "flagged-edit",
-        pytest.param(
-            "linked-parent",
-            marks=pytest.mark.skipif(os.name == "nt", reason="a link needs a privilege"),
-        ),
-    ],
-)
+@pytest.mark.parametrize("state", ["flagged-edit", "linked-parent"])
 def test_the_marks_are_those_of_the_tree_that_the_source_binding_sees(
     tmp_path: Path, state: str
 ) -> None:
@@ -246,7 +237,6 @@ def test_a_pathspec_that_names_nothing_is_not_added_beside_one_that_names_a_file
     assert "docs/.gitattributes" in listed.stdout.splitlines()
 
 
-@pytest.mark.skipif(os.name == "nt", reason="a name that is no text needs an index of bytes")
 def test_an_attributes_file_below_a_name_that_is_no_text_ends_no_selection(tmp_path: Path) -> None:
     """Git names a path in bytes, and no reading of the marks decodes one."""
     repo, _local = _marked_repository(tmp_path)

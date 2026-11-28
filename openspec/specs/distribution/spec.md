@@ -406,12 +406,6 @@ identity establishment, and collision verification on every supported host.
 It SHALL apply an additional parent-directory durability barrier only where the
 host supports opening and synchronizing directory descriptors.
 
-#### Scenario: Windows publishes an immutable package
-
-- **WHEN** ETHOS materializes a content-addressed package on Windows
-- **THEN** it flushes the complete file and atomically establishes the digest path
-- **AND** it does not attempt the unsupported POSIX directory-descriptor operation.
-
 #### Scenario: POSIX preserves the directory durability barrier
 
 - **WHEN** ETHOS materializes a content-addressed package on a supported POSIX host
@@ -450,12 +444,6 @@ signing or publication. Native platform acceptance remains independently require
 - **WHEN** native trust or executable preflight fails on a selected platform
 - **THEN** no candidate build or installation starts
 - **AND** the native failure reason remains visible without retry or permissive fallback
-
-#### Scenario: A foreign SID has no resolvable account name
-
-- **WHEN** an ACL grants write access to a foreign SID without a resolvable account name
-- **THEN** admission rejects the foreign write authority directly from the SID
-- **AND** valid current-user protection remains admissible on the native platform
 
 ### Requirement: Host installation and repository selection are distinct
 
@@ -581,18 +569,6 @@ the architecture that the interpreter executes, not the host CPU.
 - **THEN** its delivered artifact passes native installation, CLI/MCP and hooks
 - **AND** unsupported combinations remain explicit rather than inheriting another platform's proof
 
-#### Scenario: An emulating host qualifies an x64 runtime
-
-- **WHEN** the release leg that declares `windows-arm64` qualifies the x64 runtime it built
-- **THEN** the release declares `windows-arm64` with the archive that leg qualified
-- **AND** no wheel is published for `windows-arm64`
-
-#### Scenario: An emulated interpreter selects its runtime
-
-- **WHEN** an x64 interpreter that Windows on Arm emulates selects its runtime
-- **THEN** the runtime's recorded architecture is `x86_64`, as its interpreter executes
-- **AND** the `ARM64` CPU that the operating system reports does not refuse the selection
-
 ### Requirement: Public channels consume explicitly accepted release artifacts
 
 ETHOS SHALL project one accepted product-release version to public channels and its matching signed
@@ -705,14 +681,6 @@ consumer uses.
   that `.config/ci/supply/Dockerfile` pins
 - **AND** bootstrap installs no host prerequisite.
 
-#### Scenario: Windows build resolves the installed Node layout
-
-- **GIVEN** the `mise.lock`-verified Node archive is installed on Windows
-- **WHEN** runtime materialization, OpenSpec, or delivery binds Node inputs
-- **THEN** Node resolves to the distribution-root `node.exe`
-- **AND** npm resolves to the locked npm module's `npm-cli.js` when npm is required
-- **AND** the coordinates are validated before their consumer executes.
-
 #### Scenario: POSIX build resolves the installed Node layout
 
 - **GIVEN** the `mise.lock`-verified Node archive is installed on a supported
@@ -784,17 +752,6 @@ A release archive SHALL name its runtime directory with the first 16 hexadecimal
 runtime digest, so that its Windows interpreter path stays within 64 characters. An archive carrier
 SHALL resolve that prefix to the full digest from the runtime manifest and SHALL refuse a directory
 that is not its prefix. The host store and its selectors SHALL keep the full digest.
-
-#### Scenario: A deep install root runs the interpreter
-
-- **WHEN** a Windows host installs the archive under a 157-character install root
-- **THEN** the interpreter path is 205 characters and Windows starts the interpreter.
-
-#### Scenario: The archive layout outgrows the budget
-
-- **WHEN** the release builder lays out a Windows archive whose interpreter path inside the archive
-  exceeds 64 characters
-- **THEN** the distribution tests fail before a release is built.
 
 #### Scenario: An archive directory names another runtime
 
@@ -1103,12 +1060,6 @@ release leg SHALL catalog the runtime archive that its install smoke kept, with 
 inventory owner and its checks. A release platform's inventory step SHALL NOT first run when a
 release is published.
 
-#### Scenario: A commit's Windows leg catalogs its archive
-
-- **WHEN** a hosted commit run's Windows host-conformance leg on the release Python keeps its
-  runtime archive
-- **THEN** that leg catalogs the archive and checks its expected components
-
 #### Scenario: A release leg changes its runner
 
 - **WHEN** a declared release leg moves to another runner or Python
@@ -1398,13 +1349,6 @@ the repository binds.
 
 - **WHEN** a stage ends, passing or not
 - **THEN** the journey's own process SHALL hold the host's environment again
-
-#### Scenario: A Windows host runs a stage
-
-- **WHEN** a stage runs on Windows
-- **THEN** its children SHALL receive the Git variables over the install smoke's minimal
-  environment, and the home, temporary directory and path SHALL stay the host's
-- **AND** a stage whose declared executable that path does not hold SHALL refuse at its start
 
 ### Requirement: Acquisition is the journey's only networked stage
 

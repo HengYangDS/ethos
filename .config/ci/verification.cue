@@ -24,7 +24,7 @@ import "strings"
 			stages: *["verify"] | ["verify", ...string]
 			variables: *{} | {[Name=string & =~"^[A-Za-z_][A-Za-z0-9_]*$"]: string}
 			runners: [Name=string]: {
-				system: "linux" | "macos" | "windows"
+				system: "linux" | "macos"
 				review_tags: [string, ...string]
 				protected_tags: [string, ...string]
 				image?:          string & =~"@sha256:[0-9a-f]{64}$"
@@ -115,27 +115,19 @@ import "strings"
 							interruptible: true
 							variables: {
 								GIT_DEPTH: "0"
-								// Windows can still hold the previous job's executables when GitLab cleans.
-								if runner.system == "windows" {GET_SOURCES_ATTEMPTS: "3"}
 							} & policy.gitlab.variables & runner.variables
 							if runner.image != _|_ {image: runner.image}
 							if runner.resource_group != _|_ {resource_group: runner.resource_group}
 							if trust == "review" {rules: reviewRules}
 							if trust == "protected" {rules: sourceRules}
-							if runner.system != "windows" {before_script: [
+							// Kept in a comprehension: its place among a job's keys in every generated file
+							// follows from that, and a tracked file must still equal the model's output.
+							if true {before_script: [
 								for command in runner.preparation {command},
 								"mise install --locked --jobs=1",
 								for command in policy.supply.checks.gitlab {command},
 								"mkdir -p build/evidence/ci",
 							]}
-							if runner.system == "windows" {
-								before_script: [
-									for command in runner.preparation {command},
-									"mise install --locked --jobs=1",
-									for command in policy.supply.checks.gitlab {command},
-									"New-Item -ItemType Directory -Force build/evidence/ci",
-								]
-							}
 							script: [invocation]
 							artifacts: {when: "always", paths: evidence, expire_in: "\(artifactRetentionDays) days"}
 						}

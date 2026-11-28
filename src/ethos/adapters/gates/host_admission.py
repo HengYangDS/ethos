@@ -24,6 +24,7 @@ once its ticket's lock is free.
 
 from __future__ import annotations
 
+import fcntl
 import json
 import math
 import os
@@ -49,9 +50,6 @@ from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.host_store import host_store_root
 from ethos.repository.paradigm.parameters import ceiling_seconds
-
-if sys.platform != "win32":
-    import fcntl
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -191,20 +189,16 @@ def gated(directory: Path, deadline: float) -> Generator[None]:
 def _free(path: Path) -> bool:
     """Whether no process holds a ticket's lock now, proven by one probe that creates nothing.
 
-    A holder's lock is exclusive and a probe asks for a shared one, so a probe is refused
-    exactly while a holder or the work that inherited its lock has it, and probes never refuse
-    each other. Windows has no such probe here: there a probe takes the lock for an instant, as
-    in every release, and a second probe in that instant reads a free lock as held. The probe
-    is its own open file and creates nothing; a lock file that is gone is free. A probe in the
-    holding process reads its own lock as held, as any other process does.
+    A holder's lock is exclusive and a probe asks for a shared one, so a probe is refused exactly
+    while a holder or the work that inherited its lock has it, and probes never refuse each other.
+    The probe is its own open file and creates nothing; a lock file that is gone is free. A probe in
+    the holding process reads its own lock as held, as any other process does.
     """
     try:
         probe = opened_descriptor(path, create=False)
     except FileNotFoundError:
         return True
     try:
-        if sys.platform == "win32":
-            return lock_descriptor(probe, blocking=False)
         try:
             fcntl.flock(probe, fcntl.LOCK_SH | fcntl.LOCK_NB)
         except BlockingIOError:
@@ -233,9 +227,7 @@ class HostQueue:
         entry order whatever the clock does, and when an entry ends, every ticket named before
         it has already taken its lock or is dead: no later arrival is ever counted ahead of a
         ticket that was admitted. The lock file is created under a pending name, locked and
-        recorded, and only then renamed to `.lock`. Windows cannot rename an open file, so there
-        it is named at once; the instant in which it is unlocked lies inside the gate, where
-        only tickets named before it are being counted. An entry that fails removes what it
+        recorded, and only then renamed to `.lock`. An entry that fails removes what it
         made, its lock file last, so whatever a killed entry leaves is found by that file.
         """
         self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -246,7 +238,7 @@ class HostQueue:
             arrival = max(time.time_ns(), latest + 1)
             ticket = Ticket(f"{arrival:020d}-{os.getpid()}-{secrets.token_hex(8)}")
             named = self.directory / f"{ticket.name}.lock"
-            held = named.with_name(named.name + PENDING_SUFFIX) if os.name == "posix" else named
+            held = named.with_name(named.name + PENDING_SUFFIX)
             partial = self.directory / f".{ticket.name}.partial"
             descriptor = -1
             try:
@@ -404,11 +396,8 @@ def holder_state(pid: int) -> str:
     A held lock says that the work lives, not that the process which entered it does; a place
     kept by work that outlived its holder is listed with its holder gone. A process number can
     be reused, so `present` is the best a liveness probe gives, never a proof of identity. Empty
-    is the answer where the platform cannot ask, or where the process belongs to another user.
+    is the answer where the process belongs to another user.
     """
-    # Signal 0 only asks on POSIX. On Windows `os.kill` ends the process for every such number.
-    if os.name != "posix":
-        return ""
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -419,14 +408,8 @@ def holder_state(pid: int) -> str:
 
 
 def inherited_descriptors(descriptor: int) -> tuple[int, ...]:
-    """The ticket's descriptor for the admitted child to inherit, on the platforms that can.
-
-    `subprocess` refuses `pass_fds` on Windows, where a child would need its own handle
-    duplication through `msvcrt.get_osfhandle` and the ticket's `LockFileEx` byte range; that
-    form is not built, so there an admitted child keeps the place only by its holder's lock,
-    as every earlier release did.
-    """
-    if os.name != "posix" or descriptor < 0:
+    """The ticket's descriptor for the admitted child to inherit."""
+    if descriptor < 0:
         return ()
     return (descriptor,)
 

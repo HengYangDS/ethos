@@ -11,7 +11,6 @@ from importlib.metadata import distribution
 from importlib.resources import files
 from pathlib import Path
 from pathlib import PurePosixPath
-from pathlib import PureWindowsPath
 
 WHEEL_RESOURCE_ROOT = PurePosixPath("ethos/resources")
 SDIST_RESOURCE_ROOT = PurePosixPath("src") / WHEEL_RESOURCE_ROOT
@@ -21,12 +20,7 @@ BUILD_IDENTITY_RESOURCE = PurePosixPath("build/identity.json")
 
 def _relative_name(relative: str | PurePosixPath) -> PurePosixPath:
     name = PurePosixPath(relative)
-    if (
-        name.is_absolute()
-        or ".." in name.parts
-        or "\\" in name.as_posix()
-        or PureWindowsPath(name.as_posix()).drive
-    ):
+    if name.is_absolute() or ".." in name.parts:
         message = "product_resource_path_invalid"
         raise ValueError(message)
     return name
@@ -58,7 +52,7 @@ def require_packaged_resource(relative: str | PurePosixPath) -> Path:
         for component in (path, *path.parents):
             if component == package:
                 break
-            if component.is_symlink() or component.is_junction():
+            if component.is_symlink():
                 raise ValueError(message)
         metadata = distribution("ethos")
         entries = [

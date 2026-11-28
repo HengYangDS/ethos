@@ -9,12 +9,6 @@ import yaml
 
 PUSH = ["linux-x64 3.12", "linux-x64 3.13", "linux-x64 3.14", "macos-arm64 3.12"]
 MACOS = ["macos-arm64 3.13", "macos-arm64 3.14"]
-WINDOWS = [
-    "windows-x64 3.12",
-    "windows-x64 3.13",
-    "windows-x64 3.14",
-    "windows-arm64 cpython-3.14-windows-x86_64-none",
-]
 
 
 def test_a_push_runs_the_push_tier_and_only_a_dispatch_or_schedule_runs_more(github) -> None:
@@ -23,18 +17,17 @@ def test_a_push_runs_the_push_tier_and_only_a_dispatch_or_schedule_runs_more(git
         ["{platform} {python}".format_map(leg) for leg in json.loads(tier)]
         for tier in re.findall(r"'(\[.*?\])'", selection)
     ]
-    assert tiers == [PUSH + MACOS + WINDOWS, PUSH + WINDOWS, PUSH]
-    # A batch head, a rehearsed head or the drift schedule runs every leg; the typed input adds the
-    # Windows legs.
+    assert tiers == [PUSH + MACOS, PUSH]
+    # A batch head, a rehearsed head or the drift schedule runs every leg.
     assert re.sub(r"'\[.*?\]'", "TIER", selection) == (
         "${{ fromJSON(((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '')"
         " || (github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '')"
-        " || github.event_name == 'schedule') && TIER || inputs.windows_legs && TIER || TIER) }}"
+        " || github.event_name == 'schedule') && TIER || TIER) }}"
     )
     assert github["on"]["schedule"] == [{"cron": "0 19 * * 6"}]
     inputs = github["on"]["workflow_dispatch"]["inputs"]
     assert inputs["qualify_head"]["type"] == "string"
-    assert inputs["windows_legs"]["type"] == "boolean"
+    assert set(inputs) >= {"qualify_head"}
 
 
 def test_every_hosted_job_bounds_its_time_credentials_and_permissions(github, gitlab) -> None:

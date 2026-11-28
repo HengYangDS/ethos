@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -90,35 +89,10 @@ def render_console_script(name: str, interpreter: str = "python") -> str:
     )
 
 
-def render_windows_console_script(name: str, interpreter: str = "..\\python.exe") -> str:
-    """Render the same launcher for `cmd`, beside the interpreter root's `Scripts` directory.
-
-    ``interpreter`` locates the runtime's Python relative to the launcher's own directory.
-    """
-    return (
-        f'@"%~dp0{interpreter}" {_FLAGS} -c "import sys;'
-        "from importlib.metadata import entry_points;"
-        "name=sys.argv.pop(1);matches=tuple(entry_points(group='console_scripts',name=name));"
-        "len(matches)==1 or (sys.stderr.write(f'{name}: {len(matches)} console entry points\\n'),"
-        'sys.exit(127));sys.argv[0]=name;sys.exit(matches[0].load()())" '
-        f'"{name}" %*\n'
-    )
-
-
 def _copy_python_runtime(home: Path, interpreter: Path, target: Path, version: str) -> None:
     if home.is_symlink() or not home.is_dir() or interpreter.is_symlink():
         refuse("hook_runtime_interpreter_source_unavailable")
     target.mkdir(parents=True)
-    if os.name == "nt":
-        runtime_scripts(target).mkdir()
-        shutil.copy2(interpreter, target / "python.exe")
-        _copy_runtime_tree(home / "Lib", target / "Lib")
-        if (home / "DLLs").is_dir():
-            _copy_runtime_tree(home / "DLLs", target / "DLLs")
-        for pattern in ("python*.dll", "vcruntime*.dll"):
-            for library in home.glob(pattern):
-                _copy_runtime_file(library, target / library.name)
-        return
     binary = target / "bin/python"
     binary.parent.mkdir()
     shutil.copy2(interpreter, binary)
@@ -235,9 +209,6 @@ def _rewrite_console_scripts(runtime: Path) -> None:
     entries = console_script_entries(python)
     if "ethos" not in entries:
         refuse("hook_runtime_entrypoint_missing")
-    if os.name == "nt":
-        _write_windows_console_scripts(scripts, entries)
-        return
     (scripts / "ethos").unlink(missing_ok=True)
     for path in scripts.iterdir():
         if path == python:
@@ -256,17 +227,6 @@ def _rewrite_console_scripts(runtime: Path) -> None:
             refuse("hook_runtime_console_script_invalid")
         script.write_text(render_console_script(name), encoding="utf-8", newline="\n")
         script.chmod(0o755)
-
-
-def _write_windows_console_scripts(scripts: Path, entries: dict[str, str]) -> None:
-    """Replace each installer launcher, which names the interpreter's absolute path."""
-    for name in sorted(entries):
-        for suffix in (".exe", "-script.py", ".exe.manifest"):
-            (scripts / f"{name}{suffix}").unlink(missing_ok=True)
-        launcher = scripts / f"{name}.cmd"
-        if launcher.exists() or launcher.is_symlink():
-            refuse("hook_runtime_console_script_invalid")
-        launcher.write_text(render_windows_console_script(name), encoding="utf-8", newline="\r\n")
 
 
 def _require_package_runtime_source(

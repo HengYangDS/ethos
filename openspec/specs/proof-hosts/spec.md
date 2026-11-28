@@ -159,13 +159,6 @@ global and system configuration.
 - **AND** the repository-owned content policy, not ambient Git configuration,
   defines text normalization
 
-#### Scenario: CRLF bytes are tested on a Windows-style Git configuration
-
-- **WHEN** the adopter fixture stages a CRLF byte sequence while
-  `core.autocrlf=true`
-- **THEN** its tracked fixture policy preserves the exact bytes in the index
-- **AND** the working tree and staged blob round-trip identically.
-
 #### Scenario: Hosted Git subprocess receives a portable configuration overlay
 
 - **WHEN** host-conformance invokes Git on Windows, macOS, or Linux

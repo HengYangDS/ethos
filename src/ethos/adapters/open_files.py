@@ -210,7 +210,7 @@ def observe_open_files(root: Path, *, tree: Path, index: Path) -> OpenFileObserv
     command: tuple[str, ...] = ()
     try:
         executable = shutil.which("lsof", path=os.defpath + os.pathsep + "/usr/sbin")
-        if os.name != "posix" or executable is None:
+        if executable is None:
             refuse("native_file_observer_missing")
         try:
             tree_status = tree.lstat()

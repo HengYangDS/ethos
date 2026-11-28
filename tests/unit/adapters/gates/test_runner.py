@@ -441,7 +441,7 @@ def test_runner_preserves_python_virtual_environment_invocation(
         capture_output=True,
         timeout=30,
     )
-    python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    python = environment / "bin/python"
     if selection == "path":
         monkeypatch.setenv("PATH", str(python.parent) + os.pathsep + os.environ["PATH"])
         invocation = python.name

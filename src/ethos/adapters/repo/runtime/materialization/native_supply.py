@@ -10,9 +10,7 @@ import re
 import stat
 import sys
 import tarfile
-import time
 import tomllib
-import zipfile
 from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
@@ -50,8 +48,6 @@ NATIVE_BACKENDS = {
 }
 # Anchore's tools state their version as JSON, so a stray banner cannot pass verification.
 _JSON_VERSION = frozenset({"grype", "syft"})
-# Windows can keep a just-run executable open briefly, so moving it may be refused.
-_WINDOWS = os.name == "nt"
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,11 +64,6 @@ class NativeSupply:
     version_argument: str
     version_output: str
 
-    @property
-    def executable_name(self) -> str:
-        """Use the declared target's native executable suffix, not the caller's host."""
-        return self.name + (".exe" if self.platform.startswith("Windows_") else "")
-
     @classmethod
     def read(cls, root: Path, name: str) -> NativeSupply:
         """Resolve one supported native backend against its exact Mise declaration and lock."""
@@ -80,7 +71,7 @@ class NativeSupply:
         arch = {"aarch64": "arm64", "arm64": "arm64", "amd64": "x86_64", "x86_64": "x86_64"}.get(
             machine.lower()
         )
-        family = {"Darwin": "macos", "Linux": "linux", "Windows": "windows"}.get(system)
+        family = {"Darwin": "macos", "Linux": "linux"}.get(system)
         if family is None or arch is None:
             message = f"native_tool_platform_unsupported:{system}:{machine}"
             raise ValueError(message)
@@ -111,7 +102,7 @@ class NativeSupply:
             url, checksum = material["url"], material["checksum"]
             parsed = urlsplit(url)
             archive = Path(parsed.path).name
-            suffix = ".zip" if system == "Windows" else ".tar.gz"
+            suffix = ".tar.gz"
             publisher = "cue-lang/cue" if name == "cue" else backend.removeprefix("github:")
             if not (
                 re.fullmatch(r"\d+\.\d+\.\d+", version)
@@ -152,7 +143,7 @@ class NativeSupply:
 
     def payload_bytes(self, archive: Path) -> dict[str, bytes]:
         """Read the complete distributable payload through the sole archive verifier."""
-        return self._archive_members(archive, (self.executable_name, "LICENSE"))
+        return self._archive_members(archive, (self.name, "LICENSE"))
 
     def project(self, archive: Path, destination: Path) -> Path:
         """Project the complete verified executable and original publisher license."""
@@ -163,15 +154,15 @@ class NativeSupply:
             target = destination / name
             with target.open("xb") as output:
                 output.write(body)
-            target.chmod(0o755 if name == self.executable_name else 0o644)
+            target.chmod(0o755 if name == self.name else 0o644)
         return destination
 
     def _archive_members(self, archive: Path, names: tuple[str, ...]) -> dict[str, bytes]:
         """Validate every selected member before creating any output path."""
-        if archive.is_symlink() or archive.is_junction() or not archive.is_file():
+        if archive.is_symlink() or not archive.is_file():
             message = f"native_tool_archive_unsafe:{self.name}"
             raise ValueError(message)
-        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+        flags = os.O_RDONLY | os.O_NOFOLLOW
         with os.fdopen(os.open(archive, flags), "rb") as stream:
             if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
                 message = f"native_tool_archive_unsafe:{self.name}"
@@ -180,9 +171,6 @@ class NativeSupply:
                 message = f"{self.name}_archive_checksum_mismatch"
                 raise ValueError(message)
             stream.seek(0)
-            if self.archive.endswith(".zip"):
-                with zipfile.ZipFile(stream) as package:
-                    return {name: _zip_member(package, name, self.name) for name in names}
             with tarfile.open(fileobj=stream, mode="r:gz") as package:
                 return {name: _tar_member(package, name, self.name) for name in names}
 
@@ -206,19 +194,6 @@ class NativeSupply:
             raise ValueError(message)
 
 
-def _zip_member(package: zipfile.ZipFile, name: str, tool: str) -> bytes:
-    matches = [item for item in package.infolist() if item.filename == name]
-    if (
-        len(matches) != 1
-        or matches[0].is_dir()
-        or stat.S_IFMT(matches[0].external_attr >> 16) not in {0, stat.S_IFREG}
-    ):
-        kind = "license" if name == "LICENSE" else "executable"
-        message = f"native_tool_archive_{kind}_invalid:{tool}"
-        raise ValueError(message)
-    return package.read(matches[0])
-
-
 def _tar_member(package: tarfile.TarFile, name: str, tool: str) -> bytes:
     matches = [item for item in package.getmembers() if item.name == name]
     kind = "license" if name == "LICENSE" else "executable"
@@ -240,7 +215,7 @@ def resolve_native_tool(name: str) -> Path:
         for relative in (MISE_CONFIG, MISE_LOCK):
             require_packaged_resource(relative)
         supply = NativeSupply.read(project, name)
-        executable = require_packaged_resource(f"native/{name}/{supply.executable_name}")
+        executable = require_packaged_resource(f"native/{name}/{supply.name}")
         require_packaged_resource(f"native/{name}/LICENSE")
         if not os.access(executable, os.X_OK):
             message = f"native_tool_runtime_executable_unavailable:{name}"
@@ -252,13 +227,13 @@ def resolve_native_tool(name: str) -> Path:
     for member, body in expected.items():
         path = root / member
         for component in (path, *path.parents):
-            if component.is_symlink() or component.is_junction():
+            if component.is_symlink():
                 message = f"native_tool_runtime_path_invalid:{name}"
                 raise ValueError(message)
         if not path.is_file() or path.read_bytes() != body:
             message = f"native_tool_runtime_payload_invalid:{name}:{member}"
             raise ValueError(message)
-    executable = root / supply.executable_name
+    executable = root / supply.name
     if not os.access(executable, os.X_OK):
         message = f"native_tool_runtime_executable_unavailable:{name}"
         raise ValueError(message)
@@ -268,11 +243,7 @@ def resolve_native_tool(name: str) -> Path:
 def ensure_native_directory(path: Path) -> None:
     """Create only ordinary supply directories without following redirections."""
     for component in (*reversed(path.parents), path):
-        if (
-            component.is_symlink()
-            or component.is_junction()
-            or (component.exists() and not component.is_dir())
-        ):
+        if component.is_symlink() or (component.exists() and not component.is_dir()):
             message = f"native_tool_cache_path_unsafe:{component}"
             raise ValueError(message)
         component.mkdir(exist_ok=True)
@@ -326,7 +297,7 @@ def prepared_tool_directories(root: Path) -> tuple[Path, ...]:
             supply = NativeSupply.read(root, name)
         except ValueError:
             continue
-        if os.access((cache := supply.cache(root)) / supply.executable_name, os.X_OK):
+        if os.access((cache := supply.cache(root)) / supply.name, os.X_OK):
             prepared.append(cache)
     return tuple(prepared)
 
@@ -394,25 +365,16 @@ def _materialize_native(supply: NativeSupply, archive: Path, cache: Path, scratc
     members = tuple(prepared.iterdir())
     intact = all(
         not (cache / member.name).is_symlink()
-        and not (cache / member.name).is_junction()
         and (cache / member.name).is_file()
         and (cache / member.name).read_bytes() == member.read_bytes()
         for member in members
-    ) and os.access(cache / supply.executable_name, os.X_OK)
+    ) and os.access(cache / supply.name, os.X_OK)
     if intact:
-        supply.verify(cache / supply.executable_name)
+        supply.verify(cache / supply.name)
     else:
-        supply.verify(prepared / supply.executable_name)
+        supply.verify(prepared / supply.name)
         for member in members:
-            # Qualification stays first; a Windows hold on the run image ends within seconds.
-            for remaining in range(50, 0, -1):
-                try:
-                    member.replace(cache / member.name)
-                    break
-                except PermissionError:
-                    if not _WINDOWS or remaining == 1:
-                        raise
-                    time.sleep(0.1)
+            member.replace(cache / member.name)
 
 
 def _materialize_node(supply: NodeSupply, archive: Path, cache: Path, scratch: Path) -> Path:
@@ -422,7 +384,7 @@ def _materialize_node(supply: NodeSupply, archive: Path, cache: Path, scratch: P
     if archive != expected_archive:
         archive.replace(expected_archive)
     runtime = cache / "runtime"
-    if runtime.is_symlink() or runtime.is_junction():
+    if runtime.is_symlink():
         message = f"native_tool_cache_path_unsafe:{runtime}"
         raise ValueError(message)
     if runtime.exists():
@@ -431,7 +393,7 @@ def _materialize_node(supply: NodeSupply, archive: Path, cache: Path, scratch: P
             raise ValueError(message)
     else:
         prepared.replace(runtime)
-    executable = NodeRuntime.read(runtime, windows=supply.target.startswith("windows-")).executable
+    executable = NodeRuntime.read(runtime).executable
     observed = run_command(scratch, (str(executable), "--version"), timeout=seconds("probe"))
     if observed.returncode or observed.stderr or observed.stdout.strip() != f"v{supply.version}":
         message = "native_node_cached_runtime_invalid"

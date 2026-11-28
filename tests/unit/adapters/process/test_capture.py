@@ -31,8 +31,8 @@ def test_native_output_is_captured_through_regular_files(
     """Native stdout is regular-file backed with optional finite diagnostic capture."""
     body = (
         "import os,stat,sys; "
-        "assert os.name!='posix' or stat.S_ISREG(os.fstat(1).st_mode); "
-        "assert os.name!='posix' or sys.argv[1]=='False' or stat.S_ISREG(os.fstat(2).st_mode); "
+        "assert stat.S_ISREG(os.fstat(1).st_mode); "
+        "assert sys.argv[1]=='False' or stat.S_ISREG(os.fstat(2).st_mode); "
         "sys.stdout.buffer.write(b'o' * 8388608); sys.stderr.buffer.write(b'e' * 65536)"
     )
     result = process_adapter.run_command(
@@ -65,7 +65,7 @@ def test_bulk_stdout_preserves_native_output_and_closes_capture(
     diagnostic = b"diagnostic\r\nnext\rlast\n"
     body = (
         "import os,stat,sys; "
-        "assert os.name!='posix' or all(stat.S_ISREG(os.fstat(fd).st_mode) for fd in (1,2)); "
+        "assert all(stat.S_ISREG(os.fstat(fd).st_mode) for fd in (1,2)); "
         "sys.stdout.buffer.write(b'first\\r\\nsecond\\rthird\\n'*65536); "
         "sys.stdout.flush(); sys.stderr.buffer.write(b'diagnostic\\r\\nnext\\rlast\\n'); "
         "sys.stderr.flush(); "
@@ -129,7 +129,6 @@ def test_a_timeout_returns_while_a_descendant_holds_the_output(tmp_path: Path) -
     assert b"started" in expired.value.stdout
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX process-group boundary")
 @pytest.mark.parametrize("parent_returncode", [0, 7])
 def test_bulk_stdout_closes_stdout_only_descendant(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, parent_returncode: int
@@ -181,26 +180,16 @@ def test_native_command_owns_its_handle_without_an_outer_scope(
         started.append((owner, child))
         return child
 
-    if os.name == "posix":
-        killpg = os.killpg
+    killpg = os.killpg
 
-        def observed_group_termination(pid: int, signum: int) -> None:
-            child = next(child for _, child in started if child.pid == pid)
-            assert signum in {signal.SIGINT, signal.SIGKILL}
-            if signum == signal.SIGKILL:
-                terminated.append(child)
-            killpg(pid, signum)
-
-        monkeypatch.setattr(os, "killpg", observed_group_termination)
-    else:
-        kill = subprocess.Popen.kill
-
-        def observed_process_termination(child: subprocess.Popen[str]) -> None:
-            assert any(child is registered for _, registered in started)
+    def observed_group_termination(pid: int, signum: int) -> None:
+        child = next(child for _, child in started if child.pid == pid)
+        assert signum in {signal.SIGINT, signal.SIGKILL}
+        if signum == signal.SIGKILL:
             terminated.append(child)
-            kill(child)
+        killpg(pid, signum)
 
-        monkeypatch.setattr(subprocess.Popen, "kill", observed_process_termination)
+    monkeypatch.setattr(os, "killpg", observed_group_termination)
 
     def observed_discard(owner: process_adapter.CommandScope, child: subprocess.Popen[str]) -> None:
         assert (owner, child) in started
@@ -236,12 +225,9 @@ def test_native_command_owns_its_handle_without_an_outer_scope(
     child = started[0][1]
     assert child.returncode is not None
     assert discarded == [child]
-    assert terminated == (
-        [child] if outcome != "success" or (spool_stdout and os.name == "posix") else []
-    )
+    assert terminated == ([child] if outcome != "success" or spool_stdout else [])
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX native execution-group cancellation")
 def test_cancellation_reaches_native_nox_pytest_worker(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -297,7 +283,6 @@ def test_cancellation_reaches_native_nox_pytest_worker(
                     os.killpg(int(marker.read_text()), signal.SIGKILL)
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX catchable-signal fallback")
 def test_uncooperative_native_command_is_killed_and_reaped(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -312,24 +297,6 @@ def test_uncooperative_native_command_is_killed_and_reaped(
         assert caught.value.timeout == pytest.approx(0.1)
         assert children[0].returncode == -signal.SIGKILL
         assert closed()
-
-
-def test_text_input_reaches_the_child_with_its_own_line_endings(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A Windows text stream writes a newline as CRLF; the owner names the stream's newline."""
-    temporary = process_adapter.TemporaryFile
-
-    def windows(mode: str, **options: object) -> object:
-        # The platform's default for a text stream, unless the caller names its own.
-        return temporary(mode, **(({"newline": "\r\n"} | options) if mode == "w+" else options))
-
-    monkeypatch.setattr(process_adapter, "TemporaryFile", windows)
-    received = "import sys; print(sys.stdin.buffer.read().hex())"
-    completed = process_adapter.run_command(
-        tmp_path, (sys.executable, "-c", received), stdin="one\ntwo\n", check=True
-    )
-    assert completed.stdout.strip() == b"one\ntwo\n".hex()
 
 
 def test_a_timeout_reports_its_bound_whatever_the_interpreter_reports(
@@ -348,7 +315,6 @@ def test_a_timeout_reports_its_bound_whatever_the_interpreter_reports(
     assert caught.value.timeout == 8
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX shared cancellation budget")
 def test_nested_scope_cancels_all_registered_groups_with_one_budget(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -411,7 +377,7 @@ def test_nested_scope_cancels_all_registered_groups_with_one_budget(
 
 @pytest.fixture
 def gbk_locale() -> Iterator[None]:
-    """Select a host locale whose encoding is GBK, as on a Windows code page 936 host."""
+    """Select a host locale whose encoding is GBK."""
     previous = locale.setlocale(locale.LC_CTYPE)
     for name in ("zh_CN.GBK", "zh_CN.gbk", "zh_CN.GB18030", "zh_CN.gb18030"):
         with suppress(locale.Error):

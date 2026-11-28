@@ -288,11 +288,7 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
         ("cleanup", OSError),
         ("interrupt", KeyboardInterrupt),
         ("deadline", subprocess.TimeoutExpired),
-        pytest.param(
-            "terminate",
-            KeyboardInterrupt,
-            marks=pytest.mark.skipif(os.name != "posix", reason="POSIX SIGTERM delivery"),
-        ),
+        ("terminate", KeyboardInterrupt),
     ],
 )
 def test_failed_package_supply_cleans_owned_work(monkeypatch, acceptance_case, failure, expected):
@@ -342,7 +338,6 @@ def test_failed_package_supply_cleans_owned_work(monkeypatch, acceptance_case, f
     assert signal.getsignal(signal.SIGTERM) == previous_handler
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX SIGTERM delivery")
 @pytest.mark.parametrize("stage", ["setup", "cleanup", "terminal"])
 def test_interruption_completes_owned_terminalization(monkeypatch, acceptance_case, stage):
     """A first signal at a critical boundary cannot strand work or lose its result."""

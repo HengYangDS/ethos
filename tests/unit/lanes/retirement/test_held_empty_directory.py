@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import select
 import subprocess
 import sys
@@ -25,7 +24,6 @@ os.close(descriptor)
 """
 
 
-@pytest.mark.skipif(os.name != "posix", reason="native POSIX process-reference observation")
 @pytest.mark.parametrize("entries", [0, 1])
 def test_retirement_removes_an_empty_directory_another_process_holds(
     divergent_lane: tuple[Path, Path], entries: int

@@ -13,7 +13,12 @@ retained_roots = ["docs/archive/", "evidence/"]
 # ones, and `pre-commit` admits the staged file. A new rule reports before it refuses: an
 # obligation first shipped after beta.10 enters here, and one leaves only in a release after one
 # that reported it, with its repair. An obligation shipped through beta.10 and absent here is armed.
-reporting = ["identifier-source", "package-docstring", "staged-openspec-tree"]
+reporting = [
+  "identifier-source",
+  "package-docstring",
+  "retained-step-platform",
+  "staged-openspec-tree",
+]
 
 # Shared content and commit and tag messages name no private-class network address. The pattern
 # names address classes, never an address: RFC 1918 and RFC 4193 literals, and names under .local,
@@ -383,7 +388,10 @@ files = [".gitlab-ci.yml"]
 [pipelines.retention]
 record = ".config/ci/retained-steps.toml"
 classes = ["official-installer", "operating-system-glue"]
-platforms = ["darwin", "linux", "windows"]
+platforms = ["darwin", "linux"]
+# A platform that left the catalogue: a record that names it is read one release longer and
+# reported as `retained-step-platform`. The next release removes the name here.
+leaving_platforms = ["windows"]
 
 # The commit subject grammar and signature every governed repository shares. A
 # repository may restrict scopes to a declared list; the type set does not vary, and

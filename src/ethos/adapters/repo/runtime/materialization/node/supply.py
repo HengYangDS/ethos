@@ -10,14 +10,8 @@ import shutil
 import stat
 import tarfile
 import tomllib
-import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from pathlib import PureWindowsPath
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from typing import BinaryIO
 from urllib.parse import urlsplit
 
 from ethos.adapters.repo.runtime.manifest import process_machine
@@ -34,21 +28,21 @@ class NodeRuntime:
     npm: Path
 
     @classmethod
-    def read(cls, root: Path, *, windows: bool, npm_root: Path | None = None) -> NodeRuntime:
+    def read(cls, root: Path, *, npm_root: Path | None = None) -> NodeRuntime:
         """Reject redirected runtime components before any consumer executes them."""
-        if not windows and platform.system() == "Linux":
+        if platform.system() == "Linux":
             _require_linux_host()
-        node = root / ("node.exe" if windows else "bin/node")
-        module = npm_root or root / ("node_modules/npm" if windows else "lib/node_modules/npm")
+        node = root / "bin/node"
+        module = npm_root or root / "lib/node_modules/npm"
         npm = module / "bin/npm-cli.js"
         for path, boundary in ((node, root), (npm, module if npm_root else root)):
             for component in (path, *path.parents):
                 if not component.is_relative_to(boundary):
                     break
-                if component.is_symlink() or component.is_junction():
+                if component.is_symlink():
                     message = "native_node_runtime_path_invalid"
                     raise ValueError(message)
-        if not node.is_file() or (not windows and not os.access(node, os.X_OK)):
+        if not node.is_file() or not os.access(node, os.X_OK):
             message = f"package-local Node executable is unavailable: {node}"
             raise ValueError(message)
         if not npm.is_file():
@@ -65,31 +59,12 @@ def _require_linux_host() -> None:
         raise ValueError(message)
 
 
-def _extract_native_archive(stream: BinaryIO, destination: Path, *, zipped: bool) -> None:
-    """Use native safe extraction with an explicit portable member envelope."""
-    if zipped:
-        with zipfile.ZipFile(stream) as source:
-            if any(
-                Path(name).is_absolute()
-                or ".." in Path(name).parts
-                or PureWindowsPath(name).drive
-                or "\\" in name
-                for name in source.namelist()
-            ):
-                message = "native_node_archive_members_invalid"
-                raise ValueError(message)
-            source.extractall(destination)
-    else:
-        with tarfile.open(fileobj=stream) as source:
-            source.extractall(destination, filter="data")
-
-
-def _retain_native_payload(root: Path, *, windows: bool, bootstrap_npm: bool) -> None:
+def _retain_native_payload(root: Path, *, bootstrap_npm: bool) -> None:
     """Separate the first-install build seed from the shipped Node-only payload."""
-    retained = {"node.exe", "LICENSE"} if windows else {"bin", "LICENSE"}
+    retained = {"bin", "LICENSE"}
     if bootstrap_npm:
-        retained.add("node_modules" if windows else "lib")
-    elif not windows:
+        retained.add("lib")
+    else:
         for path in (root / "bin").iterdir():
             if path.name != "node":
                 path.unlink()
@@ -118,7 +93,6 @@ class NodeSupply:
         platforms = {
             "Darwin": ("macos", "darwin", "macosx_14_0"),
             "Linux": ("linux", "linux", "linux"),
-            "Windows": ("windows", "win", "win"),
         }
         architectures = {"aarch64": "arm64", "arm64": "arm64", "amd64": "x64", "x86_64": "x64"}
         try:
@@ -151,14 +125,12 @@ class NodeSupply:
                 or parsed.query
                 or parsed.fragment
                 or parsed.path != f"/dist/v{version}/{archive}"
-                or archive not in {f"{prefix}.tar.gz", f"{prefix}.tar.xz", f"{prefix}.zip"}
+                or archive not in {f"{prefix}.tar.gz", f"{prefix}.tar.xz"}
                 or re.fullmatch(r"sha256:[a-f0-9]{64}", checksum) is None
             ):
                 message = "native_node_archive_identity_invalid"
                 raise ValueError(message)
-            tag_arch = "amd64" if family == "windows" and arch == "x64" else arch
-            if family != "windows" and arch == "x64":
-                tag_arch = "x86_64"
+            tag_arch = "x86_64" if arch == "x64" else arch
             if family == "linux" and arch == "arm64":
                 tag_arch = "aarch64"
             return cls(version, target, url, checksum[7:], archive, f"py3-none-{wheel}_{tag_arch}")
@@ -172,10 +144,10 @@ class NodeSupply:
 
     def project(self, archive: Path, destination: Path, *, bootstrap_npm: bool = True) -> Path:
         """Project Node, its complete bundled modules and license, not unused SDK headers."""
-        if archive.is_symlink() or archive.is_junction() or not archive.is_file():
+        if archive.is_symlink() or not archive.is_file():
             message = "native_node_archive_unavailable"
             raise ValueError(message)
-        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+        flags = os.O_RDONLY | os.O_NOFOLLOW
         with os.fdopen(os.open(archive, flags), "rb") as stream:
             if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
                 message = "native_node_archive_unavailable"
@@ -185,26 +157,24 @@ class NodeSupply:
                 raise ValueError(message)
             stream.seek(0)
             destination.mkdir()
-            _extract_native_archive(stream, destination, zipped=archive.suffix == ".zip")
+            with tarfile.open(fileobj=stream) as source:
+                source.extractall(destination, filter="data")
         roots = tuple(destination.iterdir())
-        expected_root = re.sub(r"\.(?:tar\.(?:gz|xz)|zip)$", "", self.archive)
+        expected_root = re.sub(r"\.tar\.(?:gz|xz)$", "", self.archive)
         if (
             len(roots) != 1
             or roots[0].name != expected_root
             or not roots[0].is_dir()
             or roots[0].is_symlink()
-            or roots[0].is_junction()
         ):
             message = "native_node_archive_root_invalid"
             raise ValueError(message)
         root = roots[0]
-        NodeRuntime.read(root, windows=self.target.startswith("windows-"))
+        NodeRuntime.read(root)
         if not (root / "LICENSE").is_file():
             message = "native_node_archive_runtime_incomplete"
             raise ValueError(message)
-        _retain_native_payload(
-            root, windows=self.target.startswith("windows-"), bootstrap_npm=bootstrap_npm
-        )
+        _retain_native_payload(root, bootstrap_npm=bootstrap_npm)
         return root
 
     def installed_root(self, root: Path) -> Path:

@@ -93,7 +93,7 @@ much, in names, classes and counts and never in a value:
 - `summary.environment.mode` is `inherited`. `names` counts the variables of the process that
   ran the proof, the Change and the actor that the invocation itself sets among them, and
   `outside_allow_list` those beside the product's list of kept names: `HOME`, `LOGNAME`, `PATH`,
-  `TMPDIR`, `USER` and the system names that Windows needs.
+  `TEMP`, `TMP`, `TMPDIR` and `USER`.
 - `credential_classes` holds `ssh-agent`, `forge-token`, `cloud-credential` or `credential` when
   the name of a variable has that shape. A secret under a plain name is counted and not classed.
 - `locked_toolchain` is `declared`, `undeclared`, or `unread:` with the Mise adapter's code, or

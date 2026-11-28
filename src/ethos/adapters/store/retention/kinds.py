@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING
 from zipfile import BadZipFile
 from zipfile import ZipFile
 
-from ethos.adapters.repo.runtime.filesystem import is_junction
 from ethos.contracts.outcome import refuse
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.semantic import canonical_json_bytes
@@ -112,12 +111,12 @@ def owned_places(store: Path) -> tuple[tuple[Path, ...], tuple[OSError, ...]]:
 def _real(store: Path, directory: Path) -> bool:
     """Return whether a directory and each parent below the store are directories, not links.
 
-    Each entry's own status is read, so a link or a junction is no directory; nothing at a path
+    Each entry's own status is read, so a link is no directory; nothing at a path
     is False, and any other refusal of the host is the caller's to count.
     """
     try:
         return all(
-            stat.S_ISDIR(path.lstat().st_mode) and not is_junction(path)
+            stat.S_ISDIR(path.lstat().st_mode)
             for path in (directory, *directory.parents)
             if path.is_relative_to(store) and path != store
         )

@@ -387,15 +387,7 @@ def _hook_contract(
     if selected is None:
         return load_hook_contract(), "", {}
     version = ".".join(selected.python_version.split(".")[:2])
-    site = (
-        selected.root
-        / "python"
-        / (
-            "Lib/site-packages"
-            if selected.platform == "windows"
-            else f"lib/python{version}/site-packages"
-        )
-    )
+    site = selected.root / "python" / f"lib/python{version}/site-packages"
     path = site / "ethos/adapters/repo/hook/binding.toml"
     try:
         return load_hook_contract(path), "", {}

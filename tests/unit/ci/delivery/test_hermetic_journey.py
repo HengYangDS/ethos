@@ -10,7 +10,6 @@ import sys
 import tempfile
 from contextlib import nullcontext
 from pathlib import Path
-from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
@@ -45,7 +44,6 @@ FRESH |= {"GIT_CONFIG_GLOBAL": "gitconfig"}
 DECLARED = {"GIT_CONFIG_NOSYSTEM": "1", "GIT_ATTR_NOSYSTEM": "1"}
 DIGEST = hashlib.sha256(b"archive").hexdigest()
 ENTRY = {"version": "1.2.3", "archive": "assets/a.tar.gz", "sha256": DIGEST, "archives": {}}
-posix = pytest.mark.skipif(os.name == "nt", reason="a fresh home and linked path are POSIX")
 _GLOBAL = "GIT_CONFIG_GLOBAL"
 
 
@@ -55,7 +53,6 @@ def _replace(link: Path, target: str = "") -> None:
     link.symlink_to(target) if target else link.touch()
 
 
-@posix
 def test_every_child_inherits_or_is_handed_the_same_fresh_environment(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -92,7 +89,6 @@ def test_every_child_inherits_or_is_handed_the_same_fresh_environment(
     assert (root.exists(), [source.is_file() for source in sources]) == (False, [True, True])
 
 
-@posix
 def test_git_starts_from_its_link_without_host_configuration_or_templates(tmp_path: Path) -> None:
     """Only the repository's own configuration applies, and a new repository gets no template."""
     repo = tmp_path / "repo"
@@ -103,7 +99,6 @@ def test_git_starts_from_its_link_without_host_configuration_or_templates(tmp_pa
     assert not (repo / ".git/hooks").exists()
 
 
-@posix
 def test_the_fixture_adopter_is_built_and_signed_inside_the_fresh_environment(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -136,34 +131,6 @@ def test_the_supply_block_restores_every_name_it_set_also_when_it_raises(
     assert (os.environ.get(SUPPLY), os.environ.get("HELD")) == (None, "before")
 
 
-def test_a_windows_stage_keeps_its_minimal_path_and_refuses_what_it_does_not_hold(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Windows links nothing, so a declared executable outside the minimal path is refused by name.
-
-    The path gains no directory for it: a directory would show a child every neighbour of that
-    executable. A stage that starts still names a variable beyond its declaration.
-    """
-    client = tmp_path / "forge/client"
-    client.parent.mkdir()
-    client.touch(mode=0o755)
-    monkeypatch.setenv("PATH", os.pathsep.join((os.environ["PATH"], str(client.parent))))
-    monkeypatch.setenv("SYSTEMROOT", str(tmp_path / "windows"))
-    windows = SimpleNamespace(name="nt", environ=os.environ, pathsep=os.pathsep)
-    monkeypatch.setattr(host_environment, "os", windows)
-    refused, started = tmp_path / "refused", tmp_path / "started"
-    stage = host_environment.hermetic_environment
-    unresolved = "cannot resolve client: a Windows stage's path holds"
-    with pytest.raises(RuntimeError, match=unresolved), stage(refused, ("client",)):
-        pass
-    with stage(started, EXECUTABLES) as declared:
-        clean = host_environment.hermetic_gap(started, EXECUTABLES)
-        os.environ.update(GH_TOKEN="fake")
-        shown = host_environment.hermetic_gap(started, EXECUTABLES)
-    assert (refused.exists(), str(client.parent) in declared["PATH"]) == (False, False)
-    assert (clean, shown) == ("", "GH_TOKEN")
-
-
 # Each way a stage's environment can show a child more than was declared, and what is named.
 CHANGES: dict[str, tuple[Callable[[Path], object], str]] = {
     "nothing": (lambda _root: None, ""),
@@ -182,7 +149,6 @@ CHANGES: dict[str, tuple[Callable[[Path], object], str]] = {
 }
 
 
-@posix
 @pytest.mark.parametrize("case", CHANGES)
 def test_the_owner_names_what_shows_a_child_more_than_it_declared(
     tmp_path: Path, case: str

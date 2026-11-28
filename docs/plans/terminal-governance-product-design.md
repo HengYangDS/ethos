@@ -367,7 +367,7 @@ passes; its own official Change must close the stated exit boundary.
    kernel. Inspect authorized real adopters read-only after the package runtime
    is accepted; select them by the capabilities under test, not project name.
    Exercise the declared Python floor and current supported versions
-   plus native macOS, Linux, and Windows adapters. Exit when every requested
+   plus native macOS and Linux adapters. Exit when every requested
    plane has fresh evidence and no adopter compatibility carrier or copied state
    machine is required.
 

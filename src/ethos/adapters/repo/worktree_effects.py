@@ -27,7 +27,6 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.profile import repository_identity
-from ethos.adapters.repo.runtime.filesystem import is_junction
 from ethos.adapters.repo.worktree_list import raw_worktree_records
 from ethos.contracts.digest import HEX_DIGITS
 from ethos.contracts.outcome import refuse
@@ -96,7 +95,7 @@ def hold_worktree_refs(
             stdout=subprocess.PIPE,
             stderr=errors,
             bufsize=0,
-            **({"process_group": 0} if os.name == "posix" else {}),
+            process_group=0,
         )
         expired = Event()
 
@@ -206,7 +205,7 @@ def remove_worktree(
     runner: Callable[..., Any] = run_git,
 ) -> Attestation:
     """Remove an exact binding after caller admission, or recognize its absence."""
-    if path.is_symlink() or is_junction(path):
+    if path.is_symlink():
         refuse("worktree_effect_binding_stale")
     target = path.resolve()
     record = worktree_record(root, target, environment=environment, runner=runner)

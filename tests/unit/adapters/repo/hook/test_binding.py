@@ -19,7 +19,6 @@ import ethos.adapters.repo.hook.observation as hook_binding
 import ethos.adapters.repo.runtime.authority as runtime_authority
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.binding import hook_launcher
-from ethos.adapters.repo.hook.binding import load_hook_contract
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.repo.trust_anchor.verification import commit_trust_anchor_action
@@ -291,7 +290,7 @@ def test_malformed_hook_declaration_is_rejected(tmp_path: Path, defect: str) -> 
     elif defect == "name":
         values["scripts"] = ["../unowned"]
     elif defect == "platforms":
-        values["python"] = {"posix": "python/bin/python"}
+        values["python"] = {"nt": "python/python.exe"}
     elif defect in {"absolute", "parent"}:
         values["python"]["posix"] = "/external/python" if defect == "absolute" else "../python"
     elif defect == "template":
@@ -393,6 +392,12 @@ def test_binding_primitives_and_unavailable_source_fail_closed(
     )
 
 
+def test_the_shipped_launchers_keep_the_generation_that_earlier_releases_installed() -> None:
+    """A changed launcher changes what an activation across releases compares."""
+    released = "1a8c9526f69b1338a4a544fc03e44f7ca17a1a8208887e535acde7bb2170e6c5"
+    assert hook_contract.load_hook_contract()["generation_digest"] == released
+
+
 def test_pure_hook_query_does_not_initialize_runtime_or_policy() -> None:
     program = """
 import json, sys
@@ -421,11 +426,10 @@ print(json.dumps({"digest": hook_generation_digest(launchers), "modules": sorted
     }.intersection(observed["modules"])
 
 
-@pytest.mark.parametrize("platform", ["posix", "nt"])
-def test_declaration_binds_native_protocol_on_each_platform(platform: str) -> None:
-    """Every platform binds the selected package without the interactive CLI."""
-    contract = hook_contract.load_hook_contract(platform_name=platform)
-    python = "python/bin/python" if platform == "posix" else "python/python.exe"
+def test_declaration_binds_native_protocol() -> None:
+    """The declaration binds the selected package without the interactive CLI."""
+    contract = hook_contract.load_hook_contract()
+    python = "python/bin/python"
     assert contract["scripts"] == ("commit-msg", "pre-commit", "pre-push", "reference-transaction")
     for name, launcher in contract["launchers"].items():
         assert launcher.endswith(
@@ -433,14 +437,12 @@ def test_declaration_binds_native_protocol_on_each_platform(platform: str) -> No
         )
 
 
-def test_hook_declaration_rejects_symlink_and_unknown_platform(tmp_path: Path) -> None:
+def test_hook_declaration_rejects_symlink(tmp_path: Path) -> None:
     declaration = Path(hook_contract.__file__).with_suffix(".toml")
     link = tmp_path / "binding.toml"
     link.symlink_to(declaration)
     with pytest.raises(ValueError, match="hook_launcher_declaration_invalid"):
         hook_contract.load_hook_contract(link)
-    with pytest.raises(ValueError, match="hook_launcher_platform_invalid"):
-        hook_contract.load_hook_contract(platform_name="unknown")
 
 
 def test_predeclaration_runtime_derives_successor_install_not_old_reinstall(
@@ -536,13 +538,3 @@ def test_hook_launcher_enters_the_selected_runtime_without_ambient_path(tmp_path
 
     assert completed.returncode == 0, completed.stderr
     assert completed.stdout == "-B -I -m ethos.adapters.repo.hook.protocol pre-commit argument\n"
-
-
-def test_windows_hook_launcher_uses_the_standalone_runtime_python() -> None:
-    text = load_hook_contract(platform_name="nt")["launchers"]["pre-commit"]
-
-    assert (
-        'exec "$RUNTIME/python/python.exe" -B -I '
-        '-m ethos.adapters.repo.hook.protocol pre-commit "$@"'
-    ) in text
-    assert "Scripts/python.exe" not in text

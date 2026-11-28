@@ -292,7 +292,7 @@ def test_npm_command_uses_the_resolved_complete_node_runtime(monkeypatch, reposi
     observed = native_transport(
         monkeypatch, lambda _root, cmd, ecosystem: native_result(cmd, ecosystem)
     )
-    runtime = SimpleNamespace(executable=repository / "node.exe", npm=repository / "npm-cli.js")
+    runtime = SimpleNamespace(executable=repository / "node", npm=repository / "npm-cli.js")
     monkeypatch.setattr(input_resolution, "resolve_node_runtime", lambda: runtime, raising=False)
     assert invoke_audit(repository)["verdict"] == "pass"
     assert observed[1][:2] == (str(runtime.executable), str(runtime.npm))

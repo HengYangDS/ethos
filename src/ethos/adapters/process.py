@@ -11,12 +11,10 @@ from contextlib import contextmanager
 from contextlib import suppress
 from contextvars import ContextVar
 from functools import partial
-from importlib import import_module
 from pathlib import Path
 from tempfile import TemporaryFile
 from threading import Event
 from threading import Lock
-from threading import Thread
 from threading import current_thread
 from threading import main_thread
 from time import monotonic
@@ -40,7 +38,6 @@ if TYPE_CHECKING:
 PROCESS_CREATION_FAILED = "process_creation_failed"
 NATIVE_PROCESS_OBSERVER_UNAVAILABLE = "native_process_observer_unavailable"
 # The idle and system processes have no command line and run no program.
-_KERNEL_PROCESS_IDS = frozenset({0, 4})
 # Darwin needs a moment to reap an exited group's members before it can report the group absent.
 _GROUP_REAPING_GRACE_SECONDS = 0.5
 _GROUP_REAPING_POLL_SECONDS = 0.01
@@ -302,54 +299,6 @@ def process_listing_command(*, with_pid: bool = False) -> tuple[str, ...]:
     return (Path(executable).resolve().as_posix(), "-axww", "-o", columns)
 
 
-def windows_command_lines(
-    *, timeout: float, exclude_pid: int | None = None, strict: bool = False
-) -> tuple[str, ...]:
-    """Read every visible process's command line from WMI on a worker thread within a bound.
-
-    Strictly, a process whose command line Windows withholds makes the listing unknown, except
-    the kernel's idle and system processes, which run no program.
-    """
-    lines: list[str] = []
-    unreadable: list[int] = []
-    complete = Event()
-
-    def query() -> None:
-        # pywin32 is imported where it is used: only Windows installs it.
-        try:
-            com, client = (import_module(name) for name in ("pythoncom", "win32com.client"))
-        except ImportError:
-            return
-        com.CoInitialize()
-        try:
-            query = "SELECT ProcessId, CommandLine FROM Win32_Process"
-            for row in client.GetObject("winmgmts:").ExecQuery(query):
-                if row.ProcessId == exclude_pid:
-                    continue
-                if row.CommandLine:
-                    lines.append(str(row.CommandLine))
-                elif row.ProcessId not in _KERNEL_PROCESS_IDS:
-                    unreadable.append(int(row.ProcessId))
-            complete.set()
-        except com.com_error:
-            return
-        finally:
-            com.CoUninitialize()
-
-    worker = Thread(target=query, name="process-command-lines", daemon=True)
-    worker.start()
-    worker.join(timeout)
-    if not complete.is_set():
-        raise ProcessExecutionError(
-            NATIVE_PROCESS_OBSERVER_UNAVAILABLE, reason="management_query_unavailable"
-        )
-    if strict and unreadable:
-        raise ProcessExecutionError(
-            NATIVE_PROCESS_OBSERVER_UNAVAILABLE, reason="process_command_line_unreadable"
-        )
-    return tuple(lines)
-
-
 def run_command(
     root: Path,
     command: tuple[str, ...],
@@ -420,18 +369,13 @@ def _execute_command(
     scope = _COMMAND_SCOPE.get() or CommandScope()
     with (
         ExitStack() as resources,
-        _finite_output(enabled=spool_stdout or os.name == "nt", bound=timeout) as spooled,
+        _finite_output(enabled=spool_stdout, bound=timeout) as spooled,
     ):
         (output, diagnostic), finite_input = spooled, None
         if stdin is not None:
-            # A text stream keeps the caller's line endings; Windows would write each as CRLF.
             text = kwargs["text"]
             finite_input = resources.enter_context(
-                TemporaryFile(
-                    mode="w+" if text else "w+b",
-                    encoding=encoding if text else None,
-                    newline="" if text else None,
-                )
+                TemporaryFile(mode="w+" if text else "w+b", encoding=encoding if text else None)
             )
             finite_input.write(stdin)
             finite_input.seek(0)
@@ -444,7 +388,7 @@ def _execute_command(
                 stdin=finite_input if finite_input is not None else subprocess.DEVNULL,
                 stdout=output,
                 stderr=diagnostic if diagnostic is not None else subprocess.PIPE,
-                **({"process_group": 0} if os.name == "posix" else {}),
+                process_group=0,
                 **kwargs,
             )
         except OSError as error:
@@ -475,8 +419,6 @@ def _finite_output(
     A timeout reports the command's bound: CPython 3.12 reports the time that was left when no
     stream is a pipe. The caller's wait stays one line after the child exists, with no `try`
     of its own, whose first instruction no handler of the caller would cover.
-    Windows always captures stderr in a file: a descendant that keeps a pipe open makes its reader
-    wait for the pipe's end, while a file is read as soon as the leader exits.
     """
     with ExitStack() as resources:
         output = resources.enter_context(TemporaryFile(mode="w+b"))
@@ -511,7 +453,7 @@ def _terminate_commands(
     errors: list[OSError] = []
     for process in processes:
         try:
-            if os.name == "posix" and process.poll() is None:
+            if process.poll() is None:
                 os.killpg(process.pid, signal.SIGINT)
         except OSError as error:
             # Darwin refuses a group whose leader is exiting or exited and awaits its reaper; the
@@ -546,9 +488,6 @@ def _reapable_within(process: subprocess.Popen[Any], bound: float) -> bool:
 def _terminate_command(process: subprocess.Popen[Any], *, deadline: float | None = None) -> None:
     """Close an owned group; only observed absence resolves a native kill race."""
     with suppress(ProcessLookupError):
-        if os.name != "posix":
-            process.kill()
-            return
         try:
             try:
                 if deadline is not None:

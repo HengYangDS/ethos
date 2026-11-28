@@ -35,7 +35,7 @@ def test_product_common_model_has_real_repository_instance_and_native_inputs(tmp
         "release_branch": "main",
         "report_path": "build/evidence/ci/verification.json",
         "timeout_minutes": 15,
-        "github": {"runners": ["ubuntu-latest", "macos-latest", "windows-latest"]},
+        "github": {"runners": ["ubuntu-latest", "macos-latest"]},
         "gitlab": {
             "runners": {
                 "linux": {
@@ -109,9 +109,7 @@ def test_product_common_verification_binds_source_supply_and_trust_partitions(tm
         "release_branch": "main",
         "report_path": "build/evidence/ci/verification.json",
         "timeout_minutes": 20,
-        "github": {
-            "runners": ["ubuntu-latest", "ubuntu-24.04-arm", "macos-latest", "windows-latest"]
-        },
+        "github": {"runners": ["ubuntu-latest", "ubuntu-24.04-arm", "macos-latest"]},
         "gitlab": {
             "variables": {
                 "MISE_CONFIG_DIR": "$CI_PROJECT_DIR/build/runtime/work/mise-config",
@@ -160,18 +158,7 @@ def test_product_common_verification_binds_source_supply_and_trust_partitions(tm
                     "system": "macos",
                     "review_tags": ["ci-macos-arm64-review"],
                     "protected_tags": ["ci-macos-arm64-shell"],
-                },
-                "windows": {
-                    "system": "windows",
-                    "review_tags": ["ci-windows-arm64-review"],
-                    "protected_tags": ["ci-windows-arm64-shell"],
-                    "resource_group": "windows-verification",
-                    "preparation": [
-                        (
-                            "$env:PATH = $env:PATH + [IO.Path]::PathSeparator + "
-                            "[Environment]::GetEnvironmentVariable('Path', 'Machine')"
-                        )
-                    ],
+                    "resource_group": "macos-verification",
                 },
             },
         },
@@ -223,23 +210,23 @@ def test_product_common_verification_binds_source_supply_and_trust_partitions(tm
     assert {key for key in gitlab if not key.startswith(".") and isinstance(gitlab[key], dict)} >= {
         "verify:linux:review",
         "verify:linux:protected",
-        "verify:windows:review",
-        "verify:windows:protected",
+        "verify:macos:review",
+        "verify:macos:protected",
     }
-    review, protected = (gitlab[f"verify:windows:{kind}"] for kind in ("review", "protected"))
-    assert review["tags"] == ["ci-windows-arm64-review"]
-    assert protected["tags"] == ["ci-windows-arm64-shell"]
-    assert review["resource_group"] == protected["resource_group"] == "windows-verification"
+    review, protected = (gitlab[f"verify:macos:{kind}"] for kind in ("review", "protected"))
+    assert review["tags"] == ["ci-macos-arm64-review"]
+    assert protected["tags"] == ["ci-macos-arm64-shell"]
+    assert review["resource_group"] == protected["resource_group"] == "macos-verification"
     assert "CI_COMMIT_REF_PROTECTED" in str(protected["rules"])
     assert "merge_request_event" in str(review["rules"])
     assert not any(key.startswith("offline:") for key in gitlab)
-    windows_steps = [
+    macos_steps = [
         step
         for step in ci_steps("gitlab", ".gitlab-ci.yml", providers["gitlab"])
-        if step.job.startswith("verify:windows:")
+        if step.job.startswith("verify:macos:")
     ]
-    assert windows_steps
-    assert not [step for step in windows_steps if inline_shell(step.command)]
+    assert macos_steps
+    assert not [step for step in macos_steps if inline_shell(step.command)]
     assert (
         gitlab["verify:linux:protected"]["image"]
         == parameters["gitlab"]["runners"]["linux"]["image"]
@@ -248,21 +235,14 @@ def test_product_common_verification_binds_source_supply_and_trust_partitions(tm
         for trust in ("review", "protected"):
             job = gitlab[f"verify:{name}:{trust}"]
             preparation = runner.get("preparation", [])
-            mkdir = (
-                "New-Item -ItemType Directory -Force build/evidence/ci"
-                if runner["system"] == "windows"
-                else "mkdir -p build/evidence/ci"
-            )
             assert job["before_script"] == [
                 *preparation,
                 "mise install --locked --jobs=1",
                 *parameters["supply"]["checks"]["gitlab"],
-                mkdir,
+                "mkdir -p build/evidence/ci",
             ]
-            retry = {"GET_SOURCES_ATTEMPTS": "3"} if runner["system"] == "windows" else {}
             assert job["variables"] == {
                 "GIT_DEPTH": "0",
-                **retry,
                 **parameters["gitlab"]["variables"],
                 **runner.get("variables", {}),
             }
@@ -296,10 +276,10 @@ def test_product_common_verification_preserves_additive_offline_jobs(tmp_path, c
         "supply": {"mise_version": "2026.10.17"},
         "gitlab": {
             "runners": {
-                "windows": {
-                    "system": "windows",
-                    "review_tags": ["ci-windows-arm64-review"],
-                    "protected_tags": ["ci-windows-arm64-shell"],
+                "macos": {
+                    "system": "macos",
+                    "review_tags": ["ci-macos-arm64-review"],
+                    "protected_tags": ["ci-macos-arm64-shell"],
                 }
             }
         },
@@ -336,11 +316,10 @@ def test_product_common_verification_preserves_additive_offline_jobs(tmp_path, c
             "extends": ".offline:verify",
             "tags": ["ci-linux-arm64-container-protected"],
         },
-        "offline:verify:macos": {"extends": ".offline:verify", "tags": ["ci-macos-arm64-shell"]},
-        "offline:verify:windows": {
+        "offline:verify:macos": {
             "extends": ".offline:verify",
-            "tags": ["ci-windows-arm64-shell"],
-            "resource_group": "windows-verification",
+            "tags": ["ci-macos-arm64-shell"],
+            "resource_group": "macos-verification",
         },
     }
     files = {
@@ -368,8 +347,8 @@ def test_product_common_verification_preserves_additive_offline_jobs(tmp_path, c
     for name, job in offline_jobs.items():
         assert gitlab[name] == job
     for trust in ("review", "protected"):
-        assert gitlab[f"verify:windows:{trust}"]["rules"][0] == exclusion_rule
-        assert gitlab[f"verify:windows:{trust}"]["timeout"] == "20 minutes"
+        assert gitlab[f"verify:macos:{trust}"]["rules"][0] == exclusion_rule
+        assert gitlab[f"verify:macos:{trust}"]["timeout"] == "20 minutes"
     assert compile_projections(tmp_path, DECLARATION, files, observations=rendered) == rendered
 
 
@@ -381,24 +360,16 @@ def test_product_common_verification_preserves_additive_offline_jobs(tmp_path, c
             "offline_candidate_variable",
         ),
         (
-            {"parameters": {"gitlab": {"runners": {"windows": {"preparation": [""]}}}}},
+            {"parameters": {"gitlab": {"runners": {"macos": {"preparation": [""]}}}}},
             "preparation",
         ),
         (
-            {"parameters": {"gitlab": {"runners": {"windows": {"variables": {"GIT_DEPTH": "1"}}}}}},
+            {"parameters": {"gitlab": {"runners": {"macos": {"variables": {"GIT_DEPTH": "1"}}}}}},
             "GIT_DEPTH",
-        ),
-        (
-            {
-                "parameters": {
-                    "gitlab": {"runners": {"windows": {"variables": {"GET_SOURCES_ATTEMPTS": "1"}}}}
-                }
-            },
-            "GET_SOURCES_ATTEMPTS",
         ),
         ({"parameters": {"evidence_paths": ["build/evidence/../secret"]}}, "evidence_paths"),
         (
-            {"providers": {"gitlab": {"verify:windows:protected": {"script": ["echo bypass"]}}}},
+            {"providers": {"gitlab": {"verify:macos:protected": {"script": ["echo bypass"]}}}},
             "script",
         ),
         (
@@ -423,11 +394,11 @@ def test_product_common_verification_refuses_lossy_composition(tmp_path, increme
         "release_branch": "main",
         "timeout_minutes": 20,
         "supply": {"mise_version": "2026.10.17"},
-        "github": {"runners": ["windows-latest"]},
+        "github": {"runners": ["macos-latest"]},
         "gitlab": {
             "runners": {
-                "windows": {
-                    "system": "windows",
+                "macos": {
+                    "system": "macos",
                     "review_tags": ["review"],
                     "protected_tags": ["protected"],
                 }

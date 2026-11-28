@@ -143,14 +143,13 @@ def create_fixture_python(
     native_executables: Mapping[str, Path] | None = None,
 ) -> None:
     """Bind fixture children to the invoking candidate and shared dependencies."""
-    scripts = target / ("Scripts" if os.name == "nt" else "bin")
+    scripts = target / "bin"
     scripts.mkdir(parents=True)
-    if os.name != "nt":
-        entry = scripts / "ethos"
-        entry.write_text(runtime_materialization.render_console_script("ethos"))
-        entry.chmod(0o755)
+    entry = scripts / "ethos"
+    entry.write_text(runtime_materialization.render_console_script("ethos"))
+    entry.chmod(0o755)
     source_python = Path(sys.executable).absolute()
-    fixture_python = scripts / ("python.exe" if os.name == "nt" else "python")
+    fixture_python = scripts / "python"
     if shared_executable is None:
         shutil.copy(source_python, fixture_python)
         fixture_python.chmod(0o755)
@@ -163,7 +162,7 @@ def create_fixture_python(
         executable = runtime_executable(target, name)
         shutil.copy(source, executable)
         executable.chmod(0o555)
-    home = Path(sys.base_prefix) if os.name == "nt" else source_python.resolve().parent
+    home = source_python.resolve().parent
     target.joinpath("pyvenv.cfg").write_text(
         f"home = {home.as_posix()}\n"
         "include-system-site-packages = false\n"
@@ -172,7 +171,7 @@ def create_fixture_python(
         encoding="utf-8",
     )
     version = f"python{sys.version_info.major}.{sys.version_info.minor}"
-    relative_site = Path("Lib/site-packages" if os.name == "nt" else f"lib/{version}/site-packages")
+    relative_site = Path(f"lib/{version}/site-packages")
     site_packages = target / relative_site
     source_site = Path(sys.prefix) / relative_site
     site_packages.mkdir(parents=True, exist_ok=True)

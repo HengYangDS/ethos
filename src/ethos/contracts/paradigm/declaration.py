@@ -227,6 +227,7 @@ class StepRetention(BaseModel):
     record: str
     classes: FrozenTuple[str] = Field(min_length=1)
     platforms: FrozenTuple[str] = Field(min_length=1)
+    leaving_platforms: FrozenTuple[str] = ()
 
 
 class PipelineModel(BaseModel):

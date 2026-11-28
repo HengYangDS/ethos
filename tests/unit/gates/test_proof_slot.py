@@ -281,11 +281,10 @@ def test_the_host_load_is_the_one_minute_load_where_the_host_reports_it(
     expected: float | None,
 ) -> None:
     """The 5-minute average lags a finished run by minutes; two calm 1-minute samples admit."""
-    # Windows has no such reading: the patch may meet a host without the name.
     if averages is not None:
-        monkeypatch.setattr(proof_slot.os, "getloadavg", lambda: averages, raising=False)
+        monkeypatch.setattr(proof_slot.os, "getloadavg", lambda: averages)
     else:
-        monkeypatch.delattr(proof_slot.os, "getloadavg", raising=False)
+        monkeypatch.delattr(proof_slot.os, "getloadavg")
 
     assert proof_slot.host_load() == expected
 
@@ -336,7 +335,7 @@ def test_a_full_proof_takes_the_host_slot_between_its_slot_and_load(tmp_path: Pa
     assert holder["executable"] == "renderer"
     assert "repository" not in holder
     assert holder["operation"] == "host.run"
-    # The path as JSON writes it: there a Windows path's backslashes are doubled.
+    # The path as JSON writes it.
     assert json.dumps(str(tmp_path))[1:-1] not in json.dumps(host.waits()[0])
     assert admission.load == pytest.approx(4.0)
     assert host_admission.ADMISSION_ENV not in os.environ

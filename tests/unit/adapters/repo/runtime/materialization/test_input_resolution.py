@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import subprocess
 import sys
 import urllib.request
@@ -22,32 +21,23 @@ def _completed(code: int, stdout: str = "", stderr: str = ""):
     return subprocess.CompletedProcess((), code, stdout, stderr)
 
 
-@pytest.mark.parametrize(
-    ("platform_name", "node_relative"), [("posix", Path("bin/node")), ("nt", Path("node.exe"))]
-)
-def test_node_runtime_resolves_the_installed_platform_layout(
-    tmp_path: Path, platform_name: str, node_relative: Path
-) -> None:
-    executable = tmp_path / node_relative
+def test_node_runtime_resolves_the_installed_platform_layout(tmp_path: Path) -> None:
+    executable = tmp_path / "bin/node"
     executable.parent.mkdir(parents=True, exist_ok=True)
     executable.touch(mode=0o755)
-    npm = tmp_path / (
-        "node_modules/npm/bin/npm-cli.js"
-        if platform_name == "nt"
-        else "lib/node_modules/npm/bin/npm-cli.js"
-    )
+    npm = tmp_path / "lib/node_modules/npm/bin/npm-cli.js"
     npm.parent.mkdir(parents=True)
     npm.write_text("// Native npm entrypoint.\n")
 
-    node = resolve_node_runtime(package_root=tmp_path, platform_name=platform_name)
+    node = resolve_node_runtime(package_root=tmp_path)
 
-    assert node.executable == tmp_path / node_relative
+    assert node.executable == executable
     assert node.npm == npm
 
 
 def test_node_runtime_fails_before_build_for_an_incomplete_supply(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="package-local Node executable is unavailable"):
-        resolve_node_runtime(package_root=tmp_path, platform_name="nt")
+        resolve_node_runtime(package_root=tmp_path)
 
 
 def test_node_runtime_rejects_an_executable_without_its_native_npm(tmp_path: Path) -> None:
@@ -57,7 +47,7 @@ def test_node_runtime_rejects_an_executable_without_its_native_npm(tmp_path: Pat
     executable.touch(mode=0o755)
 
     with pytest.raises(ValueError, match="package-local npm CLI is unavailable"):
-        resolve_node_runtime(package_root=tmp_path, platform_name="posix")
+        resolve_node_runtime(package_root=tmp_path)
 
 
 def test_runtime_inputs_cannot_escape_the_selected_root(tmp_path: Path) -> None:
@@ -72,7 +62,7 @@ def test_runtime_inputs_cannot_escape_the_selected_root(tmp_path: Path) -> None:
     outside.write_text("// foreign executable\n")
     npm.symlink_to(outside)
     with pytest.raises(ValueError, match="native_node_runtime_path_invalid"):
-        resolve_node_runtime(package_root=root, platform_name="posix")
+        resolve_node_runtime(package_root=root)
 
 
 def test_source_runtime_uses_the_locked_product_npm_not_the_bootstrap_bundle(
@@ -254,15 +244,14 @@ def test_invoking_runtime_names_its_exact_wheel_as_one_hashed_requirement(
         runtime_inputs.invoking_runtime_requirement()
 
 
-@pytest.mark.parametrize("layout", ["bin/python", "python/python.exe"])
 @pytest.mark.parametrize(
     "operation", [("export",), ("sync",), ("pip", "install", "package.whl"), ("build",)]
 )
 def test_runtime_tool_preserves_interpreter_supply_and_environment(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, layout: str, operation: tuple[str, ...]
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, operation: tuple[str, ...]
 ) -> None:
     """Keep native argv and all isolation obligations in one invocation fixture."""
-    source, python = tmp_path / "source", tmp_path / layout
+    source, python = tmp_path / "source", tmp_path / "bin/python"
     source.mkdir()
     python.parent.mkdir(parents=True)
     python.write_text("python")
@@ -311,8 +300,8 @@ def test_runtime_tool_targets_a_selected_environment_on_the_invoking_interpreter
 ) -> None:
     """Two environments over one base interpreter remain distinct uv targets."""
     selected = tmp_path / "selected"
-    venv.EnvBuilder(symlinks=os.name != "nt", with_pip=False).create(selected)
-    python = selected / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    venv.EnvBuilder(symlinks=True, with_pip=False).create(selected)
+    python = selected / "bin/python"
     native = subprocess.run
     targets: list[str] = []
 
@@ -357,9 +346,7 @@ def test_locked_environment_python_requires_the_project_venv_prefix(
 ) -> None:
     project = tmp_path / "project"
     environment = project / ".venv"
-    python = environment / (
-        "Scripts/python.exe" if runtime_inputs.os.name == "nt" else "bin/python"
-    )
+    python = environment / "bin/python"
     python.parent.mkdir(parents=True)
     python.write_bytes(b"python")
     prefix = environment if prefix_owner == "project" else tmp_path / "foreign"

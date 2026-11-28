@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock
@@ -10,7 +9,6 @@ from unittest.mock import Mock
 import pytest
 
 import ethos.application.hook.commit_trust as commit_trust
-from ethos.adapters.process import run_command
 from ethos.adapters.repo.trust_anchor.filesystem import protected_from_untrusted_write
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
@@ -118,23 +116,3 @@ def test_a_refused_input_names_its_gap_and_binds_nothing(
     assert not list(tmp_path.glob("ethos-ci-trust-*"))
     if case not in {"locked", "denied"}:
         assert run_ethos_blocked(*_argv(repo, *flags))["required_gaps"] == [gap]
-
-
-@pytest.mark.skipif(os.name != "nt", reason="requires the Windows ACL authority")
-def test_bound_material_is_protected_under_a_shared_temporary_root(
-    job, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A hosted Windows temporary root lets other users write; the bound anchor must not."""
-    repo, _anchor = job
-    shared = tmp_path / "shared-temporary-root"
-    shared.mkdir()
-    icacls = Path(os.environ["SYSTEMROOT"]) / "System32/icacls.exe"
-    grant = (str(icacls), str(shared), "/grant", "*S-1-5-32-545:(OI)(CI)W")
-    run_command(shared, grant, check=True, timeout=60)
-    monkeypatch.setattr(tempfile, "tempdir", str(shared))
-    monkeypatch.setenv(_MATERIAL, "operator public trust\n")
-
-    bound = Path(run_ethos(*_argv(repo, "--apply"))["summary"]["anchor"])
-
-    assert protected_from_untrusted_write(bound)
-    assert bound.read_bytes() == b"operator public trust\n"

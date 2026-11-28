@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import shlex
 import sqlite3
 from contextlib import closing
@@ -30,7 +29,6 @@ from tests.support.governed_repository import exact_lease
 from tests.support.repository_exit import adopted_with_own_hooks
 from tests.support.repository_exit import apply_exit
 from tests.support.repository_exit import exit_state
-from tests.support.repository_exit import observe_no_foreign_processes
 from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import linked_runtime_case
 
@@ -282,7 +280,6 @@ def test_an_exit_keeps_worktree_configuration_while_a_worktree_has_its_own(
 ) -> None:
     """Git ignores a worktree's own configuration without the extension, so it stays enabled."""
     repo, linked, _runtime, _hooks = linked_runtime_case(tmp_path, monkeypatch)
-    observe_no_foreign_processes(monkeypatch)
     install_hook_launchers(repo)
     assert git_process(linked, "config", "--worktree", "user.name", "lane").returncode == 0
 
@@ -310,7 +307,6 @@ def test_status_reports_the_exit_from_its_receipt(
     assert binding["required"] is False
 
 
-@pytest.mark.skipif(os.name == "nt", reason="a standard Windows user cannot read every process")
 def test_ethos_adopt_exit_applies_the_previewed_plan(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

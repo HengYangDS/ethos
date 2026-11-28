@@ -315,7 +315,7 @@ def render_source_content(
         return rendered[0], False
     if owner == "shfmt":
         command = (
-            str(scripts / ("shfmt.exe" if os.name == "nt" else "shfmt")),
+            str(scripts / "shfmt"),
             "--apply-ignore",
             "--filename",
             relative,

@@ -41,9 +41,7 @@ def _fails(error: str, function, *args: object, **kwargs: object) -> None:
         function(*args, **kwargs)
 
 
-def test_python_copy_boundaries_and_windows_payload(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_python_copy_boundaries(tmp_path: Path) -> None:
     copy_tree = vars(python_image)["_copy_runtime_tree"]
     copy_file = vars(python_image)["_copy_runtime_file"]
     root, outside = tmp_path / "tree", _file(tmp_path / "outside")
@@ -66,33 +64,19 @@ def test_python_copy_boundaries_and_windows_payload(
     directory = root / "directory"
     directory.mkdir()
     _fails("python_symlink_invalid", copy_file, directory, tmp_path / "copy")
-    home, target = tmp_path / "home", tmp_path / "windows"
-    interpreter = _file(home / "python.exe", b"python")
-    for relative in ("Lib/os.py", "DLLs/_ssl.pyd", "python3.dll", "vcruntime.dll"):
-        _file(home / relative, relative.encode())
-    monkeypatch.setattr(python_image, "os", SimpleNamespace(name="nt"))
-    monkeypatch.setattr(python_image, "runtime_scripts", lambda root: root / "Scripts")
-    vars(python_image)["_copy_python_runtime"](home, interpreter, target, "3.14.7")
-    assert (target / "python.exe").read_bytes() == b"python"
-    assert (target / "Scripts").is_dir()
-    for relative in ("Lib/os.py", "DLLs/_ssl.pyd", "python3.dll", "vcruntime.dll"):
-        assert (target / relative).read_bytes() == relative.encode()
 
 
-@pytest.mark.parametrize("platform", ["posix", "nt"])
 def test_interpreter_copy_preserves_standard_library_without_dependency_supply(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, platform: str
+    tmp_path: Path,
 ) -> None:
     """External distributions come only from the selected supply, not the base image."""
     home, target = tmp_path / "home", tmp_path / "target"
-    interpreter = _file(home / ("python.exe" if platform == "nt" else "bin/python"))
-    library = "Lib" if platform == "nt" else "lib/python3.14"
+    interpreter = _file(home / "bin/python")
+    library = "lib/python3.14"
     _file(home / library / "os.py", b"standard library")
     _file(home / library / "site-packages/previous-1.dist-info/METADATA", b"previous")
     _file(home / library / "site-packages/previous/__init__.py", b"previous")
     before = _snapshot(home)
-    monkeypatch.setattr(python_image, "os", SimpleNamespace(name=platform))
-    monkeypatch.setattr(python_image, "runtime_scripts", lambda root: root / "Scripts")
     vars(python_image)["_copy_python_runtime"](home, interpreter, target, "3.14.7")
     assert (target / library / "os.py").read_bytes() == b"standard library"
     assert not (target / library / "site-packages").exists()
@@ -124,7 +108,7 @@ def test_interpreter_copy_preserves_standard_library_without_dependency_supply(
 def test_console_script_discovery_binds_target_and_rejects_invalid_entries(
     monkeypatch, tmp_path, payload, status, gap
 ):
-    python = _file(tmp_path / "runtime/python.exe", b"python")
+    python = _file(tmp_path / "runtime/bin/python", b"python")
 
     execute = Mock(return_value=subprocess.CompletedProcess([], status, payload, "probe failed"))
     monkeypatch.setattr(python_image.subprocess, "run", execute)
@@ -144,22 +128,6 @@ def test_console_script_rewrite_preserves_binary_and_rejects_unowned_outputs(mon
     monkeypatch.setattr(python_image, "console_script_entries", lambda _p: entries)
     _fails("entrypoint_missing", rewrite, tmp_path / "runtime")
     entries["ethos"] = "ethos.cli:main"
-    monkeypatch.setattr(python_image, "os", SimpleNamespace(name="nt"))
-    scripts = tmp_path / "runtime/Scripts"
-    monkeypatch.setattr(python_image, "runtime_scripts", lambda _r: scripts)
-    trampoline, root_decoy = _file(scripts / "ethos.exe"), _file(python.parent / "ethos.exe")
-    rewrite(tmp_path / "runtime")
-    launcher = (scripts / "ethos.cmd").read_bytes()
-    assert not trampoline.exists()
-    assert root_decoy.exists()
-    assert launcher.startswith(b'@"%~dp0..\\python.exe" -B -I -X utf8 -c "import sys;')
-    assert launcher.endswith(b'"ethos" %*\r\n')
-    assert str(tmp_path).encode() not in launcher
-    _refuses_absent_entry(launcher.decode().split(' -c "', 1)[1].rsplit('" "', 1)[0])
-    _fails("console_script_invalid", rewrite, tmp_path / "runtime")
-    root_decoy.unlink()
-    monkeypatch.setattr(python_image, "runtime_scripts", lambda _r: python.parent)
-    monkeypatch.setattr(python_image, "os", SimpleNamespace(name="posix"))
     for kind in ("directory", "symlink"):
         artifact = python.parent / kind
         artifact.mkdir() if kind == "directory" else artifact.symlink_to("python")

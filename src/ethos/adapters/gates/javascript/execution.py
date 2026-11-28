@@ -128,7 +128,7 @@ def prepare_command(
     root: Path, command: tuple[str, ...]
 ) -> AbstractContextManager[NodeAttempt] | None:
     """Select Node custody for a native executable without changing gate identity."""
-    if not command or Path(command[0]).name not in {"node", "node.exe"}:
+    if not command or Path(command[0]).name != "node":
         return None
     node = shutil.which(command[0]) if not Path(command[0]).is_absolute() else command[0]
     if node is None:

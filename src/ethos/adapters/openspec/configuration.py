@@ -39,11 +39,7 @@ def official_config_report(root: Path, *, initialize: bool = False) -> dict[str,
         return fallback | {"required_gaps": ["openspec_official_cli_missing"]}
     try:
         with TemporaryDirectory(prefix="ethos-openspec-configuration-") as temporary:
-            environment = {
-                key: os.environ[key]
-                for key in ("PATH", "SystemRoot", "WINDIR")
-                if key in os.environ
-            }
+            environment = {"PATH": os.environ["PATH"]} if "PATH" in os.environ else {}
             environment.update(
                 HOME=temporary,
                 USERPROFILE=temporary,

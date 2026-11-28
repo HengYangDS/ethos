@@ -3,7 +3,7 @@
 A budget reports and never refuses: a row is `within` or `over`, or `unread` when a place under
 it could not be read and the bytes that were counted do not already exceed it, and no verdict
 reads it. Sizes are the sizes of regular files, read without
-following a link or a junction, so a file system that shares blocks holds fewer bytes than a row
+following a link, so a file system that shares blocks holds fewer bytes than a row
 says. A place that cannot be read is counted and skipped; every reading asks the host for an
 entry's own status, which answers alike on every supported interpreter.
 """
@@ -17,7 +17,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos.adapters.repo.runtime.filesystem import is_junction
 from ethos.adapters.store.retention.kinds import owned_places
 
 if TYPE_CHECKING:
@@ -36,9 +35,8 @@ def _status(path: Path, unread: list[OSError]) -> os.stat_result | None:
 
 
 def _names(top: Path, unread: list[OSError]) -> Iterator[Path]:
-    """Yield each name under a directory, descending into no link and no junction."""
-    for parent, directories, names in os.walk(top, onerror=unread.append):
-        directories[:] = [name for name in directories if not is_junction(Path(parent, name))]
+    """Yield each name under a directory, descending into no link."""
+    for parent, _directories, names in os.walk(top, onerror=unread.append):
         yield from (Path(parent, name) for name in names)
 
 
@@ -48,7 +46,7 @@ def tree_bytes(top: Path) -> dict[str, int]:
     first = _status(top, unread)
     if first is None:
         entries: list[os.stat_result | None] = []
-    elif stat.S_ISDIR(first.st_mode) and not is_junction(top):
+    elif stat.S_ISDIR(first.st_mode):
         entries = [_status(path, unread) for path in _names(top, unread)]
     else:
         entries = [first]

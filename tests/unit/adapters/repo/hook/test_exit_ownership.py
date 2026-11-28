@@ -16,7 +16,6 @@ from ethos.adapters.repo.hook.preimage import read_hooks_preimage
 from ethos.application.adoption import adopt_repository
 from tests.support.repository_exit import adopted_with_own_hooks
 from tests.support.repository_exit import apply_exit
-from tests.support.repository_exit import observe_no_foreign_processes
 from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import linked_runtime_case
 from tests.support.runtime_scenarios import materialized_activation_case
@@ -102,7 +101,6 @@ def test_a_linked_worktree_gets_back_its_recorded_hooks_path(
 ) -> None:
     """Install cleared the worktree's own value and recorded it; the exit writes it back."""
     repo, linked, _runtime, _hooks = linked_runtime_case(tmp_path, monkeypatch)
-    observe_no_foreign_processes(monkeypatch)
     assert (
         git_process(repo, "config", "--local", "extensions.worktreeConfig", "true").returncode == 0
     )

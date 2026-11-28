@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import subprocess
 from itertools import pairwise
 from pathlib import Path
@@ -267,8 +266,6 @@ def test_source_overlay_preserves_native_content_without_mutating_the_live_index
             "tracked.txt",
         )
     elif mode == "mode":
-        if os.name == "nt":
-            pytest.skip("POSIX executable permission observation")
         git(repository, "config", "core.filemode", "true")
         path.chmod(0o755)
     if mode == "deleted":

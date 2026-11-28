@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from pathlib import PureWindowsPath
+from pathlib import PurePosixPath
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
@@ -47,7 +47,7 @@ def worktree_received_paths(root: Path, paths: tuple[str, ...]) -> frozenset[str
     inside = tuple(
         name
         for name in paths
-        if not PureWindowsPath(name).anchor and ".." not in PureWindowsPath(name).parts
+        if not PurePosixPath(name).is_absolute() and ".." not in PurePosixPath(name).parts
     )
     head = current_tracked_head(root) if inside else ""
     if not head:

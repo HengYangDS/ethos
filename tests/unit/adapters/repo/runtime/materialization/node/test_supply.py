@@ -5,9 +5,7 @@ from __future__ import annotations
 import hashlib
 import io
 import platform
-import sysconfig
 import tarfile
-import zipfile
 from typing import TYPE_CHECKING
 
 import pytest
@@ -97,11 +95,9 @@ def test_installed_node_projection_does_not_carry_the_bootstrap_package_manager(
     assert not (native / "lib").exists()
 
 
-def _supply(
-    archive: Path, *, target: str = "macos-arm64", checksum: str | None = None
-) -> NodeSupply:
+def _supply(archive: Path, *, checksum: str | None = None) -> NodeSupply:
     digest = checksum or hashlib.sha256(archive.read_bytes()).hexdigest()
-    return NodeSupply("26.10.0", target, "", digest, archive.name, "py3-none-fixture")
+    return NodeSupply("26.10.0", "macos-arm64", "", digest, archive.name, "py3-none-fixture")
 
 
 def _locked_supply(
@@ -113,7 +109,6 @@ def _locked_supply(
         ("linux-x64", "linux-x64", "tar.gz"),
         ("linux-arm64", "linux-arm64", "tar.xz"),
         ("macos-x64", "darwin-x64", "tar.gz"),
-        ("windows-x64", "win-x64", "zip"),
     ):
         archive = f"node-v26.10.0-{upstream}.{suffix}"
         record[f"platforms.{target}"] = {
@@ -142,7 +137,6 @@ def _host(
         ("Linux", "x86_64", ("glibc", "2.31"), "linux-x64", "py3-none-linux_x86_64"),
         ("Linux", "aarch64", ("glibc", "2.28"), "linux-arm64", "py3-none-linux_aarch64"),
         ("Darwin", "x86_64", ("", ""), "macos-x64", "py3-none-macosx_14_0_x86_64"),
-        ("Windows", "AMD64", ("", ""), "windows-x64", "py3-none-win_amd64"),
     ],
 )
 def test_locked_supply_selects_one_exact_platform_identity(
@@ -158,16 +152,6 @@ def test_locked_supply_selects_one_exact_platform_identity(
     _host(monkeypatch, system, machine, libc)
     supply = NodeSupply.read(_locked_supply(tmp_path))
     assert (supply.target, supply.tag, supply.sha256) == (target, tag, "a" * 64)
-
-
-def test_an_emulated_x64_interpreter_reads_the_x64_archive_and_tag(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Windows on Arm reports ARM64, while its emulated x64 interpreter installs only win_amd64."""
-    _host(monkeypatch, "Windows", "ARM64", ("", ""))
-    monkeypatch.setattr(sysconfig, "get_platform", lambda: "win-amd64")
-    supply = NodeSupply.read(_locked_supply(tmp_path))
-    assert (supply.target, supply.tag) == ("windows-x64", "py3-none-win_amd64")
 
 
 @pytest.mark.parametrize(
@@ -206,7 +190,7 @@ def test_linux_runtime_read_requires_a_supported_glibc_host(
     """Official GNU Node is never executed on an unsupported Linux libc."""
     _host(monkeypatch, "Linux", "x86_64", ("musl", "1.2"))
     with pytest.raises(ValueError, match="native_node_requires_glibc_2_28"):
-        NodeRuntime.read(tmp_path, windows=False)
+        NodeRuntime.read(tmp_path)
 
 
 @pytest.mark.parametrize("fault", ["missing", "checksum"])
@@ -229,32 +213,3 @@ def test_projection_requires_the_complete_licensed_runtime(tmp_path: Path) -> No
     archive = _archive(tmp_path / f"{prefix}.tar.gz", prefix, licensed=False)
     with pytest.raises(ValueError, match="native_node_archive_runtime_incomplete"):
         _supply(archive).project(archive, tmp_path / "native")
-
-
-def _windows_archive(path: Path, prefix: str, *extra: str) -> Path:
-    with zipfile.ZipFile(path, "w") as archive:
-        for name in ("node.exe", "node_modules/npm/bin/npm-cli.js", "LICENSE", "README.md"):
-            archive.writestr(f"{prefix}/{name}", name)
-        for name in extra:
-            archive.writestr(name, name)
-    return path
-
-
-def test_windows_projection_keeps_only_the_native_node_payload(tmp_path: Path) -> None:
-    """The Windows archive projects Node and its license without the bootstrap npm."""
-    prefix = "node-v26.10.0-win-x64"
-    archive = _windows_archive(tmp_path / f"{prefix}.zip", prefix)
-    native = _supply(archive, target="windows-x64").project(
-        archive, tmp_path / "native", bootstrap_npm=False
-    )
-    assert sorted(path.name for path in native.iterdir()) == ["LICENSE", "node.exe"]
-
-
-@pytest.mark.parametrize("member", ["node-v26.10.0-win-x64/../escape.txt", "C:/escape.txt", "a\\b"])
-def test_windows_archive_members_stay_inside_the_destination(tmp_path: Path, member: str) -> None:
-    """Escaping, drive-qualified or backslash members are refused before extraction."""
-    prefix = "node-v26.10.0-win-x64"
-    archive = _windows_archive(tmp_path / f"{prefix}.zip", prefix, member)
-    with pytest.raises(ValueError, match="native_node_archive_members_invalid"):
-        _supply(archive, target="windows-x64").project(archive, tmp_path / "native")
-    assert not (tmp_path / "escape.txt").exists()

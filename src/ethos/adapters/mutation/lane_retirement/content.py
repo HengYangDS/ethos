@@ -12,7 +12,6 @@ from pathlib import PurePosixPath
 from typing import cast
 
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.runtime.filesystem import is_junction
 from ethos.contracts.artifacts.topology import artifact_origin
 from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos.contracts.outcome import refuse
@@ -243,14 +242,14 @@ def reviewed_content(root: Path) -> dict[str, object]:
     """Bind all literal nodes and the index; ignored files receive no exemption."""
     if not all(hasattr(os, name) for name in ("fwalk", "O_NOFOLLOW", "O_DIRECTORY")):
         refuse("retirement_content_observation_unavailable")
-    if root.is_symlink() or is_junction(root) or not root.is_dir():
+    if root.is_symlink() or not root.is_dir():
         refuse("retirement_content_unsafe")
     index = Path(
         run_git(
             root, "rev-parse", "--path-format=absolute", "--git-path", "index", observation=True
         ).stdout.strip()
     )
-    if index.is_symlink() or is_junction(index) or not index.is_file():
+    if index.is_symlink() or not index.is_file():
         refuse("retirement_index_unsafe")
     first = _snapshot(root, index)
     if cast("dict[str, dict[str, object]]", first["entries"]).get(".git", {}).get("kind") != "file":

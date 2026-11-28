@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import shutil
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
@@ -92,7 +91,6 @@ def test_an_unreadable_listing_is_none_or_the_callers_refusal(
     assert calls == [listing, listing]
 
 
-@pytest.mark.skipif(os.name == "nt", reason="POSIX paths may hold a newline")
 def test_lane_status_reports_each_worktree_as_git_lists_it(tmp_path: Path) -> None:
     """A newline in a path or a lock reason stays in its record, through to the status payload.
 

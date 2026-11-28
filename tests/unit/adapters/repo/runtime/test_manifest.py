@@ -9,7 +9,6 @@ import stat
 import subprocess
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -25,7 +24,6 @@ from ethos.adapters.repo.runtime.manifest import runtime_digest
 from ethos.adapters.repo.runtime.manifest import runtime_environment
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
 from ethos.adapters.repo.runtime.manifest import runtime_manifest_bytes
-from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from tests.support.runtime_scenarios import create_fixture_python
 from tests.support.runtime_scenarios import materialize_runtime_case
 from tests.support.runtime_scenarios import runtime_build
@@ -70,7 +68,6 @@ def test_fixture_python_is_bounded_and_executes_selected_source(
     assert not Path(observed["nox"]).resolve().is_relative_to(runtime.resolve())
 
 
-@pytest.mark.skipif(os.name == "nt", reason="POSIX shared executable inode contract")
 def test_governance_fixture_reuses_owned_binary_but_not_environment(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -128,20 +125,16 @@ def test_runtime_inventory_hashes_actual_bytes_without_location_aliases(
     assert inventories[0] != inventories[1]
 
 
-@pytest.mark.parametrize(("system", "identities"), [("nt", 1), ("posix", 2)])
-def test_runtime_identity_binds_write_permission_only_where_installers_keep_it(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, system: str, identities: int
-) -> None:
-    """Archive installers drop the Windows read-only attribute; POSIX modes stay bound."""
-    payload = tmp_path / "python.exe"
+def test_runtime_identity_binds_write_permission(tmp_path: Path) -> None:
+    """A file's permission bits are part of its identity: a sealed file is not an open one."""
+    payload = tmp_path / "python"
     payload.write_bytes(b"payload")
     digest = vars(runtime_manifest)["_inventory_entry_digest"]
-    monkeypatch.setattr(runtime_manifest, "os", SimpleNamespace(name=system))
     sealed, extracted = (
         digest(payload, root=tmp_path, mode=stat.S_IFREG | permissions)
         for permissions in (0o444, 0o666)
     )
-    assert len({sealed, extracted}) == identities
+    assert sealed != extracted
 
 
 def test_runtime_identity_distinguishes_canonical_architectures() -> None:
@@ -167,20 +160,11 @@ def test_runtime_identity_distinguishes_canonical_architectures() -> None:
     )
 
 
-@pytest.mark.parametrize(
-    ("build", "cpu", "machine"),
-    [
-        ("win-amd64", "ARM64", "AMD64"),
-        ("win-arm64", "ARM64", "ARM64"),
-        ("linux-aarch64", "aarch64", "aarch64"),
-    ],
-)
 def test_runtime_identity_names_the_machine_its_interpreter_executes(
-    monkeypatch: pytest.MonkeyPatch, build: str, cpu: str, machine: str
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Windows reports its CPU, so an emulated x64 interpreter's build names what it executes."""
-    monkeypatch.setattr(runtime_manifest.sysconfig, "get_platform", lambda: build)
-    monkeypatch.setattr(runtime_manifest.platform, "machine", lambda: cpu)
+    """A runtime's environment names the machine that its own process reports."""
+    monkeypatch.setattr(runtime_manifest.platform, "machine", lambda: "aarch64")
     environment = runtime_environment(
         python_abi="cpython-314",
         python_version="3.14.7",
@@ -188,23 +172,7 @@ def test_runtime_identity_names_the_machine_its_interpreter_executes(
         dependency_lock_sha256="d" * 64,
     )
 
-    assert runtime_manifest.interpreter_machine(build, cpu) == machine
-    assert environment.architecture == runtime_manifest.canonical_architecture(machine)
-
-
-def test_selection_compares_the_interpreter_not_the_cpu_a_host_reports(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """An emulating host reports another CPU than the one its runtime's interpreter executes."""
-    _repo, venv = materialize_runtime_case(tmp_path, monkeypatch)
-    recorded = load_runtime_manifest_bytes((venv.parent / "manifest.json").read_bytes())
-    build, cpu = {"arm64": ("win-arm64", "AMD64"), "x86_64": ("win-amd64", "ARM64")}[
-        recorded.environment.architecture
-    ]
-    monkeypatch.setattr(runtime_manifest.sysconfig, "get_platform", lambda: build)
-    monkeypatch.setattr(runtime_manifest.platform, "machine", lambda: cpu)
-
-    assert require_selected_runtime(venv.parent).root == venv.parent
+    assert environment.architecture == runtime_manifest.canonical_architecture("aarch64")
 
 
 @pytest.mark.parametrize("manifest_kind", ["legacy", "private"])
@@ -325,7 +293,7 @@ def test_runtime_inventory_rejects_non_closed_symlinks(tmp_path: Path, kind: str
         runtime_file_inventory(runtime)
 
 
-@pytest.mark.parametrize("kind", ["junction", "cache", "bytecode", "unreadable"])
+@pytest.mark.parametrize("kind", ["cache", "bytecode", "unreadable"])
 def test_runtime_inventory_rejects_unverifiable_subtrees_without_changing_content(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kind: str
 ) -> None:
@@ -341,9 +309,6 @@ def test_runtime_inventory_rejects_unverifiable_subtrees_without_changing_conten
         return scandir(path)
 
     with monkeypatch.context() as patch:
-        patch.setattr(
-            runtime_filesystem, "is_junction", lambda path: kind == "junction" and path == subtree
-        )
         patch.setattr(os, "scandir", readable)
         with pytest.raises(ValueError, match="hook_runtime_payload_mismatch"):
             runtime_file_inventory(tmp_path)

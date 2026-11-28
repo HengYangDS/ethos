@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import sys
 from dataclasses import dataclass
 from importlib import import_module
@@ -25,8 +24,7 @@ class ProjectRuntime:
 
     def script(self, name: str) -> str:
         """Return one console script from the bound project environment."""
-        suffix = ".exe" if os.name == "nt" else ""
-        executable = self.scripts / f"{name}{suffix}"
+        executable = self.scripts / name
         if not executable.is_file():
             message = f"project executable is unavailable: {executable}"
             raise RuntimeError(message)

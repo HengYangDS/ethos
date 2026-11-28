@@ -1,4 +1,4 @@
-"""Publishing a qualified native payload outlasts the brief hold Windows keeps on a run image."""
+"""Publishing a qualified native payload fails when the host refuses to move its executable."""
 
 from __future__ import annotations
 
@@ -7,7 +7,6 @@ import io
 import platform
 import shutil
 import tarfile
-import time
 from importlib import import_module
 from pathlib import Path
 
@@ -39,11 +38,10 @@ def _locked_vale(root: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return archive
 
 
-@pytest.mark.parametrize("host", ["windows", "posix"])
-def test_publication_retries_only_a_windows_hold_on_the_qualified_executable(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, host: str
+def test_publication_fails_when_the_host_refuses_to_move_the_qualified_executable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Windows may refuse moving a just-run image; elsewhere a refusal is a real failure."""
+    """A refused move is a real failure: no executable is published and no scratch is left."""
     root = tmp_path / "product"
     archive = _locked_vale(root, monkeypatch)
     monkeypatch.setenv("ETHOS_CI_TOOL_CACHE_DIR", str(tmp_path / "supply-cache"))
@@ -54,27 +52,19 @@ def test_publication_retries_only_a_windows_hold_on_the_qualified_executable(
     cache.mkdir(parents=True)
     shutil.copyfile(archive, cache / supply.archive)
     verified: list[Path] = []
-    refusals = [PermissionError(32, "The process cannot access the file")] * 2
     move = Path.replace
 
-    def held(source: Path, target: Path) -> Path:
-        if source.name == "vale" and source.parent.name == "payload" and refusals:
-            raise refusals.pop()
+    def refused(source: Path, target: Path) -> Path:
+        if source.name == "vale" and source.parent.name == "payload":
+            raise PermissionError(source)
         return move(source, target)
 
-    monkeypatch.setattr(owner, "_WINDOWS", host == "windows", raising=False)
     monkeypatch.setattr(owner.NativeSupply, "verify", lambda _self, path: verified.append(path))
-    monkeypatch.setattr(time, "sleep", lambda _seconds: None)
-    monkeypatch.setattr(Path, "replace", held)
+    monkeypatch.setattr(Path, "replace", refused)
 
-    if host == "windows":
-        assert owner.materialize_tool(root, "vale") == cache
-        assert (cache / "vale").read_bytes() == b"qualified executable\n"
-        assert (cache / "LICENSE").read_bytes() == b"license\n"
-    else:
-        with pytest.raises(PermissionError):
-            owner.materialize_tool(root, "vale")
-        assert not (cache / "vale").exists()
+    with pytest.raises(PermissionError):
+        owner.materialize_tool(root, "vale")
+    assert not (cache / "vale").exists()
     assert [path.name for path in verified] == ["vale"]
     assert verified[0].parent.name == "payload"
     assert not list(cache.glob(".prepare-*"))

@@ -28,7 +28,6 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effects import admit_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.profile import repository_identity
-from ethos.adapters.repo.runtime.filesystem import is_junction
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.worktree_effects import remove_worktree
 from ethos.adapters.repo.worktree_list import raw_worktree_records
@@ -253,7 +252,7 @@ def _worktree_outcome(root: Path, request: RetirementOperation) -> CarrierState:
     if request.worktree_initial == "unbound":
         return "absent" if not matches else "moved"
     target = Path(request.worktree_path)
-    if target.is_symlink() or is_junction(target):
+    if target.is_symlink():
         return "moved"
     if len(matches) != 1:
         return "moved" if matches or os.path.lexists(target) else "absent"
@@ -320,7 +319,7 @@ def preflight_operation(root: Path, request: RetirementOperation) -> RetirementP
         refuse("retirement_execution_root_is_target")
     for role, path in (("control", control), ("execution", execution_root)):
         unavailable = f"retirement_{role}_root_unavailable"
-        if not path.is_absolute() or not path.is_dir() or path.is_symlink() or is_junction(path):
+        if not path.is_absolute() or not path.is_dir() or path.is_symlink():
             refuse(unavailable)
         observed = run_git(
             path,

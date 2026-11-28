@@ -112,7 +112,6 @@ def test_nested_scope_owns_the_commands_started_under_it(tmp_path, monkeypatch) 
     assert children[0].returncode is not None
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX SIGTERM delivery")
 def test_interruption_after_process_creation_retains_and_reaps_child(tmp_path, monkeypatch):
     """Registration must finish before a native termination can escape its start."""
     native = subprocess.Popen
@@ -142,7 +141,6 @@ def test_interruption_after_process_creation_retains_and_reaps_child(tmp_path, m
             child.wait(timeout=2)
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX signal delivery")
 @pytest.mark.parametrize("boundary", ["scope", "deferral"])
 def test_signal_installation_already_owns_restoration(monkeypatch, boundary):
     """A signal between native installation and return cannot leave a replaced handler."""
@@ -173,7 +171,6 @@ def test_signal_installation_already_owns_restoration(monkeypatch, boundary):
             install(number, handler)
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX signal delivery")
 @pytest.mark.parametrize("boundary", ["registered-return", "process-context"])
 @pytest.mark.parametrize("outer_scope", [False, True])
 def test_process_handoff_already_owns_reaping_and_pipes(
@@ -351,7 +348,6 @@ def _observe_ready_parent(process, parent_exited, failure):
             assert process.poll() == 0
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX process-group boundary")
 @pytest.mark.parametrize(
     ("failure", "spool_stdout"),
     [(failure, mode) for failure in ("timeout", "cancel", "terminate") for mode in (False, True)]
@@ -438,7 +434,6 @@ def test_command_failure_closes_owned_descendants(
         assert sum(call.args[1] == signal.SIGKILL for call in signals.call_args_list) == 1
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX nested command-group signals")
 @pytest.mark.parametrize("boundary", ["command-timeout", "cli-termination"])
 def test_catchable_cancellation_closes_nested_registered_groups(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, boundary: str

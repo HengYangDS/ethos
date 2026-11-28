@@ -15,7 +15,7 @@ from ethos.adapters.repo.runtime.materialization.input_resolution import resolve
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeRuntime
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
 
-# Ends a hung npm; the emulated windows-11-arm seed alone takes about two minutes.
+# Ends a hung npm.
 TIMEOUT_SECONDS = 600
 
 
@@ -25,7 +25,7 @@ def main(argv: list[str] | None = None) -> int:
     seed = arguments[:1] == ["--seed"]
     root = Path.cwd()
     runtime = (
-        NodeRuntime.read(NodeSupply.read(root).installed_root(root), windows=os.name == "nt")
+        NodeRuntime.read(NodeSupply.read(root).installed_root(root))
         if seed
         else resolve_node_runtime()
     )

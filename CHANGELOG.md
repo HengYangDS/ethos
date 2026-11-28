@@ -27,6 +27,23 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Changed
 
+- **BREAKING**: ETHOS supports macOS and Linux only. No release from this one on publishes a
+  Windows archive or a Windows wheel: the published platforms are `linux-x64`, `linux-arm64` and
+  `macos-arm64`, each required. The product keeps one path, the POSIX one; the gap codes
+  `git_object_trust_anchor_observation_unavailable`, `hook_launcher_platform_invalid`,
+  `native_node_archive_members_invalid`, `native_security_api_missing` and
+  `unsupported_access_entry` leave with their only producers. What a governed repository meets
+  at its bind:
+  - A Mise pin that lists `windows-x64` or `windows-arm64` for ETHOS's archive: an upgrade by
+    `ethos lane repair-paradigm --pin` replaces the table with the release's bare entry, so the
+    rows leave with it; a table written by hand for this release: remove the rows.
+  - A retained CI step whose record names the platform `windows` is still retained and is reported
+    as `repository_paradigm_retained_step_platform`. A later release, no earlier than the next,
+    reads such a record as incomplete, so remove the platform, or the entry with its step.
+  - A pipeline declaration that names the runner system `windows` no longer compiles against the
+    common CI model.
+  - Release assembly takes one list of hosts (`--hosts`) and refuses a leg that carries another
+    machine's runtime with `release_assets_distribution_mismatch`.
 - The adopter journey decides the rollback after a declaration repair. After the retained upgrade
   and its repair, the successor's console, from the repaired lane, selects the predecessor that
   the repository holds as its rollback, and the receipt's `rollback_after_declaration_repair`

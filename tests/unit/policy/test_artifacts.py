@@ -205,7 +205,7 @@ def test_native_ruff_configuration_routes_its_cache_at_the_execution_root(
     source = tmp_path / "sample.py"
     original = b'"""Exercise the declared native Ruff policy."""\n'
     source.write_bytes(original)
-    executable = Path(sys.executable).with_name("ruff.exe" if sys.platform == "win32" else "ruff")
+    executable = Path(sys.executable).with_name("ruff")
     configuration = canonical_resource(".config/checks/ruff/ruff.toml")
     command = (str(executable), operation, "--config", str(configuration), str(source))
     for _ in range(2):

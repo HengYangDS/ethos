@@ -19,7 +19,6 @@ if TYPE_CHECKING:
     "fault",
     [
         "none",
-        "windows-suffix",
         "missing-gofmt",
         "wrong-version",
         "offline-ready",
@@ -39,13 +38,12 @@ def test_declared_go_enters_native_quality_path_only_after_locked_supply(
     (config / "mise.lock").write_text("lockfile_version = 2\n", encoding="utf-8")
     binary = tmp_path / "mise-data/installs/go/1.27.1/bin"
     binary.mkdir(parents=True)
-    suffix = ".exe" if fault == "windows-suffix" else ""
-    go = binary / f"go{suffix}"
+    go = binary / "go"
     observed = "1.27.0" if fault == "wrong-version" else "1.27.1"
     go.write_text(f"#!/bin/sh\necho 'go version go{observed} fixture/arch'\n")
     go.chmod(0o755)
     if fault != "missing-gofmt":
-        gofmt = binary / f"gofmt{suffix}"
+        gofmt = binary / "gofmt"
         gofmt.write_text("#!/bin/sh\nexit 0\n")
         gofmt.chmod(0o755)
     mise = tmp_path / "mise"
@@ -84,7 +82,7 @@ def test_declared_go_enters_native_quality_path_only_after_locked_supply(
     )
     monkeypatch.setattr(sys, "argv", ["native", "--root", str(tmp_path), "--mise"])
 
-    accepted = fault in {"none", "windows-suffix", "offline-ready"}
+    accepted = fault in {"none", "offline-ready"}
     assert native.main() == (0 if accepted else 1)
     captured = capsys.readouterr()
     assert not any(command[0] == "install" for command in calls)

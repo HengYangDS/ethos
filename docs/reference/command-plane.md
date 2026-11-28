@@ -504,9 +504,8 @@ Git provides command-scoped hook configuration:
 git -c core.hooksPath="<absolute-empty-hooks-directory>" commit -S -m "<type>: <subject>"
 ```
 
-Resolve and inspect an actual empty directory on the target platform first.
-On POSIX hosts, Git also supports `git -c core.hooksPath=/dev/null <command>`;
-`/dev/null` is not a Windows path. The override applies only to that command and
+Resolve and inspect an actual empty directory first. Git also supports
+`git -c core.hooksPath=/dev/null <command>`. The override applies only to that command and
 its children; it leaves persistent hook configuration unchanged. Keep the
 repository's required signer and identity. Never treat a skipped hook as pass.
 

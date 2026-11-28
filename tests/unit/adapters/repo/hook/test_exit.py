@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 from typing import TYPE_CHECKING
@@ -19,18 +18,12 @@ from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import exact_lease
-from tests.support.repository_exit import observe_no_foreign_processes
 from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import linked_runtime_case
 from tests.support.runtime_scenarios import materialized_activation_case
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-@pytest.fixture(autouse=True)
-def _observable_processes(monkeypatch: pytest.MonkeyPatch) -> None:
-    observe_no_foreign_processes(monkeypatch)
 
 
 def _hooks_path(repo: Path) -> str:
@@ -189,7 +182,6 @@ def test_without_a_record_the_users_own_hooks_path_settles_the_exit(
     assert preview["selectors"]["CURRENT"]["present"] is True
 
 
-@pytest.mark.skipif(os.name == "nt", reason="a standard Windows user cannot read every process")
 def test_a_running_process_that_uses_the_runtime_blocks_the_exit(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

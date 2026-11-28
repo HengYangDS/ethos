@@ -22,8 +22,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Iterable
 
-_LAUNCHERS = re.compile(r"(?:ba|z|da|k|fi)?sh|python[0-9.]*(?:\.exe)?", re.IGNORECASE)
-_ENTRIES = re.compile(r"ethos(?:\.exe)?|python[0-9.]*(?:\.exe)?", re.IGNORECASE)
+_LAUNCHERS = re.compile(r"(?:ba|z|da|k|fi)?sh|python[0-9.]*", re.IGNORECASE)
+_ENTRIES = re.compile(r"ethos|python[0-9.]*", re.IGNORECASE)
 
 
 def _leading_path(text: str) -> tuple[Path, str] | None:
@@ -109,7 +109,7 @@ def writer_roots(repo: Path, *, selected: Path | None) -> tuple[Path, ...]:
         environment.resolve()
         for worktree in _worktrees(repo)
         for environment in (worktree / ".venv",)
-        if (environment / "bin/ethos").is_file() or (environment / "Scripts/ethos.exe").is_file()
+        if (environment / "bin/ethos").is_file()
     )
     excluded = selected.resolve() if selected is not None else None
     return tuple(root for root in dict.fromkeys(roots) if root != excluded)

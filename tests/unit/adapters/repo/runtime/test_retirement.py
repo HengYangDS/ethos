@@ -213,9 +213,9 @@ def test_cleanup_refuses_a_replaced_selection_or_generation(
     )
 
 
-@pytest.mark.parametrize("invalidity", ["file", "symlink", "junction"])
+@pytest.mark.parametrize("invalidity", ["file", "symlink"])
 def test_cleanup_rejects_unsafe_generation_roots_without_touching_referents(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, invalidity: str
+    tmp_path: Path, invalidity: str
 ) -> None:
     repo, hooks, runtime = generation_tree(tmp_path)
     candidate = runtime.parent / ("b" * 64)
@@ -227,11 +227,7 @@ def test_cleanup_rejects_unsafe_generation_roots_without_touching_referents(
         external.mkdir()
         sentinel = external / "payload"
         sentinel.write_bytes(b"external bytes")
-        if invalidity == "symlink":
-            candidate.symlink_to(external, target_is_directory=True)
-        else:
-            candidate.mkdir()
-            monkeypatch.setattr(retirement, "is_junction", lambda path: path == candidate)
+        candidate.symlink_to(external, target_is_directory=True)
     before = sentinel.read_bytes()
 
     result = retirement.retire_generations(repo, hooks=hooks, runtime=runtime)
@@ -496,7 +492,6 @@ def test_repository_cleanup_preserves_external_supply(tmp_path):
     assert (external / "selected").read_bytes() == original
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX process observer")
 def test_process_observer_resolves_native_authority(tmp_path, monkeypatch):
     """Native observation excludes ambient executables and the caller's Git environment."""
     native = tmp_path / "bin/ps"
@@ -519,17 +514,3 @@ def test_process_observer_resolves_native_authority(tmp_path, monkeypatch):
 
     monkeypatch.setattr(process_adapter.shutil, "which", resolve)
     assert retirement.process_commands(tmp_path).strip() == "-axww -o command="
-
-
-@pytest.mark.skipif(os.name == "nt", reason="Windows provides the management interface")
-def test_windows_process_observation_without_its_interface_fails_closed(tmp_path):
-    """Without the native management interface, process observation is unknown, not empty."""
-    with pytest.raises(ValueError, match="hook_runtime_consumers_unknown"):
-        retirement.process_commands(tmp_path, platform_name="nt")
-
-
-@pytest.mark.skipif(os.name != "nt", reason="requires the Windows management interface")
-def test_windows_process_observation_lists_this_process(tmp_path):
-    """WMI lists every visible command line, this test process's own among them."""
-    listed = retirement.process_commands(tmp_path)
-    assert Path(sys.executable).name.casefold() in listed.casefold()

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import ntpath
 import os
 import subprocess
 from pathlib import Path
@@ -11,7 +10,6 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.manifest import RuntimeEnvironment
-from ethos.adapters.repo.runtime.manifest import interpreter_machine
 from ethos.adapters.repo.runtime.manifest import runtime_environment
 from ethos.contracts.digest import file_sha256
 from ethos.contracts.outcome import refusal
@@ -31,7 +29,7 @@ def observe_python_facts(python: Path) -> dict[str, str]:
         "'python_abi':sys.implementation.cache_tag or '',"
         "'python_version':platform.python_version(),"
         "'python_implementation':sys.implementation.name,"
-        "'architecture':platform.machine(),'build_platform':sysconfig.get_platform(),"
+        "'architecture':platform.machine(),"
         "'python_framework':sysconfig.get_config_var('PYTHONFRAMEWORK') or '',"
         "'prefix':sys.prefix,'base_prefix':sys.base_prefix}))"
     )
@@ -45,9 +43,6 @@ def observe_python_facts(python: Path) -> dict[str, str]:
         facts = {key: str(value) for key, value in json.loads(completed.stdout).items()}
     except (AttributeError, TypeError, ValueError) as error:
         refuse("hook_runtime_python_abi_invalid", cause=error)
-    # Its build names the machine that interpreter executes, as for this process.
-    build = facts.pop("build_platform", "")
-    facts["architecture"] = interpreter_machine(build, facts.get("architecture", ""))
     required = (
         "executable",
         "base_executable",
@@ -71,8 +66,6 @@ def same_python_path(first: str | PathLike[str], second: str | PathLike[str]) ->
             return True
     except OSError:
         pass
-    if os.name == "nt":
-        return ntpath.normcase(ntpath.normpath(left)) == ntpath.normcase(ntpath.normpath(right))
     return left == right
 
 
@@ -85,13 +78,6 @@ def same_python_identity(first: Mapping[str, str], second: Mapping[str, str]) ->
 def python_path_within(path: str | PathLike[str], root: str | PathLike[str]) -> bool:
     """Return whether one Python path belongs to a native path boundary."""
     candidate, boundary = os.fspath(path), os.fspath(root)
-    if os.name == "nt":
-        candidate = ntpath.normcase(ntpath.normpath(candidate))
-        boundary = ntpath.normcase(ntpath.normpath(boundary))
-        try:
-            return ntpath.commonpath((candidate, boundary)) == boundary
-        except ValueError:
-            return False
     candidate_path, boundary_path = Path(candidate), Path(boundary)
     if not candidate_path.is_absolute() or not boundary_path.is_absolute():
         return False
@@ -107,17 +93,9 @@ def python_image_source_capable(source: Path, facts: Mapping[str, str]) -> bool:
         version = facts["python_version"]
         if home.is_symlink() or not home.is_dir() or source.is_symlink() or not source.is_file():
             return False
-        if os.name == "nt":
-            trees = [home / "Lib"]
-            dlls = home / "DLLs"
-            if dlls.exists() or dlls.is_symlink():
-                trees.append(dlls)
-            files = tuple(home.glob("python*.dll")) + tuple(home.glob("vcruntime*.dll"))
-        else:
-            major_minor = ".".join(version.split(".")[:2])
-            trees = [home / "lib" / f"python{major_minor}"]
-            files = tuple((home / "lib").glob(f"libpython{major_minor}*"))
-        return all(_copyable_python_tree(tree) for tree in trees) and all(
+        major_minor = ".".join(version.split(".")[:2])
+        files = tuple((home / "lib").glob(f"libpython{major_minor}*"))
+        return _copyable_python_tree(home / "lib" / f"python{major_minor}") and all(
             _copyable_python_file(path) for path in files if path.is_file()
         )
     except (KeyError, OSError, RuntimeError, ValueError):

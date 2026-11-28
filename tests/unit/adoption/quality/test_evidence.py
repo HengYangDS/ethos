@@ -250,10 +250,7 @@ def test_native_node_custody_does_not_follow_rejected_symlink(
     sentinel = tmp_path / "foreign"
     sentinel.write_bytes(b"unrelated bytes must not be read")
     link = tmp_path / "capability"
-    try:
-        link.symlink_to(sentinel)
-    except OSError:
-        pytest.skip("native symlink creation is unavailable")
+    link.symlink_to(sentinel)
     link.unlink()
     monkeypatch.setenv("ETHOS_CUSTODY_SENTINEL", str(sentinel))
     repo = committed_source_repo(

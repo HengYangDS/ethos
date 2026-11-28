@@ -169,8 +169,8 @@ def invoke(
 ) -> tuple[int, dict[str, object], str]:
     """Run one installed CLI request and preserve its result and stderr.
 
-    The deadline bounds a hung request: a hosted Windows runner can need minutes to copy,
-    seal and hash a runtime while it installs a hook.
+    The deadline bounds a hung request: a hosted runner can need minutes to copy, seal and hash
+    a runtime while it installs a hook.
     """
     with observe_stage(command_label(command), kind="process", target=root.name):
         completed = run_command(

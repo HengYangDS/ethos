@@ -19,7 +19,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
     from pathlib import Path
 
-posix = pytest.mark.skipif(os.name != "posix", reason="a child inherits the lock on POSIX only")
 # The admitted command: it names itself, then outlives whoever started it.
 _WORK = "import os, time; print(os.getpid(), flush=True); time.sleep(60)"
 # A holder that admits the command through the product's own entry and is then killed.
@@ -86,7 +85,6 @@ def killed_holder(tmp_path: Path) -> Iterator[tuple[host_admission.HostQueue, in
             _ended(work)
 
 
-@posix
 def test_a_killed_holder_leaves_its_place_to_the_work_it_admitted(
     killed_holder: tuple[host_admission.HostQueue, int, int], tmp_path: Path
 ) -> None:
@@ -110,7 +108,6 @@ def test_a_killed_holder_leaves_its_place_to_the_work_it_admitted(
     assert not any(queue.directory.iterdir())
 
 
-@posix
 def test_a_holder_that_leaves_frees_its_place_for_every_inheritor(tmp_path: Path) -> None:
     """A command that returns frees its place at once, though a process it started lives on."""
     queue = _queue()
@@ -134,7 +131,6 @@ def test_a_holder_that_leaves_frees_its_place_for_every_inheritor(tmp_path: Path
         survivor.wait()
 
 
-@posix
 def test_a_place_is_free_although_its_lock_file_cannot_be_removed(tmp_path: Path) -> None:
     """The release is explicit: a process that outlives the command keeps no place it was left."""
     queue = _queue()
@@ -198,7 +194,6 @@ def test_a_ticket_that_was_only_read_is_not_left(tmp_path: Path) -> None:
     assert not any(queue.directory.iterdir())
 
 
-@posix
 def test_a_dead_tickets_lock_file_goes_last(tmp_path: Path) -> None:
     """Whatever a removal that was cut short leaves is found again by the ticket's lock file."""
     queue = _queue()
@@ -281,24 +276,10 @@ def test_a_place_that_could_not_be_given_up_is_not_given_up_twice(tmp_path: Path
     assert _queue().live() == []
 
 
-def test_no_process_is_signalled_where_the_platform_is_not_posix() -> None:
-    """Signal 0 ends a process on Windows, so there the read names no holder state."""
-    with pytest.MonkeyPatch.context() as patch:
-        kill = Mock()
-        patch.setattr(os, "kill", kill)
-        patch.setattr(os, "name", "nt")
-        state = host_admission.holder_state(os.getpid())
-        passed = host_admission.inherited_descriptors(7)
-
-    assert (state, passed) == ("", ())
-    kill.assert_not_called()
-
-
 def test_a_holder_of_another_user_has_no_named_state() -> None:
     """A process that exists and may not be signalled is neither present nor gone."""
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(os, "kill", Mock(side_effect=PermissionError))
-        patch.setattr(os, "name", "posix")
         state = host_admission.holder_state(1)
 
     assert state == ""

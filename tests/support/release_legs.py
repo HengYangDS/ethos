@@ -20,9 +20,8 @@ LEGS = {
     "linux-x64": ("linux", "x86_64", "linux_x86_64"),
     "linux-arm64": ("linux", "arm64", "linux_aarch64"),
     "macos-arm64": ("darwin", "arm64", "macosx_14_0_arm64"),
-    "windows-x64": ("windows", "x86_64", "win_amd64"),
 }
-REQUIRED = frozenset({"linux-x64", "linux-arm64", "macos-arm64"})
+HOSTS = frozenset(LEGS)
 ENTRY = f"# Changelog\n\n## [{VERSION}] - 2026-10-21\n\n### Added\n\n- Hosted release.\n"
 
 
@@ -94,12 +93,10 @@ def qualified_leg(
     archive.write_bytes(host.encode())
     evidence = job / "evidence/local-install/release-smoke.json"
     evidence.parent.mkdir(parents=True)
-    # Each runner records the archive in its own path syntax; Windows separates with backslashes.
-    separator = "\\" if platform == "windows" else "/"
-    runner = separator.join(("D:" if platform == "windows" else "", "a", "build/artifacts/native"))
+    runner = "/a/build/artifacts/native"
     digest = hashlib.sha256(host.encode()).hexdigest()
     distribution = {
-        "path": separator.join((runner, runtime, archive.name)),
+        "path": f"{runner}/{runtime}/{archive.name}",
         "sha256": digest,
         "runtime_digest": runtime,
         "wheel_sha256": hashlib.sha256(wheel.read_bytes()).hexdigest(),
@@ -117,8 +114,7 @@ def qualified_leg(
 def assemble_release(
     tmp_path: Path,
     *,
-    required: frozenset[str] = REQUIRED,
-    optional: frozenset[str] = frozenset({"windows-x64"}),
+    hosts: frozenset[str] = HOSTS,
     expect_head: str = HEAD,
     alter: Callable[[Path, str], object] | None = None,
     host: str = "linux-x64",
@@ -136,8 +132,7 @@ def assemble_release(
         tag=f"v{VERSION}",
         base_url="https://example.invalid/v",
         changelog=changelog,
-        required=required,
-        optional=optional,
+        hosts=hosts,
         expect_head=expect_head,
     )
     return out, sums

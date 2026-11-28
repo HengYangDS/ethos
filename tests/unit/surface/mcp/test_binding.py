@@ -153,10 +153,7 @@ def test_absent_target_mcp_rejects_retargeted_parent(tmp_path, monkeypatch):
     original.mkdir()
     foreign.mkdir()
     alias = tmp_path / "alias"
-    try:
-        alias.symlink_to(original, target_is_directory=True)
-    except OSError:
-        pytest.skip("directory symlinks unavailable")
+    alias.symlink_to(original, target_is_directory=True)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:formation")
     server = create_server(alias / "new-project", create_target=True)
     alias.unlink()

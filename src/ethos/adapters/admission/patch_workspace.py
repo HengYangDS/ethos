@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_patch import index_changes
 from ethos.adapters.repo.git_patch import unnamed_changes
-from ethos.adapters.repo.runtime.filesystem import is_junction
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -110,7 +109,7 @@ def _free(root: Path, path: Path) -> bool:
     """
     try:
         for parent in reversed([above for above in path.parents if root in above.parents]):
-            if not stat.S_ISDIR(parent.lstat().st_mode) or is_junction(parent):
+            if not stat.S_ISDIR(parent.lstat().st_mode):
                 return False
         path.lstat()
     except FileNotFoundError:

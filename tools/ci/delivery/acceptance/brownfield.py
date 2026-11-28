@@ -182,8 +182,7 @@ def seed_retained_state(
     authored.write_bytes(b"User-owned state: preserve\n")
     indexed = lane / "retained-index.txt"
     indexed.write_bytes(b"Retained staged bytes\n")
-    if os.name != "nt":
-        indexed.chmod(0o755)
+    indexed.chmod(0o755)
     run_git(lane, "add", "--", indexed.name)
     run_git(lane, "update-index", "--chmod=+x", "--", indexed.name)
     indexed.write_bytes(b"Retained working bytes\n")

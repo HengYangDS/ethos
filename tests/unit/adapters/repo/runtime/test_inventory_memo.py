@@ -157,15 +157,13 @@ def test_recently_written_files_are_not_recorded(
     assert hashes.count == 3
 
 
-@pytest.mark.parametrize("payload", ["small", "staging", "unsupported"])
+@pytest.mark.parametrize("payload", ["small", "staging"])
 def test_payloads_that_a_memo_cannot_serve_are_hashed_without_one(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, memo_directory: Path, payload: str
 ) -> None:
-    """Small payloads, staging roots and Windows hash every file and record nothing."""
+    """Small payloads and staging roots hash every file and record nothing."""
     if payload == "small":
         monkeypatch.setattr(inventory_memo, "_MIN_FILES", 256)
-    if payload == "unsupported":
-        monkeypatch.setattr(inventory_memo, "_SUPPORTED", False)
     runtime = _payload(tmp_path, ".staging-runtime" if payload == "staging" else DIGEST)
     runtime_file_inventory(runtime)
     hashes = _Hashes(monkeypatch)

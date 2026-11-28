@@ -390,14 +390,14 @@ def _material(root: Path, tree_ref: str | None, relative: str) -> bytes | None:
 
 
 def _repository_python(root: Path) -> str | None:
-    candidates = (root / ".venv/bin/python", root / ".venv/Scripts/python.exe")
-    return next((path.as_posix() for path in candidates if path.is_file()), None)
+    python = root / ".venv/bin/python"
+    return python.as_posix() if python.is_file() else None
 
 
 def _subject_differs(root: Path, head: str, subjects: tuple[CodeSubject, ...]) -> bool:
     """Say whether a code subject differs from the commit, or that Git could not tell.
 
-    No subject rides on the command line: Windows refuses one past 32,767 characters. The names
+    No subject rides on the command line, whose length a host bounds. The names
     are compared as bytes: a text read rewrites a carriage return in a name and refuses another
     encoding.
     """

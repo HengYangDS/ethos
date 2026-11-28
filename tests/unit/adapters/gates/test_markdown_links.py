@@ -29,7 +29,7 @@ from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
-_LYCHEE = runtime_scripts(Path(sys.prefix)) / ("lychee.exe" if os.name == "nt" else "lychee")
+_LYCHEE = runtime_scripts(Path(sys.prefix)) / "lychee"
 
 
 def _repository(tmp_path: Path, markdown: str) -> Path:
@@ -97,12 +97,8 @@ def test_native_delivered_routes_remain_valid(tmp_path: Path, route: str) -> Non
     assert report["verdict"] == "pass", report
 
 
-_SEPARATED = (
-    ["guide\u2028member.md"]
-    if os.name == "nt"
-    else ["guide\nmember.md", "guide\rmember.md", "guide\u2028member.md"]
-)
-_GLOBBED = ["[literal].md"] if os.name == "nt" else ["[literal]*.md", "guide?.md"]
+_SEPARATED = ["guide\nmember.md", "guide\rmember.md", "guide\u2028member.md"]
+_GLOBBED = ["[literal]*.md", "guide?.md"]
 
 
 @pytest.mark.parametrize(
@@ -131,7 +127,7 @@ def test_native_input_identity_keeps_each_committed_name_literal(
 def test_native_selection_cannot_join_distinct_line_separated_inputs(tmp_path: Path) -> None:
     """Full record verification refuses exclusions despite ambiguous aggregate output."""
     repo = _repository(tmp_path, "# Guide\n")
-    name = "guide\u2028member.md" if os.name == "nt" else "guide\nmember.md"
+    name = "guide\nmember.md"
     (repo / "README.md").rename(repo / name)
     (repo / "guide").write_text("# Separate input\n")
     (repo / "member.md").write_text("# Separate input\n")
@@ -337,8 +333,8 @@ def test_markdown_links_use_declared_installed_supply_without_ambient_lychee(
     git_path = str(Path(git_executable(os.environ)).parent)
     assert shutil.which("lychee", path=git_path) is None
     monkeypatch.setenv("PATH", git_path)
-    # Windows interpreter homes keep python.exe outside their Scripts directory, and an ANSI
-    # code page such as cp1252 cannot decode the emoji in Lychee's UTF-8 summary.
+    # The interpreter need not sit beside the installed tools, and a locale encoding such as
+    # cp1252 cannot decode the emoji in Lychee's UTF-8 summary.
     monkeypatch.setattr(sys, "executable", str(tmp_path / "home" / "python"))
     monkeypatch.setattr(locale, "getencoding", lambda: "cp1252")
 

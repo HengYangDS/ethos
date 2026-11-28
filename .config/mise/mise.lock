@@ -27,16 +27,6 @@ checksum = "sha256:80aa026c3f47400c7bfc228b3422fd56b7c6c5ea4d70686f8d8f01ced716d
 url = "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_darwin_amd64.tar.gz"
 url_api = "https://api.github.com/repos/cue-lang/cue/releases/assets/479014348"
 
-[tools.cue."platforms.windows-arm64"]
-checksum = "sha256:db88b2c302be1829e653e20ea87e3f1adc10ae2052d58fe87d21d0ed97102e51"
-url = "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_windows_arm64.zip"
-url_api = "https://api.github.com/repos/cue-lang/cue/releases/assets/479014343"
-
-[tools.cue."platforms.windows-x64"]
-checksum = "sha256:9f15378dc52b9a1bb6fa1755adc0410c9f17f330a621b784a5b31fdbc91c6d7a"
-url = "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_windows_amd64.zip"
-url_api = "https://api.github.com/repos/cue-lang/cue/releases/assets/479014351"
-
 [[tools."github:anchore/grype"]]
 version = "0.122.0"
 backend = "github:anchore/grype"
@@ -95,18 +85,6 @@ url = "https://github.com/anchore/syft/releases/download/v1.57.2/syft_1.57.2_dar
 url_api = "https://api.github.com/repos/anchore/syft/releases/assets/756262257"
 provenance = "github-attestations"
 
-[tools."github:anchore/syft"."platforms.windows-arm64"]
-checksum = "sha256:7f3cace29c2a7d2478de834aaa42663b8dbf82c9e8abc6a0917b437584ea54e1"
-url = "https://github.com/anchore/syft/releases/download/v1.57.2/syft_1.57.2_windows_arm64.zip"
-url_api = "https://api.github.com/repos/anchore/syft/releases/assets/756262236"
-provenance = "github-attestations"
-
-[tools."github:anchore/syft"."platforms.windows-x64"]
-checksum = "sha256:0a10e03ffd124c304fd7e7491262dba2e5f68eb12378b106d7525146675b2e3a"
-url = "https://github.com/anchore/syft/releases/download/v1.57.2/syft_1.57.2_windows_amd64.zip"
-url_api = "https://api.github.com/repos/anchore/syft/releases/assets/756262238"
-provenance = "github-attestations"
-
 [[tools."github:boyter/scc"]]
 version = "4.1.0"
 backend = "github:boyter/scc"
@@ -132,16 +110,6 @@ checksum = "sha256:7f705031228add7e55edded409179a60de6b538d41f153ba2922dee95adda
 url = "https://github.com/boyter/scc/releases/download/v4.1.0/scc_Darwin_x86_64.tar.gz"
 url_api = "https://api.github.com/repos/boyter/scc/releases/assets/549478879"
 
-[tools."github:boyter/scc"."platforms.windows-arm64"]
-checksum = "sha256:fdc1188bec07ab46fd391686c404abcd0bed92fffb5f1bb03aa9050dd7bc7f15"
-url = "https://github.com/boyter/scc/releases/download/v4.1.0/scc_Windows_arm64.zip"
-url_api = "https://api.github.com/repos/boyter/scc/releases/assets/549478878"
-
-[tools."github:boyter/scc"."platforms.windows-x64"]
-checksum = "sha256:4a433984f45ff29c94eeb3af6db5b511c58f5bf74063dccedafcbf473cb8ff31"
-url = "https://github.com/boyter/scc/releases/download/v4.1.0/scc_Windows_x86_64.zip"
-url_api = "https://api.github.com/repos/boyter/scc/releases/assets/549478880"
-
 [[tools."github:gitleaks/gitleaks"]]
 version = "8.30.1"
 backend = "github:gitleaks/gitleaks"
@@ -166,16 +134,6 @@ url_api = "https://api.github.com/repos/gitleaks/gitleaks/releases/assets/378332
 checksum = "sha256:dfe101a4db2255fc85120ac7f3d25e4342c3c20cf749f2c20a18081af1952709"
 url = "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_darwin_x64.tar.gz"
 url_api = "https://api.github.com/repos/gitleaks/gitleaks/releases/assets/378332053"
-
-[tools."github:gitleaks/gitleaks"."platforms.windows-arm64"]
-checksum = "sha256:b95f5e4f5c425cedca7ee203d9afd29597e692c4924a12ed42f970537c72cc0f"
-url = "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_windows_arm64.zip"
-url_api = "https://api.github.com/repos/gitleaks/gitleaks/releases/assets/378332062"
-
-[tools."github:gitleaks/gitleaks"."platforms.windows-x64"]
-checksum = "sha256:d29144deff3a68aa93ced33dddf84b7fdc26070add4aa0f4513094c8332afc4e"
-url = "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_windows_x64.zip"
-url_api = "https://api.github.com/repos/gitleaks/gitleaks/releases/assets/378333178"
 
 [[tools."github:rhysd/actionlint"]]
 version = "1.7.12"
@@ -204,18 +162,6 @@ provenance = "github-attestations"
 checksum = "sha256:5b44c3bc2255115c9b69e30efc0fecdf498fdb63c5d58e17084fd5f16324c644"
 url = "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_darwin_amd64.tar.gz"
 url_api = "https://api.github.com/repos/rhysd/actionlint/releases/assets/384924880"
-provenance = "github-attestations"
-
-[tools."github:rhysd/actionlint"."platforms.windows-arm64"]
-checksum = "sha256:cadcf7ea4efe3a68728893813643cebe1185e5b1d4be5b96245f65c9a4d5ea41"
-url = "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_windows_arm64.zip"
-url_api = "https://api.github.com/repos/rhysd/actionlint/releases/assets/384924915"
-provenance = "github-attestations"
-
-[tools."github:rhysd/actionlint"."platforms.windows-x64"]
-checksum = "sha256:6e7241b51e6817ea6a047693d8e6fed13b31819c9a0dd6c5a726e1592d22f6e9"
-url = "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_windows_amd64.zip"
-url_api = "https://api.github.com/repos/rhysd/actionlint/releases/assets/384924919"
 provenance = "github-attestations"
 
 [[tools."github:vale-cli/vale"]]
@@ -247,18 +193,6 @@ url = "https://github.com/vale-cli/vale/releases/download/v3.27.0/vale_3.27.0_ma
 url_api = "https://api.github.com/repos/vale-cli/vale/releases/assets/740781555"
 provenance = "github-attestations"
 
-[tools."github:vale-cli/vale"."platforms.windows-arm64"]
-checksum = "sha256:61fcda27c55f14c89b35b00c19cc5bef896142707adbfbaf194ed020f8516a35"
-url = "https://github.com/vale-cli/vale/releases/download/v3.27.0/vale_3.27.0_Windows_arm64.zip"
-url_api = "https://api.github.com/repos/vale-cli/vale/releases/assets/740781619"
-provenance = "github-attestations"
-
-[tools."github:vale-cli/vale"."platforms.windows-x64"]
-checksum = "sha256:26e61cc58ac4180866d068dc2325d2625560c8cc518de7e7b5523211a5ab0cbc"
-url = "https://github.com/vale-cli/vale/releases/download/v3.27.0/vale_3.27.0_Windows_64-bit.zip"
-url_api = "https://api.github.com/repos/vale-cli/vale/releases/assets/740781617"
-provenance = "github-attestations"
-
 [[tools.go]]
 version = "1.27.4"
 backend = "core:go"
@@ -280,14 +214,6 @@ url = "https://dl.google.com/go/go1.27.4.darwin-arm64.tar.gz"
 checksum = "sha256:2b799377704ef12db39bd254995d5c348c9cc8d86562ca817724390e56c38f43"
 url = "https://dl.google.com/go/go1.27.4.darwin-amd64.tar.gz"
 
-[tools.go."platforms.windows-arm64"]
-checksum = "sha256:9e7a72565792b8ab370b37ac9ac109799237abacb39ff2f541c438b963c0cc64"
-url = "https://dl.google.com/go/go1.27.4.windows-arm64.zip"
-
-[tools.go."platforms.windows-x64"]
-checksum = "sha256:178ab98950ac69ab25069307dc6ade79f3816e414cce95b4da166a115cde1e7e"
-url = "https://dl.google.com/go/go1.27.4.windows-amd64.zip"
-
 [[tools.node]]
 version = "26.13.1"
 backend = "core:node"
@@ -308,14 +234,6 @@ url = "https://nodejs.org/dist/v26.13.1/node-v26.13.1-darwin-arm64.tar.gz"
 [tools.node."platforms.macos-x64"]
 checksum = "sha256:82bb96078a24ca50b9c9a38f2379e6be6d87171fcd400fc14c8934b3bce96e2f"
 url = "https://nodejs.org/dist/v26.13.1/node-v26.13.1-darwin-x64.tar.gz"
-
-[tools.node."platforms.windows-arm64"]
-checksum = "sha256:181ebe431b90787113a9e4fc80d38ce86d37888a353a0386de44d2872e48cb97"
-url = "https://nodejs.org/dist/v26.13.1/node-v26.13.1-win-arm64.zip"
-
-[tools.node."platforms.windows-x64"]
-checksum = "sha256:e2edda75bfb089654705cf65a13b58933bfd5f57148e8ebda916f58a2474f1f7"
-url = "https://nodejs.org/dist/v26.13.1/node-v26.13.1-win-x64.zip"
 
 [[tools.python]]
 version = "3.14.10"
@@ -340,16 +258,6 @@ provenance = "github-attestations"
 [tools.python."platforms.macos-x64"]
 checksum = "sha256:85f8e54798e8e6aa58d2253f013d815c5616343cc0d15cbea882fca78bdfeae2"
 url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.14.10+20261110-x86_64-apple-darwin-install_only_stripped.tar.gz"
-provenance = "github-attestations"
-
-[tools.python."platforms.windows-arm64"]
-checksum = "sha256:0fc229d477a86e9797d4732b03a5bbc02c503cb81515c986b723038a12c520df"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.14.10+20261110-aarch64-pc-windows-msvc-install_only_stripped.tar.gz"
-provenance = "github-attestations"
-
-[tools.python."platforms.windows-x64"]
-checksum = "sha256:32b6cf90a03e2bc15fda8d2ab7ff78c4870f138887d612932650ce764efaab8f"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.14.10+20261110-x86_64-pc-windows-msvc-install_only_stripped.tar.gz"
 provenance = "github-attestations"
 
 [[tools.uv]]
@@ -381,14 +289,3 @@ url = "https://github.com/astral-sh/uv/releases/download/0.13.8/uv-x86_64-apple-
 url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/740313917"
 provenance = "github-attestations"
 
-[tools.uv."platforms.windows-arm64"]
-checksum = "sha256:529e78a9cec6cd7e3e014f7ecd8bda0c113969d4ed0f2efeedb85c30943325b8"
-url = "https://github.com/astral-sh/uv/releases/download/0.13.8/uv-x86_64-pc-windows-msvc.zip"
-url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/740313927"
-provenance = "github-attestations"
-
-[tools.uv."platforms.windows-x64"]
-checksum = "sha256:529e78a9cec6cd7e3e014f7ecd8bda0c113969d4ed0f2efeedb85c30943325b8"
-url = "https://github.com/astral-sh/uv/releases/download/0.13.8/uv-x86_64-pc-windows-msvc.zip"
-url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/740313927"
-provenance = "github-attestations"

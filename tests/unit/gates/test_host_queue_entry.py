@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fcntl
 import os
 import select
 import subprocess
@@ -19,7 +20,6 @@ import ethos.adapters.gates.proof_slot as proof_slot
 from tests.support.clock import FakeClock
 from tests.support.governed_repository import init_git_repo
 
-posix = pytest.mark.skipif(os.name != "posix", reason="the pending name and the shared probe")
 # A later arrival in another process: it says that it is about to enter, asks until it is in, as
 # a waiting run does, then says where it stands and keeps its place until its input closes.
 _ARRIVAL = (
@@ -40,28 +40,22 @@ _ARRIVAL = (
 _HALF_MADE_SECONDS = 0.5
 
 
-@posix
-@pytest.mark.parametrize("platform", ["posix", "nt"])
-def test_a_later_arrival_cannot_enter_while_an_entry_is_half_made(
-    tmp_path: Path, platform: str
-) -> None:
+def test_a_later_arrival_cannot_enter_while_an_entry_is_half_made(tmp_path: Path) -> None:
     """Two arrivals never both find the queue empty: the later one waits for the earlier entry.
 
-    The earlier entry is stopped where its lock file exists and its lock is not yet taken, on
-    POSIX under the pending name and on Windows under the listed one. A second process arrives
-    then. It gets no place until the first entry is whole, so it is named after it and counted
-    behind it: one slot admits one run.
+    The earlier entry is stopped where its lock file exists and its lock is not yet taken, under
+    the pending name. A second process arrives then. It gets no place until the first entry is
+    whole, so it is named after it and counted behind it: one slot admits one run.
     """
     queue = host_admission.host_queue()[0]
     opened = os.open
-    suffix = ".lock.pending" if platform == "posix" else ".lock"
     arrivals: list[subprocess.Popen[bytes]] = []
     early: list[bool] = []
     entered: list[host_admission.Ticket] = []
 
     def half_made(path: object, flags: int, *arguments: object, **options: object) -> int:
         descriptor = opened(path, flags, *arguments, **options)
-        if flags & os.O_CREAT and str(path).endswith(suffix) and not arrivals:
+        if flags & os.O_CREAT and str(path).endswith(".lock.pending") and not arrivals:
             later = subprocess.Popen(
                 [sys.executable, "-c", _ARRIVAL, str(tmp_path / "next")],
                 stdin=subprocess.PIPE,
@@ -75,9 +69,8 @@ def test_a_later_arrival_cannot_enter_while_an_entry_is_half_made(
             early.append(bool(select.select([later.stdout], [], [], _HALF_MADE_SECONDS)[0]))
         return descriptor
 
-    # Only the queue's own view of the platform changes: the entry names its file as that
-    # platform would, and every other reader of `os` keeps the real one.
-    seen = SimpleNamespace(**{**vars(os), "name": platform, "open": half_made})
+    # Only the queue's own `os.open` is hooked; every other reader of `os` keeps the real one.
+    seen = SimpleNamespace(**{**vars(os), "open": half_made})
     try:
         with pytest.MonkeyPatch.context() as patch:
             patch.setattr(host_admission, "os", seen)
@@ -166,13 +159,13 @@ def test_an_arrival_that_meets_a_held_gate_is_not_in_yet(
     assert not any(queue.directory.iterdir())
 
 
-@pytest.mark.parametrize("failing", [-1, 0, 1, pytest.param(2, marks=posix)])
+@pytest.mark.parametrize("failing", [-1, 0, 1, 2])
 def test_an_entry_that_fails_leaves_nothing_and_no_place(tmp_path: Path, failing: int) -> None:
     """An entry that fails removes what it made before it lets the gate go.
 
     The lock file's own open fails once the file is made; the record's text fails while only the
-    lock file exists; the first rename fails while the partial record exists too; the second,
-    which only POSIX has, while the record does.
+    lock file exists; the first rename fails while the partial record exists too; the second
+    while the record does.
     """
     queue = host_admission.host_queue()[0]
     replace, opened = Path.replace, os.open
@@ -235,7 +228,7 @@ def test_an_entry_whose_own_lock_stays_held_gives_up_and_leaves_nothing(
 
     def kept(path: object, flags: int, *arguments: object, **options: object) -> int:
         descriptor = opened(path, flags, *arguments, **options)
-        if flags & os.O_CREAT and str(path).endswith((".lock", ".lock.pending")) and not keepers:
+        if flags & os.O_CREAT and str(path).endswith(".lock.pending") and not keepers:
             keepers.append(opened(path, os.O_RDWR))
             assert host_admission.lock_descriptor(keepers[0], blocking=False)
         return descriptor
@@ -249,10 +242,7 @@ def test_an_entry_whose_own_lock_stays_held_gives_up_and_leaves_nothing(
         for keeper in keepers:
             os.close(keeper)
 
-    # The entry removes what it made. Only where an open file cannot be removed does the lock
-    # file wait for the next read that holds the gate.
-    if os.name != "posix":
-        assert queue.live() == []
+    # The entry removes what it made.
     assert not any(queue.directory.iterdir())
     ticket = queue.enter(tmp_path, "renderer")
     assert queue.admitted(ticket)
@@ -260,7 +250,6 @@ def test_an_entry_whose_own_lock_stays_held_gives_up_and_leaves_nothing(
     assert not any(queue.directory.iterdir())
 
 
-@posix
 def test_probes_of_one_dead_ticket_do_not_refuse_each_other(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -269,7 +258,6 @@ def test_probes_of_one_dead_ticket_do_not_refuse_each_other(
     A probe asks for a shared lock, so a second reader, a token's check and the next arrival all
     read the dead ticket as free while the first probe still has the file.
     """
-    fcntl = pytest.importorskip("fcntl")
     queue = host_admission.host_queue()[0]
     dead = queue.enter(tmp_path, "renderer")
     os.close(dead.descriptor)
@@ -310,7 +298,6 @@ def test_a_run_joins_only_an_admission_that_is_live_when_it_is_admitted(
     assert not any(queue.directory.iterdir())
 
 
-@posix
 def test_a_gate_and_a_probe_let_go_although_another_descriptor_shares_their_file(
     tmp_path: Path,
 ) -> None:

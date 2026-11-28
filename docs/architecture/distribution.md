@@ -76,7 +76,7 @@ of that declaration, not another compatibility or checksum policy.
   source import closure only during construction and removes it before shipping;
   checkout-owned verification rechecks cached bytes before execution.
 - Native Nox `javascript_tests` executes package behavior on the selected supply.
-  Host conformance retains Linux, macOS and Windows qualification; compilation
+  Host conformance retains Linux and macOS qualification; compilation
   alone does not prove a hosted job, built image or installed successor.
 - Official GNU/Linux archives require glibc 2.28 or newer; they are not musl
   support or manylinux certification. Platform wheel tags and runtime acceptance

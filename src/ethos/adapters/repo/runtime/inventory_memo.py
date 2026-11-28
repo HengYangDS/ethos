@@ -2,16 +2,15 @@
 
 Selecting a runtime hashes its whole payload, and one command selects it more than once: the
 installed command before it dispatches, the runtime again, and every hook. A recorded digest is
-reused only while the file's device, inode, size, mode, mtime and ctime are all unchanged. Any
-write or mode change moves ctime, which no unprivileged process can set back, so changed bytes
-are hashed again and still report payload damage; enumeration is unchanged, so an added entry such
-as bytecode is still refused. A file written within the racy window before its hash could change
-within one timestamp tick, so it is not recorded. Windows reports a creation time as ctime there,
-so it always hashes. The memo lives beside the host runtime store, outside every store whose
-identity ETHOS checks; a missing, unreadable or foreign memo costs only the hashing it would have
-saved. Entries are read only from a directory and a file that the current user owns and that group
-and others cannot write, because another account sharing the data home could otherwise plant
-them; Windows keeps the memo off until it checks the same ownership there.
+reused only while the file's device, inode, size, mode, mtime and ctime are all unchanged. Any write
+or mode change moves ctime, which no unprivileged process can set back, so changed bytes are hashed
+again and still report payload damage; enumeration is unchanged, so an added entry such as bytecode
+is still refused. A file written within the racy window before its hash could change within one
+timestamp tick, so it is not recorded. The memo lives beside the host runtime store, outside every
+store whose identity ETHOS checks; a missing, unreadable or foreign memo costs only the hashing it
+would have saved. Entries are read only from a directory and a file that the current user owns and
+that group and others cannot write, because another account sharing the data home could otherwise
+plant them.
 """
 
 from __future__ import annotations
@@ -38,7 +37,6 @@ _SCHEMA_VERSION = 1
 _MIN_FILES = 256
 _RACY_NS = 2 * 10**9
 _RETAINED = 32
-_SUPPORTED = os.name != "nt"
 
 
 class InventoryMemo:
@@ -105,7 +103,7 @@ def open_inventory_memo(root: Path) -> InventoryMemo | None:
     """
     directory = _memo_directory()
     name = root.name
-    if not _SUPPORTED or not is_hex(name, 16, 64) or directory is None:
+    if not is_hex(name, 16, 64) or directory is None:
         return None
     readable = _directory_access(directory)
     if readable is None:

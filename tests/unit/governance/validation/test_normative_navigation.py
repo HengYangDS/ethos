@@ -131,10 +131,7 @@ def test_docs_registry_preserves_selected_source_confinement(
     original = tmp_path / "outside.md"
     original.write_text(documentation_fixture("sample:contract", "policy", "canonical", "Contract"))
     alias = documentation / "contract.md"
-    try:
-        alias.symlink_to(original)
-    except (NotImplementedError, OSError):
-        pytest.skip("symbolic link creation is unavailable")
+    alias.symlink_to(original)
     run_git(root, "add", "docs/contract.md")
     reads: list[Path] = []
     original_read = type(original).read_text

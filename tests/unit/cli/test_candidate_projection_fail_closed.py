@@ -237,10 +237,7 @@ def test_candidate_bootstrap_rejects_dangling_leaf_link(
     repo, head = adopted_repository(tmp_path)
     target = tmp_path / "candidate"
     foreign = tmp_path / "foreign"
-    try:
-        target.symlink_to(foreign, target_is_directory=True)
-    except OSError:
-        pytest.skip("directory symlinks unavailable")
+    target.symlink_to(foreign, target_is_directory=True)
 
     report = projection.bootstrap_candidate(
         root=repo, path=target, expect_head=head, apply=should_apply

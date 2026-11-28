@@ -169,7 +169,7 @@ def test_native_recipe_requires_one_test_mode(tmp_path: Path, recipe: str) -> No
 
 
 def test_node_test_options_name_the_reporter_module_by_file_url(tmp_path: Path) -> None:
-    """Node loads reporters as module URLs, where a Windows drive path reads as a URL scheme."""
+    """Node loads reporters as module URLs, so the option names the reporter by its file URL."""
     output = tmp_path / "attempt"
     environment = javascript_execution.node_test_environment(output)
     options = dict(option.split("=", 1) for option in shlex.split(environment["NODE_OPTIONS"]))

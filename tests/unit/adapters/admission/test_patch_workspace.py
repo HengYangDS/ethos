@@ -208,9 +208,6 @@ _COPY_TO_THE_NULL_PATH = (
 )
 
 
-_NEEDS_LINKS = pytest.mark.skipif(os.name == "nt", reason="symbolic links need a privilege")
-
-
 @pytest.mark.parametrize(
     ("patch", "held"),
     [
@@ -220,9 +217,8 @@ _NEEDS_LINKS = pytest.mark.skipif(os.name == "nt", reason="symbolic links need a
         (_DELETE_WITHOUT_MODE, "file"),
         (_DELETE_WITHOUT_MODE, "directory"),
         (_DELETE_WITHOUT_MODE, "file-above"),
-        (_DELETE_WITHOUT_MODE, "junction-above"),
-        pytest.param(_DELETE_WITHOUT_MODE, "link", marks=_NEEDS_LINKS),
-        pytest.param(_DELETE_WITHOUT_MODE, "link-above", marks=_NEEDS_LINKS),
+        (_DELETE_WITHOUT_MODE, "link"),
+        (_DELETE_WITHOUT_MODE, "link-above"),
     ],
     ids=[
         "an-entry-left-out",
@@ -231,13 +227,12 @@ _NEEDS_LINKS = pytest.mark.skipif(os.name == "nt", reason="symbolic links need a
         "a-file-at-the-null-path",
         "a-directory-at-the-null-path",
         "a-file-above-the-null-path",
-        "a-junction-above-the-null-path",
         "a-link-at-the-null-path",
         "a-link-above-the-null-path",
     ],
 )
 def test_a_changed_path_that_no_change_names_is_refused(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, patch: str, held: str
+    tmp_path: Path, patch: str, held: str
 ) -> None:
     """Every changed path is named or deleted; only Git's empty file at the null path is let be.
 
@@ -252,9 +247,6 @@ def test_a_changed_path_that_no_change_names_is_refused(
         (repo / "dev").symlink_to(tmp_path / "elsewhere", target_is_directory=True)
     elif held:
         (repo / "dev").mkdir()
-    if held == "junction-above":
-        # A junction reads as a directory and as no link; the product's own check names it.
-        monkeypatch.setattr(owner, "is_junction", lambda place: place == repo / "dev")
     if held == "file":
         (repo / "dev/null").write_text("held\n", encoding="utf-8")
     elif held == "directory":
@@ -326,7 +318,6 @@ def test_a_named_path_without_its_file_must_be_a_deletion(tmp_path: Path) -> Non
         pytest.fail("the workspace was yielded")
 
 
-@pytest.mark.skipif(os.name == "nt", reason="symbolic links need a privilege on Windows")
 def test_a_preimage_that_is_no_regular_file_is_refused(tmp_path: Path) -> None:
     """The workspace copies regular files alone; a link's text is not what it names."""
     repo = _repository(tmp_path)

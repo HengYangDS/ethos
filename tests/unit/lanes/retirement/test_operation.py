@@ -334,22 +334,23 @@ def test_preflight_rejects_stale_authority_before_destructive_admission(
 
 
 @pytest.mark.parametrize("role", ["control", "execution"])
-@pytest.mark.parametrize("fault", ["nested", "junction", "foreign"])
+@pytest.mark.parametrize("fault", ["nested", "foreign", "symlink"])
 def test_preflight_requires_exact_native_repository_roots(tmp_path, monkeypatch, role, fault):
     repo = init_git_repo(tmp_path / "repo")
     write_test_profile(repo)
     head = commit_fixture(repo, "declare identity")
     if fault == "foreign":
         selected = init_git_repo(tmp_path / "foreign")
+    elif fault == "symlink":
+        selected = tmp_path / "linked"
+        selected.symlink_to(repo, target_is_directory=True)
     else:
-        selected = repo / "nested" if fault == "nested" else repo
-        selected.mkdir(exist_ok=True)
+        selected = repo / "nested"
+        selected.mkdir()
     request = retirement_request(repo).model_copy(
         update={"accepted_head": head, f"{role}_root": str(selected)}
     )
     monkeypatch.setenv("ETHOS_ACTOR", request.authority["actor"])
-    if fault == "junction":
-        monkeypatch.setattr(operation, "is_junction", lambda path: path == selected)
     monkeypatch.setattr(
         operation,
         "observe_operation",
@@ -358,7 +359,7 @@ def test_preflight_requires_exact_native_repository_roots(tmp_path, monkeypatch,
     gap = (
         "lane_retirement_receipt_repository_mismatch"
         if fault == "foreign" and role == "control"
-        else f"retirement_{'control' if fault == 'junction' else role}_root_unavailable"
+        else f"retirement_{role}_root_unavailable"
     )
     with pytest.raises(ValueError, match=gap):
         operation.preflight_operation(repo, request)

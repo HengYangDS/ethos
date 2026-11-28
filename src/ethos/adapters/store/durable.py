@@ -6,14 +6,9 @@ import os
 import tempfile
 from pathlib import Path
 
-# Windows cannot open a directory to synchronize it; its replacement is durable by itself.
-_DIRECTORY_FSYNC_SUPPORTED = os.name == "posix"
-
 
 def sync_directory(directory: Path) -> None:
-    """Make a directory's entries durable where the platform allows it."""
-    if not _DIRECTORY_FSYNC_SUPPORTED:
-        return
+    """Make a directory's entries durable."""
     descriptor = os.open(directory, os.O_RDONLY)
     try:
         os.fsync(descriptor)

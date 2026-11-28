@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import json
-import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -329,49 +327,3 @@ def test_python_image_requires_relocatable_library_links(tmp_path, link, admitte
     _python(library / "libpython3.14.1.dylib")
     (library / "libpython3.14.dylib").symlink_to("libpython3.14.1.dylib")
     assert python_environment.python_image_source_capable(source, _facts(source)) is admitted
-
-
-@pytest.mark.parametrize(
-    ("candidate", "boundary", "contained"),
-    [
-        (r"C:\PYTHON\python.exe", r"c:\python", True),
-        (r"D:\python.exe", r"C:\python", False),
-        (r"C:\python-other\python.exe", r"C:\python", False),
-    ],
-)
-def test_windows_python_containment_uses_native_drive_boundaries(
-    monkeypatch, candidate, boundary, contained
-):
-    monkeypatch.setattr(python_environment, "os", SimpleNamespace(name="nt", fspath=os.fspath))
-    assert python_environment.python_path_within(candidate, boundary) is contained
-
-
-@pytest.mark.parametrize(
-    "fault",
-    ["none", "missing-dlls", "linked-home", "linked-python", "linked-stdlib", "linked-dlls"],
-)
-def test_windows_image_requires_a_copyable_native_prefix(tmp_path, monkeypatch, fault):
-    home = tmp_path / "python"
-    python = _python(home / "python.exe")
-    _python(home / "Lib/os.py")
-    _python(home / "DLLs/_ssl.pyd")
-    for name in ("python314.dll", "vcruntime140.dll"):
-        _python(home / name)
-    monkeypatch.setattr(python_environment, "os", SimpleNamespace(name="nt", fspath=os.fspath))
-    facts = _facts(python, prefix=home)
-    assert python_environment.python_image_source_capable(python, facts)
-    if fault == "missing-dlls":
-        shutil.rmtree(home / "DLLs")
-    elif fault.startswith("linked"):
-        target = {
-            "linked-home": home,
-            "linked-python": python,
-            "linked-stdlib": home / "Lib",
-            "linked-dlls": home / "DLLs",
-        }[fault]
-        saved = target.with_name(target.name + "-saved")
-        target.rename(saved)
-        target.symlink_to(saved, target_is_directory=saved.is_dir())
-    assert python_environment.python_image_source_capable(python, facts) is (
-        fault in {"none", "missing-dlls"}
-    )

@@ -16,12 +16,11 @@ from tests.support.registries import repository_registry_path
 
 # Job name, runner, Python version and whether the leg may fail; the aggregate's own test names
 # the legs it needs. With the quality job on Linux arm64 and the local proof on macOS arm64, both
-# at Python 3.14, these legs complete three operating systems, two architectures and three Python
+# at Python 3.14, these legs complete two operating systems, two architectures and three Python
 # versions.
 LEGS = {
     "suite-linux-x64-py312": ("suite linux-x64 / Python 3.12", "ubuntu-latest", "3.12", False),
     "suite-linux-x64-py313": ("suite linux-x64 / Python 3.13", "ubuntu-latest", "3.13", False),
-    "suite-windows-x64-py314": ("suite windows-x64 / Python 3.14", "windows-latest", "3.14", True),
 }
 FULL = (
     "(github.event_name == 'workflow_dispatch' && inputs.qualify_head != '')"

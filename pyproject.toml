@@ -19,7 +19,6 @@ dependencies = [
   "platformdirs>=4.14.7",
   "pydantic>=2.14.3",
   "pygments>=2.21.0",
-  "pywin32>=312; sys_platform == 'win32'",
   "pyyaml>=6.0.3",
   "ruff>=0.17.5",
   "shfmt-py>=4.2.0",
@@ -36,13 +35,12 @@ ethos = "ethos.cli:console_main"
 prerelease = "disallow"
 # The repository's release age for Python packages; a relock takes no artifact uploaded more recently.
 exclude-newer = "24 hours"
+# The product runs on macOS and Linux; the lock resolves for no other system.
+environments = ["sys_platform == 'darwin'", "sys_platform == 'linux'"]
 # complexipy 9 scores cognitive complexity differently, and the decision-density baseline is pinned
 # to 8.x scores. The resolution stays below 9 until that baseline is measured again; the direct
 # requirement keeps its one lower bound, which the dependency gate requires.
-# uv 0.13.9's Windows executable carries no dependency data (no `.dep-v0` section, which 0.13.8
-# has), so the release inventory cannot name uv's components in a Windows runtime. The
-# resolution stays below 0.13.9 until a uv release for Windows carries that data again.
-constraint-dependencies = ["complexipy<9", "uv<0.13.9"]
+constraint-dependencies = ["complexipy<9"]
 
 [dependency-groups]
 dev = [

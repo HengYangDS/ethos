@@ -1,7 +1,6 @@
 """Exercise formation as a distinct, explicit adoption request."""
 
 import json
-import os
 import subprocess
 import sys
 from collections.abc import Iterable
@@ -24,7 +23,6 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import starter_request
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
-from tests.support.windows_host import translate_like_windows
 
 _PURPOSE = "Steward a new project with verifiable changes."
 
@@ -34,7 +32,7 @@ ROOT = Path(__file__).resolve().parents[3]
 def test_brownfield_public_adopt_remains_two_binding_only(tmp_path: Path) -> None:
     """Minimal adoption is not silently upgraded into a project scaffolder."""
     root = init_git_repo(tmp_path / "existing")
-    console = Path(sys.prefix) / ("Scripts/ethos.exe" if os.name == "nt" else "bin/ethos")
+    console = Path(sys.prefix) / "bin/ethos"
 
     def invoke(*options: str) -> dict[str, object]:
         completed = subprocess.run(
@@ -97,19 +95,6 @@ def test_greenfield_preview_has_no_target_effect(tmp_path: Path) -> None:
     assert not list(tmp_path.glob(".ethos-preview-*"))
 
 
-def test_greenfield_plan_is_identical_under_windows_text_mode(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Formation writes LF content on every host, so its reviewed plan cannot vary."""
-    request = starter_request(purpose=_PURPOSE)
-    native = adopt_repository(tmp_path / "new-project", **request)
-    translate_like_windows(monkeypatch)
-    translated = adopt_repository(tmp_path / "new-project", **request)
-
-    assert translated.verdict == native.verdict == "pass"
-    assert translated.data["write_plan"] == native.data["write_plan"]
-
-
 def test_greenfield_preview_is_public_cli_output(tmp_path: Path) -> None:
     """The installed-style CLI must not resolve an absent target as an existing repository."""
     target = tmp_path / "new-project"
@@ -121,7 +106,7 @@ def test_greenfield_preview_is_public_cli_output(tmp_path: Path) -> None:
         starter="foundation",
         **signer,
     )
-    console = Path(sys.prefix) / ("Scripts/ethos.exe" if os.name == "nt" else "bin/ethos")
+    console = Path(sys.prefix) / "bin/ethos"
     completed = subprocess.run(
         [
             str(console),
@@ -160,11 +145,8 @@ def test_greenfield_preview_is_public_cli_output(tmp_path: Path) -> None:
 def test_greenfield_console_refuses_linked_target_before_runtime_selection(tmp_path: Path) -> None:
     """An existing linked target cannot select its own product to judge creation."""
     target = tmp_path / "linked-project"
-    try:
-        target.symlink_to(ROOT, target_is_directory=True)
-    except OSError:
-        pytest.skip("directory symlinks unavailable")
-    console = Path(sys.prefix) / ("Scripts/ethos.exe" if os.name == "nt" else "bin/ethos")
+    target.symlink_to(ROOT, target_is_directory=True)
+    console = Path(sys.prefix) / "bin/ethos"
     completed = subprocess.run(
         [
             str(console),
@@ -359,10 +341,7 @@ def test_greenfield_binds_canonical_parent_and_refuses_retarget(tmp_path: Path) 
     actual = tmp_path / "actual"
     actual.mkdir()
     linked = tmp_path / "linked"
-    try:
-        linked.symlink_to(actual, target_is_directory=True)
-    except OSError:
-        pytest.skip("directory symlinks unavailable")
+    linked.symlink_to(actual, target_is_directory=True)
 
     signer = fixture_signer_inputs()
     preview = adopt_repository(
@@ -422,10 +401,7 @@ def test_greenfield_plan_names_the_destination_not_its_spelling(tmp_path: Path) 
     actual = tmp_path / "actual"
     actual.mkdir()
     linked = tmp_path / "linked"
-    try:
-        linked.symlink_to(actual, target_is_directory=True)
-    except OSError:
-        pytest.skip("directory symlinks unavailable")
+    linked.symlink_to(actual, target_is_directory=True)
     request = starter_request(purpose=_PURPOSE)
 
     aliased = adopt_repository(linked / "new-project", **request)

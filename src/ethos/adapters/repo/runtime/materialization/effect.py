@@ -16,7 +16,6 @@ from filelock import FileLock
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.filesystem import remove_owned_path
 from ethos.adapters.repo.runtime.filesystem import require_exclusive_inodes
-from ethos.adapters.repo.runtime.filesystem import require_no_junctions
 from ethos.adapters.repo.runtime.filesystem import runtime_python
 from ethos.adapters.repo.runtime.host_store import host_store_root
 from ethos.adapters.repo.runtime.host_store import record_consumer
@@ -360,11 +359,8 @@ def _runtime_supply_current(selected: SelectedRuntime, project: Path) -> bool:
     return (
         selected.dependency_lock_sha256 == file_sha256(project / "uv.lock")
         and _runtime_supply_wheel(selected) is not None
-        and (
-            os.name == "nt"
-            or selected.python.with_name("ethos").read_text(encoding="utf-8")
-            == render_console_script("ethos")
-        )
+        and selected.python.with_name("ethos").read_text(encoding="utf-8")
+        == render_console_script("ethos")
     )
 
 
@@ -374,7 +370,7 @@ def _runtime_supply_wheel(selected: SelectedRuntime) -> Path | None:
     The entry need not be this source's launcher: the manifest binds an earlier ETHOS's
     launcher as exactly, so a predecessor stays pinnable for rollback and upgrade.
     """
-    if os.name != "nt" and not os.access(selected.python.with_name("ethos"), os.X_OK):
+    if not os.access(selected.python.with_name("ethos"), os.X_OK):
         return None
     package_root = selected.root.parent.parent / "packages" / selected.wheel_sha256
     if package_root.is_symlink() or not package_root.is_dir():
@@ -498,7 +494,6 @@ def _finalize_runtime(
 
 def _seal_runtime_payload(runtime: Path) -> None:
     """Remove write permission from every executable payload entry."""
-    require_no_junctions(runtime, error="hook_runtime_generation_tree_invalid")
     require_exclusive_inodes(runtime, error="hook_runtime_generation_hardlink_invalid")
     for path in sorted(runtime.rglob("*"), key=lambda item: len(item.parts), reverse=True):
         if not path.is_symlink():
@@ -522,7 +517,6 @@ def remove_generated_tree(path: Path, *, ignore_errors: bool = False) -> None:
     if not path.exists():
         return
     try:
-        require_no_junctions(path, error="hook_runtime_generation_tree_invalid")
         require_exclusive_inodes(path, error="hook_runtime_generation_hardlink_invalid")
         remove_owned_path(path)
     except OSError:

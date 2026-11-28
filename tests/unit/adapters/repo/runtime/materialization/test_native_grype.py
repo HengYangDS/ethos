@@ -19,10 +19,10 @@ _VERSION = "0.121.1"
 _URL = "https://github.com/anchore/grype/releases/download/v0.121.1/grype_0.121.1_{}.tar.gz"
 
 
-def _declared(root: Path, *, scoped: bool = True) -> Path:
+def _declared(root: Path, *, scoped: bool = True, systems: str = '"linux", "macos"') -> Path:
     config = root / ".config/mise"
     config.mkdir(parents=True)
-    value = f'{{ version = "{_VERSION}", os = ["linux", "macos"] }}' if scoped else f'"{_VERSION}"'
+    value = f'{{ version = "{_VERSION}", os = [{systems}] }}' if scoped else f'"{_VERSION}"'
     (config / "config.toml").write_text(f'[tools]\n"github:anchore/grype" = {value}\n')
     rows = "".join(
         f'[tools."github:anchore/grype"."platforms.{target}"]\n'
@@ -42,15 +42,15 @@ def test_a_platform_scoped_declaration_resolves_its_locked_asset(tmp_path, monke
     monkeypatch.setattr(platform, "machine", lambda: "arm64")
     supply = native_supply.NativeSupply.read(_declared(tmp_path, scoped=scoped), "grype")
     assert (supply.version, supply.archive) == (_VERSION, "grype_0.121.1_darwin_arm64.tar.gz")
-    assert supply.executable_name == "grype"
+    assert supply.name == "grype"
 
 
 def test_a_host_outside_the_declared_systems_gets_no_substitute(tmp_path, monkeypatch):
-    """Windows on Arm has no Grype build, so the declaration excludes it instead of emulating."""
-    monkeypatch.setattr(platform, "system", lambda: "Windows")
-    monkeypatch.setattr(platform, "machine", lambda: "ARM64")
-    with pytest.raises(ValueError, match="native_tool_platform_unsupported:grype:windows"):
-        native_supply.NativeSupply.read(_declared(tmp_path), "grype")
+    """A host whose system the declaration leaves out gets no build of another system."""
+    monkeypatch.setattr(platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(platform, "machine", lambda: "arm64")
+    with pytest.raises(ValueError, match="native_tool_platform_unsupported:grype:macos"):
+        native_supply.NativeSupply.read(_declared(tmp_path, systems='"linux"'), "grype")
 
 
 def test_grype_reports_its_version_as_json(tmp_path, monkeypatch):

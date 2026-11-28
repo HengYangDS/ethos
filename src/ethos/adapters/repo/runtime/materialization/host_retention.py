@@ -26,7 +26,6 @@ from typing import Literal
 from filelock import FileLock
 
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.runtime.filesystem import is_junction
 from ethos.adapters.repo.runtime.host_store import installation_consumers
 from ethos.adapters.repo.runtime.host_store import record_consumer
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
@@ -240,9 +239,9 @@ def path_absent(path: Path) -> bool | None:
 
 
 def _directory(path: Path) -> bool:
-    """Say whether a path is a directory, no link and no junction; an unseen place is none."""
+    """Say whether a path is a directory and no link; an unseen place is none."""
     try:
-        return stat.S_ISDIR(os.lstat(path).st_mode) and not is_junction(path)
+        return stat.S_ISDIR(os.lstat(path).st_mode)
     except (OSError, ValueError):
         return False
 

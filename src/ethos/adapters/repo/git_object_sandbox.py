@@ -70,11 +70,6 @@ def isolated_git_objects(
         "GIT_COMMITTER_NAME": "ETHOS Candidate",
         "GIT_COMMITTER_EMAIL": "candidate@example.invalid",
         "GIT_COMMITTER_DATE": "@0 +0000",
-        **{
-            name: os.environ[name]
-            for name in ("SYSTEMROOT", "WINDIR", "COMSPEC", "TEMP", "TMP")
-            if os.name == "nt" and name in os.environ
-        },
     }
     executable = git_executable(environment)
     isolated = Path(tempfile.mkdtemp(prefix="ethos-objects-"))

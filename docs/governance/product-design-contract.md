@@ -384,9 +384,8 @@ decision is required. Human and JSON views preserve the same verdict and semanti
 operation is deterministic and offline after bootstrap. An explicitly selected installed product
 supplies ETHOS; the target repository supplies its intent, policy, source and project toolchain.
 Product identity, repository selection and project environments are distinct. No adopter needs an
-ETHOS checkout or developer environment. Native macOS and Linux are required supported platforms;
-Windows support is desirable and claimed only after native qualification. Homebrew is a supported
-installation channel; packaging internals do not dictate repository semantics. CLI, SDK, MCP and
+ETHOS checkout or developer environment. Native macOS and Linux are the supported platforms.
+Homebrew is a supported installation channel; packaging internals do not dictate repository semantics. CLI, SDK, MCP and
 Skills expose the same current context, available capabilities, gaps and safe continuation. Adoption
 is previewable, idempotent, minimally invasive, reversible before first governed effect, and cleanly
 uninstallable without leaving hooks, generated truth, or a second control plane.
@@ -485,7 +484,7 @@ each meaningful admitted carrier. Narrow-owner budgets cannot be offset by other
 generated outputs and archived OpenSpec records are reported separately from maintained generators,
 active intent, config and docs. Size constrains maintenance cost, not correctness; relabeling,
 cosmetic compression, removed necessary tests or automatic limit increases are invalid repairs.
-Supported modern Python and native macOS/Linux/Windows behavior retain their declared floor.
+Supported modern Python and native macOS/Linux behavior retain their declared floor.
 
 Every temporary, runtime, supply, test and generated tree has one owner and a bounded liveness fact.
 Normal completion finalizes it; crash recovery scavenges only exact owned roots while protecting

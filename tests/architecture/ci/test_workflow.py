@@ -87,9 +87,8 @@ def test_native_workflow_gate_preserves_large_input_and_semantic_rejections(
     ("workflow_shell", "job_shell", "step_shell", "runner", "expected"),
     [
         ("", "", "", "ubuntu-latest", "bash"),
-        ("", "", "", "windows-latest", "pwsh"),
-        ("sh", "", "", "windows-latest", "sh"),
-        ("sh", "bash", "", "windows-latest", "bash"),
+        ("sh", "", "", "ubuntu-latest", "sh"),
+        ("sh", "bash", "", "macos-latest", "bash"),
         ("bash", "sh", "bash {0}", "ubuntu-latest", "bash"),
     ],
 )

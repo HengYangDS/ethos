@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import subprocess
 import tomllib
 from io import StringIO
 from pathlib import Path
 
-import pytest
 import tomli_w
 
 import ethos.adapters.repo.hook.binding as hook_contract
@@ -33,7 +31,6 @@ def test_states_other_than_prepared_leave_no_ethos_trace(tmp_path: Path) -> None
         assert _snapshot(root, common) == before
 
 
-@pytest.mark.skipif(os.name == "nt", reason="the stub runtime is a POSIX shell script")
 def test_launcher_starts_the_runtime_only_for_prepared_states(tmp_path: Path) -> None:
     """One update-ref starts the runtime once, and a commit only for its prepared transactions."""
     repo, log = tmp_path / "repo", tmp_path / "starts.log"
@@ -76,12 +73,12 @@ def test_earlier_template_without_the_guard_keeps_its_launchers(tmp_path: Path) 
     values = tomllib.loads(
         Path(hook_contract.__file__).with_suffix(".toml").read_text(encoding="utf-8")
     )
-    current = hook_contract.load_hook_contract(platform_name="posix")["launchers"]
+    current = hook_contract.load_hook_contract()["launchers"]
     assert values["launcher"].index(GUARD) < values["launcher"].index("CURRENT=")
     values["launcher"] = values["launcher"].replace(GUARD, "")
     earlier = tmp_path / "binding.toml"
     earlier.write_text(tomli_w.dumps(values), encoding="utf-8")
-    rendered = hook_contract.load_hook_contract(earlier, platform_name="posix")["launchers"]
+    rendered = hook_contract.load_hook_contract(earlier)["launchers"]
     assert rendered == {
         name: text.replace(GUARD.replace("@HOOK@", name), "") for name, text in current.items()
     }

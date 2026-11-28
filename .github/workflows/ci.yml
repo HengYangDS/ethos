@@ -50,11 +50,6 @@ name: ETHOS CI
         required: false
         type: string
         default: ""
-      windows_legs:
-        description: Add the Windows host conformance legs to this run
-        required: false
-        type: boolean
-        default: false
 permissions:
   contents: read
 concurrency:
@@ -170,59 +165,6 @@ jobs:
             build/evidence/quality/tests/coverage/coverage.xml
           if-no-files-found: error
           retention-days: 14
-  suite-windows-x64-py314:
-    continue-on-error: true
-    name: suite windows-x64 / Python 3.14
-    runs-on: windows-latest
-    timeout-minutes: 130
-    if: ${{ (!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && ((inputs.qualify_head == '' || inputs.qualify_head == github.sha) && (inputs.rehearse_head == '' || inputs.rehearse_head == github.sha))) && ((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || (github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '') || github.event_name == 'schedule') }}
-    env:
-      ETHOS_COMMIT_ALLOWED_SIGNERS: ${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}
-      UV_PYTHON_INSTALL_DIR: ${{ github.workspace }}/build/runtime/python
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
-        with:
-          version: 0.13.8
-          python-version: "3.14"
-      - name: Provision native Python image supply
-        run: uv python install --no-bin 3.14
-      - name: Synchronize build-only Python dependencies
-        run: uv sync --locked --no-install-project --group dev
-      - name: Prepare locked native build supply
-        env:
-          PYTHONPATH: src
-        run: uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale
-      - name: Install locked npm packages
-        env:
-          PYTHONPATH: src
-        run: uv run --no-sync python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts
-      - name: Synchronize locked Python environment
-        run: uv sync --locked --group dev
-      - name: Prepare the locked native tools of the suite
-        run: uv run --frozen python -B -m tools.ci.toolchain.native --root . --mise gitleaks scc syft vale
-      - name: Provision test fixture supply
-        run: uv run --frozen python -B -I tools/ci/toolchain/fixture_supply.py .
-      - name: Bind operator commit trust
-        run: uv run --frozen python -B -I -m ethos.cli hook bind-trust --apply --root . --json
-      - name: Repeat the suite on this leg and record its coverage
-        env:
-          ETHOS_NATIVE_OUTPUT_DIR: ${{ github.workspace }}/build/evidence/quality/tests
-        run: uv run --frozen python -m nox -s suite_leg -- 7200
-      - name: Upload the suite leg reports
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: suite-windows-x64-py314
-          path: |-
-            build/evidence/quality/tests/pytest/junit*.xml
-            build/evidence/quality/tests/coverage/coverage.xml
-          if-no-files-found: error
-          retention-days: 14
   supply-image:
     name: locked Linux ARM64 supply
     if: ${{ github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/proposal/')) && inputs.supply_image }}
@@ -299,7 +241,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || (github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '') || github.event_name == 'schedule') && '[{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.12","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.13","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.14","timeout":35},{"platform":"macos-arm64","runner":"macos-latest","python":"3.12","timeout":35},{"platform":"macos-arm64","runner":"macos-latest","python":"3.13","timeout":35},{"platform":"macos-arm64","runner":"macos-latest","python":"3.14","timeout":35},{"platform":"windows-x64","runner":"windows-latest","python":"3.12","timeout":70},{"platform":"windows-x64","runner":"windows-latest","python":"3.13","timeout":70},{"platform":"windows-x64","runner":"windows-latest","python":"3.14","timeout":70},{"platform":"windows-arm64","runner":"windows-11-arm","python":"cpython-3.14-windows-x86_64-none","timeout":105}]' || inputs.windows_legs && '[{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.12","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.13","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.14","timeout":35},{"platform":"macos-arm64","runner":"macos-latest","python":"3.12","timeout":35},{"platform":"windows-x64","runner":"windows-latest","python":"3.12","timeout":70},{"platform":"windows-x64","runner":"windows-latest","python":"3.13","timeout":70},{"platform":"windows-x64","runner":"windows-latest","python":"3.14","timeout":70},{"platform":"windows-arm64","runner":"windows-11-arm","python":"cpython-3.14-windows-x86_64-none","timeout":105}]' || '[{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.12","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.13","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.14","timeout":35},{"platform":"macos-arm64","runner":"macos-latest","python":"3.12","timeout":35}]') }}
+        include: ${{ fromJSON(((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || (github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '') || github.event_name == 'schedule') && '[{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.12","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.13","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.14","timeout":35},{"platform":"macos-arm64","runner":"macos-latest","python":"3.12","timeout":35},{"platform":"macos-arm64","runner":"macos-latest","python":"3.13","timeout":35},{"platform":"macos-arm64","runner":"macos-latest","python":"3.14","timeout":35}]' || '[{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.12","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.13","timeout":35},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.14","timeout":35},{"platform":"macos-arm64","runner":"macos-latest","python":"3.12","timeout":35}]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -327,7 +269,7 @@ jobs:
       - name: Execute wheel conformance
         run: uv run --frozen python -m nox -s host_conformance
       - name: Declare the components of the kept runtime archive
-        if: ${{ contains(fromJSON('["linux-x64 3.14","linux-arm64 3.14","macos-arm64 3.14","windows-x64 3.14","windows-arm64 cpython-3.14-windows-x86_64-none"]'), format('{0} {1}', matrix.platform, matrix.python)) }}
+        if: ${{ contains(fromJSON('["linux-x64 3.14","linux-arm64 3.14","macos-arm64 3.14"]'), format('{0} {1}', matrix.platform, matrix.python)) }}
         run: uv run --frozen python -m nox -s supply_chain
       - name: Execute native npm package tests
         run: uv run --frozen python -m nox -s javascript_tests
@@ -459,7 +401,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
     if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.release_tag != '' }}
-    continue-on-error: ${{ !matrix.required }}
     env:
       ETHOS_COMMIT_ALLOWED_SIGNERS: ${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}
       UV_PYTHON_INSTALL_DIR: ${{ github.workspace }}/build/runtime/python
@@ -470,34 +411,16 @@ jobs:
           - linux-x64
           - linux-arm64
           - macos-arm64
-          - windows-x64
-          - windows-arm64
         include:
           - host: linux-x64
             os: ubuntu-latest
             python: "3.14"
-            required: true
-            emulated: false
           - host: linux-arm64
             os: ubuntu-24.04-arm
             python: "3.14"
-            required: true
-            emulated: false
           - host: macos-arm64
             os: macos-latest
             python: "3.14"
-            required: true
-            emulated: false
-          - host: windows-x64
-            os: windows-latest
-            python: "3.14"
-            required: false
-            emulated: false
-          - host: windows-arm64
-            os: windows-11-arm
-            python: cpython-3.14-windows-x86_64-none
-            required: false
-            emulated: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -546,7 +469,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
     if: ${{ !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && github.event_name == 'workflow_dispatch' && inputs.rehearse_head != '' && inputs.rehearse_head == github.sha }}
-    continue-on-error: ${{ !matrix.required }}
     env:
       ETHOS_COMMIT_ALLOWED_SIGNERS: ${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}
       UV_PYTHON_INSTALL_DIR: ${{ github.workspace }}/build/runtime/python
@@ -557,34 +479,16 @@ jobs:
           - linux-x64
           - linux-arm64
           - macos-arm64
-          - windows-x64
-          - windows-arm64
         include:
           - host: linux-x64
             os: ubuntu-latest
             python: "3.14"
-            required: true
-            emulated: false
           - host: linux-arm64
             os: ubuntu-24.04-arm
             python: "3.14"
-            required: true
-            emulated: false
           - host: macos-arm64
             os: macos-latest
             python: "3.14"
-            required: true
-            emulated: false
-          - host: windows-x64
-            os: windows-latest
-            python: "3.14"
-            required: false
-            emulated: false
-          - host: windows-arm64
-            os: windows-11-arm
-            python: cpython-3.14-windows-x86_64-none
-            required: false
-            emulated: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -651,7 +555,7 @@ jobs:
         with:
           path: build/release/inputs
       - name: Assemble the qualified release assets
-        run: uv run --no-project python -B -I tools/ci/delivery/release_assets.py --tag ${{ inputs.release_tag }} --source build/release/inputs --output build/release/out --download-prefix https://github.com/${{ github.repository }}/releases/download --changelog CHANGELOG.md --expect-head ${{ inputs.release_head }} --required linux-x64,linux-arm64,macos-arm64 --optional windows-x64,windows-arm64
+        run: uv run --no-project python -B -I tools/ci/delivery/release_assets.py --tag ${{ inputs.release_tag }} --source build/release/inputs --output build/release/out --download-prefix https://github.com/${{ github.repository }}/releases/download --changelog CHANGELOG.md --expect-head ${{ inputs.release_head }} --hosts linux-x64,linux-arm64,macos-arm64
       - name: Attest the release archives and wheels
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
         with:
@@ -734,18 +638,12 @@ jobs:
           - host: linux-x64
             os: ubuntu-latest
             python: "3.14"
-            required: true
-            emulated: false
           - host: linux-arm64
             os: ubuntu-24.04-arm
             python: "3.14"
-            required: true
-            emulated: false
           - host: macos-arm64
             os: macos-latest
             python: "3.14"
-            required: true
-            emulated: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -802,7 +700,7 @@ jobs:
           path: build/release/inputs
           pattern: release-runtime-*
       - name: Assemble the rehearsed release assets
-        run: uv run --no-project python -B -I tools/ci/delivery/release_assets.py --version-file VERSION --source build/release/inputs --output build/release/out --download-prefix https://github.com/${{ github.repository }}/releases/download --changelog CHANGELOG.md --expect-head ${{ github.sha }} --required linux-x64,linux-arm64,macos-arm64 --optional windows-x64,windows-arm64
+        run: uv run --no-project python -B -I tools/ci/delivery/release_assets.py --version-file VERSION --source build/release/inputs --output build/release/out --download-prefix https://github.com/${{ github.repository }}/releases/download --changelog CHANGELOG.md --expect-head ${{ github.sha }} --hosts linux-x64,linux-arm64,macos-arm64
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: rehearsal-assets
@@ -834,18 +732,12 @@ jobs:
           - host: linux-x64
             os: ubuntu-latest
             python: "3.14"
-            required: true
-            emulated: false
           - host: linux-arm64
             os: ubuntu-24.04-arm
             python: "3.14"
-            required: true
-            emulated: false
           - host: macos-arm64
             os: macos-latest
             python: "3.14"
-            required: true
-            emulated: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:

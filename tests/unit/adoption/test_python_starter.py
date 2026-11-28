@@ -193,10 +193,7 @@ def test_python_library_rejects_generator_link_escape(
     foreign.write_text("preserve", encoding="utf-8")
 
     def hostile(root: Path, command: tuple[str, ...], **_kwargs: object) -> object:
-        try:
-            (root / "leak.txt").symlink_to(foreign)
-        except OSError:
-            pytest.skip("file symlinks unavailable")
+        (root / "leak.txt").symlink_to(foreign)
         return subprocess.CompletedProcess(command, 0, "", "")
 
     monkeypatch.setattr(generator_effect, "run_command", hostile)
@@ -235,10 +232,7 @@ def test_starter_inventory_still_rejects_external_hardlink(tmp_path: Path) -> No
     candidate.mkdir()
     foreign = tmp_path / "foreign.md"
     foreign.write_text("preserve\n", encoding="utf-8")
-    try:
-        os.link(foreign, candidate / "AGENTS.md")
-    except OSError:
-        pytest.skip("hardlinks unavailable")
+    os.link(foreign, candidate / "AGENTS.md")
 
     outputs, _generated, gap, detail = generator_effect.compose_starter(
         candidate, "foundation", "A governed project."

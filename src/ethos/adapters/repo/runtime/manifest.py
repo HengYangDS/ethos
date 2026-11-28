@@ -7,14 +7,12 @@ import json
 import os
 import platform
 import stat
-import sysconfig
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import NamedTuple
 from typing import NoReturn
 
-import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 from ethos.adapters.repo.runtime.inventory_memo import open_inventory_memo
 from ethos.contracts.digest import is_sha256_hex
 from ethos.repository.release.identity import build_identity_from_projection
@@ -117,10 +115,10 @@ def runtime_digest(
 def runtime_file_inventory(runtime: Path) -> dict[str, str]:
     """Hash every runtime file and symlink without following authority outside its root.
 
-    A payload that cannot be inventoried exactly, such as one holding bytecode, a junction or
-    an unreadable entry, is a payload mismatch: no manifest can declare it.
+    A payload that cannot be inventoried exactly, such as one holding bytecode or an
+    unreadable entry, is a payload mismatch: no manifest can declare it.
     """
-    if runtime.is_symlink() or runtime_filesystem.is_junction(runtime) or not runtime.is_dir():
+    if runtime.is_symlink() or not runtime.is_dir():
         raise ValueError(_PAYLOAD_MISMATCH)
     root = runtime.resolve()
     memo = open_inventory_memo(root)
@@ -134,8 +132,6 @@ def runtime_file_inventory(runtime: Path) -> dict[str, str]:
                     path = Path(entry.path)
                     relative = prefix + entry.name
                     if "__pycache__" in path.parts or path.suffix == ".pyc":
-                        _raise_payload_mismatch()
-                    if runtime_filesystem.is_junction(path):
                         _raise_payload_mismatch()
                     if relative == "manifest.json":
                         continue
@@ -164,10 +160,6 @@ def _entry_record(
 
 def _inventory_entry_digest(path: Path, *, root: Path, mode: int) -> str:
     permissions = stat.S_IMODE(mode)
-    if os.name == "nt":
-        # Windows withholds writes only through the read-only attribute, which archive
-        # installers such as Mise do not restore; a sealed runtime binds the same identity.
-        permissions &= ~0o222
     if stat.S_ISLNK(mode):
         target = path.readlink()
         if target.is_absolute():
@@ -291,22 +283,9 @@ def canonical_architecture(value: str) -> str:
     }.get(normalized, normalized)
 
 
-# CPython names a Windows interpreter's build, while `platform.machine()` there names the CPU.
-_WINDOWS_BUILDS = {"win-amd64": "AMD64", "win-arm64": "ARM64"}
-
-
-def interpreter_machine(build_platform: str, machine: str) -> str:
-    """Name the machine an interpreter executes, as `platform.machine()` spells it natively.
-
-    POSIX `uname` reports the process's own view. CPython on Windows reports the native CPU, so
-    an x64 interpreter that Windows on Arm emulates would name ARM64, while its build names AMD64.
-    """
-    return _WINDOWS_BUILDS.get(build_platform, machine)
-
-
 def process_machine() -> str:
     """Name the machine this interpreter executes."""
-    return interpreter_machine(sysconfig.get_platform(), platform.machine())
+    return platform.machine()
 
 
 def _valid_inventory_path(value: str) -> bool:

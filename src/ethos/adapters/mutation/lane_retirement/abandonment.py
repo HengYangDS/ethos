@@ -20,7 +20,6 @@ from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import repository_root
-from ethos.adapters.repo.runtime.filesystem import is_junction
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.repo.worktree_effects import worktree_record
@@ -62,7 +61,7 @@ def _selected_worktree(
             refuse("retirement_reviewed_worktree_required")
         return None, ref_head(root, branch)
     selected = Path(str(matches[0]["path"]))
-    if selected.is_symlink() or is_junction(selected) or not selected.is_dir():
+    if selected.is_symlink() or not selected.is_dir():
         refuse("retirement_content_unsafe")
     if matches[0].get("locked") == "true":
         refuse("retirement_worktree_locked")

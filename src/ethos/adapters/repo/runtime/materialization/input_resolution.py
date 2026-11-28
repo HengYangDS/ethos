@@ -39,13 +39,8 @@ def require_runtime_wheel_provenance() -> None:
         resolve_runtime_wheel(source, Path())
 
 
-def resolve_node_runtime(
-    *,
-    package_root: Path | None = None,
-    platform_name: str | None = None,
-) -> NodeRuntime:
+def resolve_node_runtime(*, package_root: Path | None = None) -> NodeRuntime:
     """Select source build supply or shipped runtime, never adopter or ambient Node."""
-    platform = platform_name or os.name
     root = package_root
     npm_root = None
     if root is None:
@@ -56,7 +51,7 @@ def resolve_node_runtime(
             else NodeSupply.read(project).installed_root(project)
         )
         npm_root = product_node_module("npm")
-    return NodeRuntime.read(root, windows=platform == "nt", npm_root=npm_root)
+    return NodeRuntime.read(root, npm_root=npm_root)
 
 
 def resolve_runtime_wheel(
@@ -120,8 +115,7 @@ def resolve_runtime_project(package_source: Path) -> Path:
 def resolve_locked_environment_python(project: Path) -> Path:
     """Return the Python owned by one project's exact root virtual environment."""
     environment = project.resolve() / ".venv"
-    relative = Path("Scripts/python.exe") if os.name == "nt" else Path("bin/python")
-    python = environment / relative
+    python = environment / "bin/python"
     if not python.is_file():
         refuse(f"hook_runtime_locked_environment_invalid:{python}")
     try:

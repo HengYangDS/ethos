@@ -1,6 +1,6 @@
 +++
 title = "On Windows a finished host-queue run can report `host_admission_unavailable`"
-state = "open"
+state = "closed"
 since = "v0.2.0-beta.11"
 fixed_in = ""
 workaround = "Read the command's own output for its result; the place is free."

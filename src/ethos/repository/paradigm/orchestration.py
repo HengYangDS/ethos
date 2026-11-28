@@ -260,8 +260,17 @@ def _record_entries(
                     f"{', '.join(retention.platforms)}, and the lowercase SHA-256 of the step text",
                 )
             )
-        else:
-            records.append(record)
+            continue
+        records.append(record)
+        if leaving := sorted(set(entry["platforms"]) & set(retention.leaving_platforms)):
+            gaps.append(
+                ParadigmGap(
+                    "retained-step-platform",
+                    f"{retention.record}:step[{index}]",
+                    f"remove the platform {', '.join(leaving)} from the entry, and the entry "
+                    "with its step when no other platform runs it",
+                )
+            )
     return records, gaps
 
 
@@ -276,7 +285,7 @@ def _retained_step(retention: StepRetention, index: int, entry: object) -> _Reta
     if not (
         _distinct_names(jobs)
         and _distinct_names(platforms)
-        and set(platforms) <= set(retention.platforms)
+        and set(platforms) <= {*retention.platforms, *retention.leaving_platforms}
         and entry["class"] in retention.classes
         and isinstance(entry["sha256"], str)
         and _DIGEST.fullmatch(entry["sha256"])

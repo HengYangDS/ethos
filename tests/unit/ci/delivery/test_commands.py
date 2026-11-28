@@ -20,7 +20,6 @@ from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
 from tests.support.installed_guidance import installed_guidance
 from tests.support.runtime_scenarios import answer_which
-from tests.support.windows_host import translate_like_windows
 from tools.ci.delivery.acceptance import adopter as fixture
 from tools.ci.delivery.acceptance import brownfield as brownfield_fixture
 from tools.ci.delivery.acceptance import effect
@@ -149,17 +148,6 @@ def test_adopter_is_clean_under_host_autocrlf(monkeypatch, tmp_path: Path) -> No
     assert b"\r\n" in readme.read_bytes()
     assert _run("git", "status", "--porcelain", cwd=adopter) == ""
     assert dirty.dirty_provenance(adopter)["state"] == "clean"
-
-
-def test_adopter_fixture_writes_its_committed_bytes_on_every_host(monkeypatch, tmp_path: Path):
-    """Windows text mode cannot leave fixture files that differ from their LF commits."""
-    translate_like_windows(monkeypatch)
-    adopter = tmp_path / "adopter"
-    fixture.materialize_adopter(adopter, openspec_config=ROOT / "openspec/config.yaml", run=_run)
-    fixture.prepare_acceptance_topology(adopter, run=_run)
-    for relative in filter(None, _run("git", "ls-files", "-z", cwd=adopter).split("\0")):
-        committed = run_command(adopter, ("git", "show", f":{relative}"), text=False, check=True)
-        assert (adopter / relative).read_bytes() == committed.stdout, relative
 
 
 @pytest.mark.parametrize("historical", [False, True])
@@ -432,10 +420,7 @@ def test_installed_guidance_must_match_the_package_that_served_status(tmp_path: 
     outside.parent.mkdir()
     outside.write_bytes(guide.read_bytes())
     guide.unlink()
-    try:
-        guide.symlink_to(outside)
-    except OSError:
-        pytest.skip("native symlink creation unavailable")
+    guide.symlink_to(outside)
     with pytest.raises(RuntimeError, match="installed_agent_guidance_invalid"):
         invocation.require_installed_guidance(payload(guidance), origin.as_posix())
 

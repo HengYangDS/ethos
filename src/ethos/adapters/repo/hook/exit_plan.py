@@ -110,7 +110,7 @@ def _blockers(
         for path in (common / "ethos" / "runtime", common / "ethos" / "hooks", *installed)
     )
     try:
-        references = process_reference_paths(repo, exclude_pid=os.getpid(), strict=True)
+        references = process_reference_paths(repo, exclude_pid=os.getpid())
     except (OSError, ValueError, subprocess.TimeoutExpired):
         return [*gaps, "adoption_exit_runtime_use_unknown"]
     if any(reference.is_relative_to(path) for reference in references for path in owned):

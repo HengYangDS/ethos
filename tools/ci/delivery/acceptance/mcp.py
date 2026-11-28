@@ -475,8 +475,7 @@ def verify(command: tuple[str, ...], workspace: Path) -> dict[str, object]:
             asyncio.run(
                 _adoption(surface, command=command, root=root, foreign=foreign, env=env, git=git)
             )
-        if os.name == "posix":
-            asyncio.run(_native_failure(command, root, git, env))
+        asyncio.run(_native_failure(command, root, git, env))
         assert not (foreign / ".ethos").exists()
     assert (dict(os.environ), Path.cwd()) == before
     return {
@@ -485,7 +484,7 @@ def verify(command: tuple[str, ...], workspace: Path) -> dict[str, object]:
         "mutation_surfaces": ["cli", "sdk", "mcp"],
         "planning_no_changes": "passed",
         "profile_refusal": "passed",
-        "native_git_loss": "passed" if os.name == "posix" else "not_qualified",
+        "native_git_loss": "passed",
         "owned_work_removed": not Path(directory).exists(),
     }
 

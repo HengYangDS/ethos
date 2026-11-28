@@ -113,7 +113,7 @@ def static(session):
     record = output / (session.name + "-runtime.json")
     targets = ("src/app.py",) if OUTCOME == "static-scope" else ("src", "tests", "noxfile.py")
     config = ".config/ruff-alternate.toml" if OUTCOME == "static-config" else ".config/ruff.toml"
-    binary = Path(EXECUTABLE).with_name("ruff.exe" if os.name == "nt" else "ruff")
+    binary = Path(EXECUTABLE).with_name("ruff")
     ruff = (str(binary), "check", "--config", config, "--verbose", "--no-cache",
         "--output-format", "sarif", "--output-file", str(output / "ruff.sarif"), *targets)
     if OUTCOME == "static-detached":

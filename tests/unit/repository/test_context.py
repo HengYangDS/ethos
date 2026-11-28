@@ -165,8 +165,6 @@ def test_packaged_resource_requires_a_contained_relative_input(tmp_path: Path) -
     external.mkdir()
     with pytest.raises(ValueError, match="product_resource_path_invalid"):
         resource_owner.packaged_resource("../outside", package=package)
-    with pytest.raises(ValueError, match="product_resource_path_invalid"):
-        resource_owner.packaged_resource("C:/outside", package=package)
     (resources / "escape").symlink_to(external, target_is_directory=True)
     with pytest.raises(ValueError, match="product_resource_path_invalid"):
         resource_owner.packaged_resource("escape/input", package=package)

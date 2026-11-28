@@ -209,14 +209,14 @@ def test_native_supply_converges_concurrently_reuses_identity_and_repairs_damage
     assert not list(executable.parent.glob(".prepare-*"))
 
 
-@pytest.mark.parametrize(("system", "machine"), [("Windows", "unknown"), ("Linux", "unknown")])
+@pytest.mark.parametrize(("system", "machine"), [("Linux", "unknown"), ("Windows", "x86_64")])
 def test_native_supply_rejects_unsupported_targets_before_creating_cache(
     tmp_path, monkeypatch, system, machine
 ):
     """Unsupported targets cannot inherit another platform's executable identity."""
     monkeypatch.setattr(platform, "system", lambda: system)
     monkeypatch.setattr(platform, "machine", lambda: machine)
-    with pytest.raises(ValueError, match="native_tool_platform_unsupported"):
+    with pytest.raises(ValueError, match=f"native_tool_platform_unsupported:{system}:{machine}$"):
         native_supply.materialize_tool(tmp_path, "gitleaks")
     assert not (tmp_path / "build").exists()
 

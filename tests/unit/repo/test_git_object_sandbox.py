@@ -13,7 +13,6 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object_sandbox import isolated_git_objects
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.windows_host import translate_alternates_like_windows
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -38,18 +37,6 @@ def test_isolated_objects_can_read_source_but_cannot_publish_into_it(
     assert run_git(repo, "cat-file", "-e", created, check=False).returncode != 0
     assert git(repo, "show-ref") == refs
     assert git(repo, "status", "--porcelain") == ""
-
-
-def test_git_alternates_survive_windows_text_newline_translation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Native object alternates must not acquire a carriage return on Windows."""
-    repo = init_git_repo(tmp_path / "repo")
-    head = git(repo, "rev-parse", "HEAD")
-    with monkeypatch.context() as translated:
-        translate_alternates_like_windows(translated)
-        with isolated_git_objects(repo) as isolated:
-            assert isolated("cat-file", "-t", head).returncode == 0
 
 
 @pytest.mark.parametrize("source", ["command-failed", "relative-objects", "missing-objects"])

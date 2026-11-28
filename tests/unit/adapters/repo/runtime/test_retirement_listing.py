@@ -8,11 +8,10 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
-import ethos.adapters.process as process
+import ethos.adapters.process as process_adapter
 import ethos.adapters.repo.runtime.retirement as retirement
 from tests.support.closed_directory import NEEDS_A_CLOSED_DIRECTORY
 from tests.support.runtime_scenarios import fixture_runtime_generation
@@ -169,19 +168,6 @@ def test_a_host_failure_at_a_listed_name_leaves_the_observation_unknown(
     assert obsolete.exists()
 
 
-def test_process_references_read_windows_separators(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A Windows command line names the runtime with backslashes, which still identify it."""
-    runtime = tmp_path / "runtime"
-    runtime.mkdir()
-    command = "python " + runtime.as_posix().replace("/", "\\")
-    monkeypatch.setattr(retirement, "process_commands", lambda *_a, **_k: command)
-
-    assert runtime.resolve() in retirement.process_reference_paths(tmp_path)
-
-
-@pytest.mark.skipif(os.name == "nt", reason="POSIX process listing")
 def test_a_listing_can_leave_out_one_process(tmp_path: Path) -> None:
     """The exit reads every process but its own; the excluded one is absent, the rest remain."""
     marker = tmp_path / "marker"
@@ -199,34 +185,52 @@ def test_a_listing_can_leave_out_one_process(tmp_path: Path) -> None:
     assert excluded.strip()
 
 
-def _windows_rows(monkeypatch: pytest.MonkeyPatch, rows: list[SimpleNamespace]) -> None:
-    """Answer the management query with exact rows, as WMI would on Windows."""
-    query = SimpleNamespace(ExecQuery=lambda _text: rows)
-    modules = {
-        "pythoncom": SimpleNamespace(
-            CoInitialize=lambda: None, CoUninitialize=lambda: None, com_error=OSError
-        ),
-        "win32com.client": SimpleNamespace(GetObject=lambda _moniker: query),
-    }
-    monkeypatch.setattr(process, "import_module", modules.__getitem__)
+def _replace_process_lister(monkeypatch: pytest.MonkeyPatch, found: str | None) -> None:
+    """Answer the lookup of `ps` alone; every other program resolves as the host resolves it."""
+    native = process_adapter.shutil.which
+
+    def resolve(name: str, **options: object) -> str | None:
+        return found if name == "ps" else native(name, **options)
+
+    monkeypatch.setattr(process_adapter.shutil, "which", resolve)
 
 
-def test_windows_reads_an_unreadable_process_as_unknown_when_strict(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize(
+    "lister", ["exit 3", "echo unreadable >&2"], ids=["fails", "writes-errors"]
+)
+def test_a_failing_process_lister_leaves_consumers_unknown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, lister: str
 ) -> None:
-    """A process whose command line Windows withholds may be using the runtime."""
-    _windows_rows(
-        monkeypatch,
-        [
-            SimpleNamespace(ProcessId=0, CommandLine=None),
-            SimpleNamespace(ProcessId=4, CommandLine=None),
-            SimpleNamespace(ProcessId=10, CommandLine="python run.py"),
-            SimpleNamespace(ProcessId=11, CommandLine="self"),
-            SimpleNamespace(ProcessId=12, CommandLine=None),
-        ],
-    )
+    """A lister that fails or reports an error proves no generation unused, so none is removed."""
+    repo, hooks, runtime = generation_tree(tmp_path / "repo")
+    unused = fixture_runtime_generation(runtime, "b" * 64)
+    native = tmp_path / "bin/ps"
+    native.parent.mkdir()
+    native.write_text(f"#!/bin/sh\n{lister}\n")
+    native.chmod(0o700)
+    _replace_process_lister(monkeypatch, native.as_posix())
 
-    assert process.windows_command_lines(timeout=5) == ("python run.py", "self")
-    assert process.windows_command_lines(timeout=5, exclude_pid=11) == ("python run.py",)
-    with pytest.raises(process.ProcessExecutionError):
-        process.windows_command_lines(timeout=5, strict=True)
+    with pytest.raises(ValueError, match="hook_runtime_consumers_unknown"):
+        retirement.process_commands(tmp_path)
+    result = retirement.retire_generations(repo, hooks=hooks, runtime=runtime)
+
+    assert (result["state"], result["error"]) == ("deferred", "hook_runtime_consumers_unknown")
+    assert result["removed"] == []
+    assert unused.is_dir()
+
+
+def test_a_host_without_a_process_lister_removes_no_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without a lister on the host's default path the observation is refused, not read as empty."""
+    repo, hooks, runtime = generation_tree(tmp_path / "repo")
+    unused = fixture_runtime_generation(runtime, "b" * 64)
+    _replace_process_lister(monkeypatch, None)
+
+    with pytest.raises(ValueError, match="native_process_observer_unavailable"):
+        retirement.process_commands(tmp_path)
+    result = retirement.retire_generations(repo, hooks=hooks, runtime=runtime)
+
+    assert (result["state"], result["removed"]) == ("deferred", [])
+    assert result["error"] == "native_process_observer_unavailable"
+    assert unused.is_dir()

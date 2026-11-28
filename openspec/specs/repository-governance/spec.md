@@ -5786,13 +5786,6 @@ its text changes.
 - **AND** a YAML file under `.config/ci/` that no projection names still makes
   `sha256sum` an orphan consumer.
 
-#### Scenario: A retained PowerShell step is owned as a whole
-
-- **GIVEN** a retention record that keeps a PowerShell `before_script` step by file, job and digest
-- **WHEN** a patch touches that pipeline without changing the step
-- **THEN** admission reads no command names from the step
-- **AND** once the step's text changes, admission reads it again
-
 ### Requirement: A replacement execution substrate is no weaker than its incumbent
 
 A replacement execution substrate SHALL replace an adopter's incumbent only

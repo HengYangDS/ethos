@@ -39,38 +39,9 @@ def independent_host_environment() -> tuple[dict[str, str], str]:
     env = {
         key: value
         for key, value in os.environ.items()
-        if key
-        in {
-            "ALLUSERSPROFILE",
-            "APPDATA",
-            "COMMONPROGRAMFILES",
-            "COMSPEC",
-            "HOME",
-            "HOMEDRIVE",
-            "HOMEPATH",
-            "LOCALAPPDATA",
-            "PATHEXT",
-            "PROGRAMDATA",
-            "PROGRAMFILES",
-            "SYSTEMDRIVE",
-            "SYSTEMROOT",
-            "TEMP",
-            "TMP",
-            "TMPDIR",
-            "USER",
-            "USERPROFILE",
-            "USERNAME",
-            "UV_PYTHON_INSTALL_DIR",
-            "WINDIR",
-        }
+        if key in {"HOME", "TEMP", "TMP", "TMPDIR", "USER", "UV_PYTHON_INSTALL_DIR"}
     }
     native_dirs = tuple(path.parent for path in tools.values())
-    if os.name == "nt":
-        system_root = os.environ.get("SYSTEMROOT")
-        if not system_root:
-            message = "minimal host environment requires SYSTEMROOT"
-            raise RuntimeError(message)
-        native_dirs += (Path(system_root) / "System32", Path(system_root))
     env["PATH"] = os.pathsep.join(dict.fromkeys(str(path) for path in native_dirs))
     for name in tools:
         if shutil.which(name, path=env["PATH"]) is None:
@@ -84,14 +55,8 @@ def independent_host_environment() -> tuple[dict[str, str], str]:
     return env, tools["git"].as_posix()
 
 
-def _declared(root: Path, executables: tuple[str, ...]) -> dict[str, str]:
-    """Name every variable a hermetic child receives; each path it names lies under `root`.
-
-    Windows gets the Git variables alone, over the minimal environment: its home, temporary
-    directory and path stay the host's. It links nothing and its path gains no directory,
-    which would show a child every neighbour of an executable; a declared executable that
-    the minimal path does not hold is refused by name.
-    """
+def _declared(root: Path) -> dict[str, str]:
+    """Name every variable a hermetic child receives; each path it names lies under `root`."""
     fresh = {name: str(root / directory) for name, directory in _FRESH.items()}
     git = {
         "GIT_CONFIG_GLOBAL": str(root / "gitconfig"),
@@ -99,17 +64,7 @@ def _declared(root: Path, executables: tuple[str, ...]) -> dict[str, str]:
         "GIT_ATTR_NOSYSTEM": "1",
         "GIT_TEMPLATE_DIR": fresh["GIT_TEMPLATE_DIR"],
     }
-    if os.name != "nt":
-        return fresh | git
-    host = independent_host_environment()[0]
-    for name in executables:
-        if shutil.which(name, path=host["PATH"]) is None:
-            message = (
-                f"minimal host environment cannot resolve {name}: a Windows stage's path holds "
-                "the directories of git and ssh-keygen and the system's alone"
-            )
-            raise RuntimeError(message)
-    return host | git
+    return fresh | git
 
 
 @contextmanager
@@ -141,13 +96,12 @@ def hermetic_environment(root: Path, executables: tuple[str, ...]) -> Generator[
     """
     sources = _resolve(executables)
     # The declaration can refuse, so it is made before anything is created under the root.
-    environment, host = _declared(root, executables), dict(os.environ)
+    environment, host = _declared(root), dict(os.environ)
     for directory in _FRESH.values():
         (root / directory).mkdir(parents=True)
     (root / "gitconfig").touch()
-    if os.name != "nt":
-        for name, source in sources.items():
-            (root / _FRESH["PATH"] / name).symlink_to(source)
+    for name, source in sources.items():
+        (root / _FRESH["PATH"] / name).symlink_to(source)
     os.environ.clear()
     os.environ.update(environment)
     # Python remembers the first temporary directory it resolved, on either side of the change.
@@ -167,12 +121,10 @@ def hermetic_gap(root: Path, executables: tuple[str, ...]) -> str:
     directory, template directory or global configuration that is no longer empty; or a path
     that holds anything but one link to an existing file for each declared executable.
     """
-    declared = _declared(root, executables)
+    declared = _declared(root)
     for name in sorted(declared.keys() | os.environ.keys()):
         if os.environ.get(name) != declared.get(name):
             return name
-    if os.name == "nt":
-        return ""
     for name in ("HOME", "TMPDIR", "GIT_TEMPLATE_DIR"):
         if any(Path(declared[name]).iterdir()):
             return name

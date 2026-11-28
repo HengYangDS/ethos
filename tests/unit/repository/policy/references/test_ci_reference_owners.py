@@ -285,15 +285,15 @@ def test_the_semantic_closure_reads_the_same_template_forges(
 
 GLUE = "$ErrorActionPreference = 'Stop'\nWrite-Host (Join-Path $env:CI_PROJECT_DIR 'mise')\n"
 RECORD = ".config/ci/retained-steps.toml"
-WINDOWS = yaml.safe_dump(
-    {"native-windows": {"before_script": [GLUE], "script": ["git status"]}}, sort_keys=False
+GLUE_PIPELINE = yaml.safe_dump(
+    {"native-macos": {"before_script": [GLUE], "script": ["git status"]}}, sort_keys=False
 )
 # `$ErrorActionPreference` is an expansion in command position, so it names no executable.
 UNRETAINED = {"Join-Path", "Write-Host", "git"}
 
 
-def _retention(text: str, jobs: tuple[str, ...] = ("native-windows",)) -> str:
-    """Record one Windows glue step as the paradigm's retention record names it."""
+def _retention(text: str, jobs: tuple[str, ...] = ("native-macos",)) -> str:
+    """Record one glue step as the paradigm's retention record names it."""
     entry = {
         "file": ".gitlab-ci.yml",
         "jobs": list(jobs),
@@ -301,7 +301,7 @@ def _retention(text: str, jobs: tuple[str, ...] = ("native-windows",)) -> str:
         "class": "operating-system-glue",
         "owner": "fixture CI model",
         "reason": "The step runs before the locked toolchain exists.",
-        "platforms": ["windows"],
+        "platforms": ["darwin"],
         "evidence": "fixture",
     }
     return tomli_w.dumps({"step": [entry]})
@@ -313,14 +313,14 @@ def _retention(text: str, jobs: tuple[str, ...] = ("native-windows",)) -> str:
         (_retention(GLUE), {"git"}),
         (_retention(GLUE, ("native-linux",)), UNRETAINED),
         (_retention(GLUE + "Write-Host done\n"), UNRETAINED),
-        (_retention(GLUE).replace("windows", "plan9"), UNRETAINED),
+        (_retention(GLUE).replace("darwin", "plan9"), UNRETAINED),
     ],
     ids=["recorded", "other-job", "other-text", "incomplete"],
 )
 def test_recorded_glue_is_owned_by_its_retention_record(record: str, expected: set[str]) -> None:
     """A step the retention record binds by file, job and text is owned, not read as commands."""
     observed = product_references_from_files(
-        {".gitlab-ci.yml": WINDOWS},
+        {".gitlab-ci.yml": GLUE_PIPELINE},
         include_declarations=False,
         retained_steps=retained_ci_steps({RECORD: record}),
     )
@@ -349,20 +349,20 @@ def test_patch_admission_owns_glue_its_baseline_record_names(
         ),
         ".ethos/release.toml": RELEASE,
         RECORD: _retention(GLUE),
-        ".gitlab-ci.yml": WINDOWS,
+        ".gitlab-ci.yml": GLUE_PIPELINE,
     }
     for name, text in files.items():
         (repo / name).write_text(text, encoding="utf-8")
     git(repo, "add", ".")
     baseline = git(repo, "write-tree")
-    document = yaml.safe_load(WINDOWS)
-    job = document["native-windows"]
+    document = yaml.safe_load(GLUE_PIPELINE)
+    job = document["native-macos"]
     key = "before_script" if edited == GLUE else "script"
     job[key] = [job[key][0] + ("Write-Host done\n" if edited == GLUE else " --short")]
     after = yaml.safe_dump(document, sort_keys=False)
     patch = "diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml\n" + "".join(
         difflib.unified_diff(
-            WINDOWS.splitlines(keepends=True),
+            GLUE_PIPELINE.splitlines(keepends=True),
             after.splitlines(keepends=True),
             fromfile="a/.gitlab-ci.yml",
             tofile="b/.gitlab-ci.yml",

@@ -102,7 +102,7 @@ class RuffInvocation(BaseModel):
     def require(self, runtime: PythonRuntime, root: Path, output: NativeOutput) -> None:
         """Explicit native config and binary must belong to the observed child."""
         selected = root / output.configuration
-        expected = Path(runtime.prefix) / ("Scripts/ruff.exe" if os.name == "nt" else "bin/ruff")
+        expected = Path(runtime.prefix) / "bin/ruff"
         try:
             arguments = self.argv
             config = arguments[arguments.index("--config") + 1]

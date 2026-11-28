@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING
 
 import pytest
@@ -51,7 +50,7 @@ def test_quality_subjects_bind_one_valid_committed_tree(tmp_path: Path, fault: s
 def test_quality_observation_names_no_subject_on_its_command_line(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Windows refuses a command line past 32,767 characters, so no subject rides on one."""
+    """A host bounds the length of a command line, so no subject rides on one."""
     repo = init_git_repo(tmp_path / "repo")
     for name in ("answer.py", "other.py", "notes.md"):
         (repo / name).write_text("VALUE = 42\n")
@@ -74,7 +73,6 @@ def test_quality_observation_names_no_subject_on_its_command_line(
         observe_quality_subjects(repo, language="python")
 
 
-@pytest.mark.skipif(os.name == "nt", reason="a POSIX file name")
 def test_quality_observation_compares_subject_names_as_bytes(tmp_path: Path) -> None:
     """A text read rewrites a carriage return in a name, and the subject's change goes unseen."""
     repo = init_git_repo(tmp_path / "repo")

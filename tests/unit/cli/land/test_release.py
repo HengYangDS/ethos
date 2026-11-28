@@ -30,7 +30,6 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import write_release_mirror
 from tests.support.proof import seed_executed_proof
 from tests.support.subprocesses import kill_after_marker
-from tests.support.windows_host import translate_alternates_like_windows
 from tests.unit.cli.land.publication.support import accepted_release_fixture
 from tests.unit.cli.land.publication.support import apply_receipt
 from tests.unit.cli.land.publication.support import assert_signed_publication
@@ -115,21 +114,6 @@ def native_failed_result(effect, args, options, *, scope, boundary, root):
             git_effects, "observe_git_effect", Mock(side_effect=ValueError("observer unavailable"))
         )
     return subprocess.CompletedProcess(completed.args, 1, completed.stdout, b"refused-proof ACK")
-
-
-def test_signed_tag_alternates_survive_windows_text_newline_translation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A release tag can read its source objects with byte-exact alternate paths."""
-    repo, _main, _old, head = accepted_release_fixture(tmp_path)
-    staging = tmp_path / "tag"
-    with monkeypatch.context() as translated:
-        translate_alternates_like_windows(translated)
-        tag = signing_owner.create_signed_tag(repo, name="v1.2.3", head=head, staging=staging)
-
-    objects = git(repo, "rev-parse", "--path-format=absolute", "--git-path", "objects")
-    assert (staging / "objects/info/alternates").read_bytes() == (objects + "\n").encode()
-    assert git(repo, "cat-file", "-t", tag) == "tag"
 
 
 @pytest.mark.parametrize(
@@ -465,10 +449,7 @@ def test_release_public_rejection_preserves_all_refs(
         external.mkdir()
         request_root = Path(git_common_dir(repo)) / "ethos/requests/release"
         request_root.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            request_root.symlink_to(external, target_is_directory=True)
-        except OSError:
-            pytest.skip("native symlink creation unavailable")
+        request_root.symlink_to(external, target_is_directory=True)
     result = release_cli(
         repo,
         old if gap == "source" else head,

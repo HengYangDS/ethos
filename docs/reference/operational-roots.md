@@ -112,8 +112,7 @@ Derivation records the exact literal tree and index; it does not prove semantic
 absorption. Inspect the receipt before using its returned authorized command.
 Changed content or authority requires fresh review; interrupted disposal uses
 the original receipt and checks surviving content before continuing. Unsupported
-native observation blocks; this capability does not imply verified Windows
-reviewed-content support.
+native observation blocks.
 
 When one clean historical topic is fully retained by another local topic, derive
 retirement without treating that history as accepted product semantics:

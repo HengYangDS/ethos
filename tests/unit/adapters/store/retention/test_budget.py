@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pytest
 
-import ethos.adapters.store.retention.kinds as kinds
 import ethos.application.retention as retention
 from ethos.adapters.store.retention.budget import budget_row
 from ethos.adapters.store.retention.budget import owned_budget
@@ -126,11 +125,11 @@ def test_an_owned_place_that_the_host_will_not_answer_for_is_a_place_not_read(
 
 
 @pytest.mark.parametrize("gone", [FileNotFoundError, NotADirectoryError])
-def test_a_junction_or_a_place_that_went_is_no_owned_directory_and_no_refusal(
+def test_a_place_that_went_is_no_owned_directory_and_no_refusal(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, gone: type[OSError]
 ) -> None:
-    """A junction is left out as a link is; nothing at a listing is nothing, as at a status."""
-    for name in ("artifacts", "gate-results", "operations/lane-retirement"):
+    """Nothing at a listing is nothing, as at a status."""
+    for name in ("gate-results", "operations/lane-retirement"):
         (tmp_path / name).mkdir(parents=True)
     listing = Path.iterdir
 
@@ -139,7 +138,6 @@ def test_a_junction_or_a_place_that_went_is_no_owned_directory_and_no_refusal(
             raise gone(path)
         return listing(path)
 
-    monkeypatch.setattr(kinds, "is_junction", lambda path: path == tmp_path / "artifacts")
     monkeypatch.setattr(Path, "iterdir", went)
 
     assert owned_directories(tmp_path) == (tmp_path / "gate-results",)

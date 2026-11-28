@@ -75,8 +75,7 @@ def _bind_material(root: Path, material: str, *, apply: bool) -> tuple[str, list
     try:
         anchor = directory / "allowed-signers"
         anchor.write_text(material, encoding="utf-8", newline="\n")
-        # File modes do not restrict a Windows ACL, which a hosted temporary root shares with
-        # other users; the host's own protection authority restricts both, as it observes them.
+        # A hosted temporary root is shared with other users; both are restricted to this identity.
         protect_for_current_identity(directory)
         protect_for_current_identity(anchor)
         bound = _bind_anchor(root, str(anchor), apply=True)

@@ -169,25 +169,23 @@ def test_package_roots_own_first_party_names() -> None:
 
 
 _RECORD = ".config/ci/retained-steps.toml"
-_POWERSHELL = (
-    '$env:PATH = (Join-Path $env:ProgramFiles "mise/bin") + [IO.Path]::PathSeparator + $env:PATH'
-)
+_POWERSHELL = '$env:PATH = (Join-Path $env:HOME "mise/bin") + [IO.Path]::PathSeparator + $env:PATH'
 
 
 def test_a_retained_powershell_step_is_owned_as_a_whole(tmp_path: Path) -> None:
     """Retention matches by file, job and digest, so a PowerShell step reads no commands."""
-    pipeline = f".verify-windows:\n  before_script:\n    - {json.dumps(_POWERSHELL)}\n"
+    pipeline = f".verify-linux:\n  before_script:\n    - {json.dumps(_POWERSHELL)}\n"
     record = "\n".join(
         (
             "[[step]]",
             'file = ".gitlab-ci.yml"',
-            'jobs = [".verify-windows"]',
+            'jobs = [".verify-linux"]',
             f'sha256 = "{hashlib.sha256(_POWERSHELL.encode()).hexdigest()}"',
             'class = "operating-system-glue"',
             'owner = "CI pipeline model"',
-            'reason = "The Windows runner finds mise only through its install directory."',
-            'platforms = ["windows"]',
-            'evidence = "GitLab job 1 ran it on ci-windows-arm64-shell"',
+            'reason = "The runner finds mise only through its install directory."',
+            'platforms = ["linux"]',
+            'evidence = "GitLab job 1 ran it on ci-linux-arm64-container"',
             "",
         )
     )

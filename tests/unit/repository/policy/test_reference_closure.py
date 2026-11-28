@@ -463,17 +463,17 @@ def test_repository_reference_closure_owns_recorded_glue(tmp_path: Path, *, reco
     declare_reference_surface(tmp_path)
     declare_reference_package(tmp_path)
     write_reference_source(
-        tmp_path, ".gitlab-ci.yml", yaml.safe_dump({"native-windows": {"script": [glue]}})
+        tmp_path, ".gitlab-ci.yml", yaml.safe_dump({"native-linux": {"script": [glue]}})
     )
     if recorded:
         record = {
             "file": ".gitlab-ci.yml",
-            "jobs": ["native-windows"],
+            "jobs": ["native-linux"],
             "sha256": hashlib.sha256(glue.encode()).hexdigest(),
             "class": "operating-system-glue",
             "owner": "fixture CI model",
             "reason": "The step runs before the locked toolchain exists.",
-            "platforms": ["windows"],
+            "platforms": ["linux"],
             "evidence": "fixture",
         }
         write_reference_source(

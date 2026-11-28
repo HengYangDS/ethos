@@ -9,13 +9,11 @@ import subprocess
 import tarfile
 from contextlib import nullcontext
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
 import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 import ethos.adapters.repo.runtime.selection as runtime_selection
-import ethos.application.console as console
 import ethos.cli as cli
 import tools.ci.delivery.distribution as distribution
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
@@ -34,15 +32,6 @@ from ethos.adapters.repo.runtime.selection import runtime_command
 from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import materialize_runtime_case
 from tests.support.runtime_scenarios import runtime_build
-
-
-def test_windows_standalone_runtime_preserves_native_python_layout(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    interpreter_home = tmp_path / "python"
-    monkeypatch.setattr(runtime_filesystem, "os", SimpleNamespace(name="nt"))
-
-    assert runtime_filesystem.runtime_python(interpreter_home) == interpreter_home / "python.exe"
 
 
 @pytest.mark.parametrize("external", [False, True])
@@ -367,41 +356,6 @@ def test_host_console_obeys_repository_selection(tmp_path, monkeypatch, mode):
     assert calls == expected
 
 
-@pytest.mark.parametrize("exit_code", [0, 1])
-def test_windows_console_relay_preserves_argument_boundaries(tmp_path, monkeypatch, exit_code):
-    """A selected interpreter receives one multiword option as one argument."""
-    root = tmp_path / "formed project"
-    root.mkdir()
-    common = root / ".git"
-    selector = common / "ethos/runtime/CURRENT"
-    selector.parent.mkdir(parents=True)
-    selector.write_text("selected", encoding="utf-8")
-    selected = tmp_path / "selected python.exe"
-    purpose = "A revised independently installed repository."
-    args = ["adopt", "--evolve-starter", "--root", str(root), "--purpose", purpose, "--json"]
-    calls = []
-
-    def relay(command, *, check):
-        calls.append((command, check))
-        return subprocess.CompletedProcess(command, exit_code)
-
-    monkeypatch.setattr(cli.sys, "argv", ["ethos", *args])
-    monkeypatch.setattr(cli.sys, "executable", str(tmp_path / "host python.exe"))
-    monkeypatch.setattr(cli.sys, "platform", "win32")
-    monkeypatch.setattr(console, "git_common_dir", lambda _root: str(common))
-    monkeypatch.setattr(
-        console, "current_runtime", lambda _common: SimpleNamespace(python=selected)
-    )
-    monkeypatch.setattr(console, "subprocess", SimpleNamespace(run=relay), raising=False)
-    monkeypatch.setattr(console.os, "execv", lambda *_args: pytest.fail("Windows used execv"))
-
-    with pytest.raises(SystemExit) as exited:
-        cli.console_main()
-
-    assert exited.value.code == exit_code
-    assert calls == [([str(selected), *PYTHON_FLAGS, "-m", "ethos.cli", *args], False)]
-
-
 @pytest.mark.parametrize("failure", ["write", "replace", "archive"])
 def test_distribution_preserves_previous_outputs_when_cask_projection_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
@@ -542,13 +496,9 @@ def test_distribution_retains_exact_input_and_previous_output(tmp_path, monkeypa
     if failure:
         assert destination.read_bytes() == b"previous"
         return
-    if selected.platform == "windows":
-        assert result["homebrew_cask"] is None
-        assert not (tmp_path / "homebrew").exists()
-    else:
-        cask = Path(str(result["homebrew_cask"])).read_text(encoding="utf-8")
-        assert all(token in cask for token in ('"/usr/bin/codesign"', '"=notarized"'))
-        assert "spctl" not in cask
+    cask = Path(str(result["homebrew_cask"])).read_text(encoding="utf-8")
+    assert all(token in cask for token in ('"/usr/bin/codesign"', '"=notarized"'))
+    assert "spctl" not in cask
     if native:
         assert destination.read_bytes() == b"native image"
         return

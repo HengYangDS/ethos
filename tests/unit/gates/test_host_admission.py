@@ -406,7 +406,7 @@ def test_the_entries_read_lists_holders_and_waiters_without_removing(
     foreign = queue.entries(reader=init_git_repo(tmp_path / "elsewhere"))
     assert (foreign[0]["owner"], foreign[0]["same_repository"]) == ("", False)
     assert foreign[0]["operation"] == "host.run"
-    # The path as JSON writes it: there a Windows path's backslashes are doubled.
+    # The path as JSON writes it.
     assert json.dumps(str(tmp_path))[1:-1] not in json.dumps(entries) + json.dumps(foreign)
     assert len(list(queue.directory.glob("*.json"))) == 3
     queue.leave(holder)
@@ -527,8 +527,7 @@ def test_a_waiting_run_reports_one_event_with_the_holder_projection(
             "since"
         ],
         "same_repository": True,
-        # Whether a holder's process still runs is asked on POSIX alone.
-        "holder": "present" if os.name == "posix" else "",
+        "holder": "present",
     }
     assert json.dumps(str(busy))[1:-1] not in json.dumps(waiting[0])
     queue.leave(holder)

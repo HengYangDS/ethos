@@ -65,7 +65,7 @@ class IndependentVerificationProvider:
 
 def _is_protected_from_current_identity(path: Path) -> bool:
     """Follow only path components that the current identity cannot replace."""
-    if os.name != "posix" or not path.is_absolute():
+    if not path.is_absolute():
         return False
     try:
         identity = os.geteuid()

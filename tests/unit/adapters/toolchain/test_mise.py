@@ -17,14 +17,10 @@ import pytest
 import ethos.adapters.toolchain.mise as mise
 from ethos.adapters.process import run_command
 from ethos.repository.release.resources import canonical_resource
-from tests.support.windows_host import without_descriptor_chain
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Mapping
-
-# Owned installs are POSIX executables; hosted Windows runs package conformance, not these.
-POSIX_INSTALLS = pytest.mark.skipif(os.name != "posix", reason="POSIX executable installs")
 
 
 @pytest.mark.parametrize("interrupt", [False, True])
@@ -35,18 +31,17 @@ def test_locked_environment_exposes_only_selected_mise_during_native_execution(
     """A nested check can call mise without inheriting sibling operator tools."""
     operator = tmp_path / "operator"
     operator.mkdir()
-    suffix = ".exe" if os.name == "nt" else ""
-    selected = operator / f"selected-mise{suffix}"
-    sibling = operator / f"unrelated{suffix}"
+    selected = operator / "selected-mise"
+    sibling = operator / "unrelated"
     for executable in (selected, sibling):
         executable.write_bytes(b"selected executable")
         executable.chmod(0o755)
     locked_bin, prepared = tmp_path / "locked-bin", tmp_path / "prepared"
     for directory, name in ((locked_bin, "go"), (prepared, "gitleaks")):
         directory.mkdir()
-        (directory / f"{name}{suffix}").write_bytes(b"locked tool")
-        (directory / f"{name}{suffix}").chmod(0o755)
-    locked_go = locked_bin / f"go{suffix}"
+        (directory / name).write_bytes(b"locked tool")
+        (directory / name).chmod(0o755)
+    locked_go = locked_bin / "go"
     files = {mise.MISE_CONFIG: "[settings]\n", mise.MISE_LOCK: "lock"}
 
     def observe(
@@ -254,7 +249,6 @@ def test_repository_mise_files_rejects_incomplete_selection(tmp_path: Path, layo
         mise.repository_mise_files(tmp_path)
 
 
-@POSIX_INSTALLS
 def test_native_idiomatic_declaration_survives_locked_input_isolation(
     tmp_path: Path, mise_installs: Callable[[str, str, str], None]
 ) -> None:
@@ -414,14 +408,11 @@ def test_native_mise_discovery_refuses_a_linked_declaration(
         mise.repository_mise_files(root)
 
 
-@pytest.mark.parametrize("descriptor_chain", [True, False])
 @pytest.mark.parametrize("alias", ["", "mise.lock", "config"])
-def test_hosts_without_descriptor_chains_read_declarations_and_refuse_aliases(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, descriptor_chain: bool, alias: str
+def test_declarations_are_read_as_their_own_bytes_and_aliases_refused(
+    tmp_path: Path, alias: str
 ) -> None:
-    """A host without descriptor-relative opens reads the same bytes and refuses the same links."""
-    if not descriptor_chain:
-        without_descriptor_chain(monkeypatch)
+    """The declarations are read as their own bytes, and a linked one is refused."""
     root = tmp_path / "repository"
     for directory in (root / ".config/mise", tmp_path / "outside"):
         directory.mkdir(parents=True)
@@ -476,7 +467,6 @@ def test_locked_mise_execution_rejects_unadmitted_input_without_native_effect(
     assert set(tmp_path.iterdir()) == entries
 
 
-@POSIX_INSTALLS
 @pytest.mark.parametrize("carrier", [".node-version", ".nvmrc"])
 def test_native_version_carriers_preserve_locked_selection_without_hooks(
     tmp_path: Path,

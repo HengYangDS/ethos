@@ -174,14 +174,14 @@ let pullRequestRange = "\(sourceCLI) hook commit-range --target-ref \"refs/heads
 // range once, in commit-policy. The aggregate requires success of a required job whose condition
 // holds and expects any other to be skipped, so a job that wrongly skips fails it. The external
 // link job observes sites that the repository does not own: it reports and is allowed to fail on
-// both providers, so the aggregate neither needs it nor reads its result. A required suite leg
-// runs only in a full run, so a push or pull request expects it skipped.
+// both providers, so the aggregate neither needs it nor reads its result. A suite leg runs only
+// in a full run, so a push or pull request expects it skipped.
 let admissionRun = "github.event_name == 'push' || github.event_name == 'pull_request'"
 let requiredJobs = {
 	"commit-policy":    admissionRun
 	"host-conformance": commitRun
 	quality:            commitRun
-	for leg in suiteLegs if leg.required {
+	for leg in suiteLegs {
 		(leg.job): suiteRun
 	}
 }
@@ -204,8 +204,6 @@ let concurrencyGroup = "(\(proposalPush) || github.event_name == 'pull_request')
 // the longest successful job of the class nor at or below the class's longest gate timeout.
 //   admission   n=512   p99 11.7, longest 24.4, both GitLab
 //   conformance n=1917  p99 20.4, macOS arm64; 35 is the step above local-install-smoke
-//   windows     n=745   p99 56.0
-//   emulated    n=154   p99 81.1
 //   fullSet     n=449   p99 38.7 on GitHub; GitLab's 60-minute limit stopped 5 jobs, so its p99
 //                       is unknown; 130 is above unit-architecture's 120 minutes
 //   observation n=926   p99 5.4, longest 21.1, both GitLab npm
@@ -214,14 +212,12 @@ let concurrencyGroup = "(\(proposalPush) || github.event_name == 'pull_request')
 // (n=33, longest 2.2) have under 100 samples on a leg and stay provisional. The suite class
 // takes the full set's minutes, which are the 120 of the gate whose suite it repeats and the
 // leg's setup margin, and stays provisional too. Its first samples are of run 43991840423 on
-// 2026-11-17: Python 3.12 38.0, Python 3.13 35.9, and the Windows leg 13.0 to its failure,
-// beside 38.7 for the quality gates job of that run. Over the dispatched runs of 2026-11-16
+// 2026-11-17: Python 3.12 38.0 and Python 3.13 35.9, beside 38.7 for the quality gates job of
+// that run. Over the dispatched runs of 2026-11-16
 // and 2026-11-17 the two Linux legs passed 12 times, longest 60.8.
 let timeoutMinutes = {
 	admission:   25
 	conformance: 35
-	windows:     70
-	emulated:    105
 	fullSet:     130
 	suite:       130
 	observation: 25
@@ -240,76 +236,60 @@ let conformanceGates = ["build", "local-install-smoke", "javascript-tests", "rel
 let classGates = {
 	admission: ["commit-ranges"]
 	conformance: conformanceGates
-	windows:     conformanceGates
-	emulated:    conformanceGates
 	release:     conformanceGates
 	fullSet:     _inputs.gate_registry.proof_sets.full
 	suite: [suiteGate]
 	observation: ["external-links", "javascript-tests"]
 }
 
-// Windows on Arm executes the x64 runtime through its emulation; CEL ships no win_arm64 wheel.
-let windowsArmLeg = {os: "windows-11-arm", python: "cpython-3.14-windows-x86_64-none"}
-
 // Host conformance runs in tiers. A leg is named by its platform id and Python version; the
 // runner label that provides the platform may change without renaming the job. A push or pull
-// request runs the push tier, the lane owner's typed input adds the Windows legs, and a batch-head
-// dispatch or the drift schedule runs every leg.
+// request runs the push tier, and a batch-head dispatch or the drift schedule runs every leg.
 let pythons = ["3.12", "3.13", "3.14"]
 let pushLegs = list.Concat([[for version in pythons {
 	{platform: "linux-x64", runner: "ubuntu-latest", python: version, timeout: timeoutMinutes.conformance}
 }], [{platform: "macos-arm64", runner: "macos-latest", python: pythons[0], timeout: timeoutMinutes.conformance}]])
-let windowsLegs = list.Concat([[for version in pythons {
-	{platform: "windows-x64", runner: "windows-latest", python: version, timeout: timeoutMinutes.windows}
-}], [{platform: "windows-arm64", runner: windowsArmLeg.os, python: windowsArmLeg.python, timeout: timeoutMinutes.emulated}]])
 let fullLegs = list.Concat([pushLegs, [for version in pythons if version != pythons[0] {
 	{platform: "macos-arm64", runner: "macos-latest", python: version, timeout: timeoutMinutes.conformance}
-}], windowsLegs])
-let conformanceTier = "${{ fromJSON((\(fullRun)) && '\(json.Marshal(fullLegs))' || inputs.windows_legs && '\(json.Marshal(list.Concat([pushLegs, windowsLegs])))' || '\(json.Marshal(pushLegs))') }}"
+}]])
+let conformanceTier = "${{ fromJSON((\(fullRun)) && '\(json.Marshal(fullLegs))' || '\(json.Marshal(pushLegs))') }}"
 
-// The suite runs once per release on every operating system, both architectures and each supported
+// The suite runs once per release on both operating systems, both architectures and each supported
 // Python version. The quality job runs it on Linux arm64 and the local proof on macOS arm64, both
 // at the locked Python; a batch-head dispatch or the drift schedule adds these legs. A leg repeats
 // the suite of the test gate through the shipped probe, on its own interpreter and within that
-// gate's deadline, and records coverage without deciding the floor. A required leg blocks the
-// aggregate; the Windows leg is timed and may fail, because 0.2.0 declares no Windows journey.
+// gate's deadline, and records coverage without deciding the floor. Every leg blocks the aggregate.
 let suiteGate = "unit-architecture"
 let suiteDeadline = [for gate in _inputs.gate_registry.gates if gate.id == suiteGate {gate.timeout_seconds}][0]
 
 // What a leg spends outside its suite: the supply steps before the probe and the upload after
 // it. In the hosted runs of 2026-11-16 the same supply steps took 36 seconds on Linux arm64
-// (n=1) and 80 to 86 on Windows x64 (n=3); ten minutes is seven times the slowest. A suite job
-// outlives the deadline by this margin, so the leg's own deadline reports before its job's.
+// (n=1); ten minutes is sixteen times that. A suite job outlives the deadline by this margin, so
+// the leg's own deadline reports before its job's.
 let suiteSetupSeconds = 600
 let suiteRun = "(\(commitRun)) && (\(fullRun))"
 let suiteLegs = [for leg in [
-	{platform: "linux-x64", runner: "ubuntu-latest", python: "3.12", required: true},
-	{platform: "linux-x64", runner: "ubuntu-latest", python: "3.13", required: true},
-	{platform: "windows-x64", runner: "windows-latest", python: "3.14", required: false},
+	{platform: "linux-x64", runner: "ubuntu-latest", python: "3.12"},
+	{platform: "linux-x64", runner: "ubuntu-latest", python: "3.13"},
 ] {
 	leg
 	job: "suite-\(leg.platform)-py\(strings.Replace(leg.python, ".", "", -1))"
 }]
 
 // Each release leg qualifies the one host platform it declares, on the runner that provides it.
-// A required platform must publish; an optional one is left out and named when its leg fails.
-// An emulated leg publishes no wheel, so it cannot stand in for a required platform.
+// Every platform must publish.
 let releaseLegs = [
-	{host: "linux-x64", os: "ubuntu-latest", python: "3.14", required: true, emulated: false},
-	{host: "linux-arm64", os: "ubuntu-24.04-arm", python: "3.14", required: true, emulated: false},
-	{host: "macos-arm64", os: "macos-latest", python: "3.14", required: true, emulated: false},
-	{host: "windows-x64", os: "windows-latest", python: "3.14", required: false, emulated: false},
-	windowsArmLeg & {host: "windows-arm64", required: false, emulated: true},
+	{host: "linux-x64", os: "ubuntu-latest", python: "3.14"},
+	{host: "linux-arm64", os: "ubuntu-24.04-arm", python: "3.14"},
+	{host: "macos-arm64", os: "macos-latest", python: "3.14"},
 ]
 let releaseLegRun = "${{ contains(fromJSON('\(json.Marshal([for leg in releaseLegs {"\(leg.host) \(leg.python)"}]))'), format('{0} {1}', matrix.platform, matrix.python)) }}"
-let releaseHosts = "--required \(strings.Join([for leg in releaseLegs if leg.required {leg.host}], ",")) --optional \(strings.Join([for leg in releaseLegs if !leg.required {leg.host}], ","))"
+let releaseHosts = "--hosts \(strings.Join([for leg in releaseLegs {leg.host}], ","))"
 
-// The adopter journey runs from the published artifacts on each host whose journey the release
-// target declares. A journey host is a platform that the release must publish.
-let journeyHosts = ["linux-x64", "linux-arm64", "macos-arm64"]
-let journeyLegs = [for leg in releaseLegs if list.Contains(journeyHosts, leg.host) {leg}]
+// The adopter journey runs from the published artifacts on every host that the release publishes.
+let journeyLegs = releaseLegs
 
-// The host-conformance supply order that every hosted OS proves: checkout, Python image,
+// The host-conformance supply order that both hosted systems prove: checkout, Python image,
 // build-only dependencies, native and npm supply, then the project environment.
 let githubHostSupplyAt = {
 	checkout: string
@@ -360,8 +340,6 @@ let releaseLegJob = {
 		"runs-on":         "${{ matrix.os }}"
 		"timeout-minutes": timeoutMinutes.release
 		if:                "${{ \(condition) }}"
-		// Only a leg that the declaration marks optional may fail without failing the run.
-		"continue-on-error": "${{ !matrix.required }}"
 		env: {
 			ETHOS_COMMIT_ALLOWED_SIGNERS: "${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}"
 			UV_PYTHON_INSTALL_DIR:        "${{ github.workspace }}/build/runtime/python"
@@ -409,12 +387,6 @@ compiled: {
 	checks: {
 		uniqueGates: true & list.UniqueItems(_gateIDs)
 		uniqueReleaseHosts: true & list.UniqueItems([for leg in releaseLegs {leg.host}])
-		for leg in releaseLegs if leg.required {
-			"release-required-native:\(leg.host)": true & !leg.emulated
-		}
-		for leg in journeyLegs {
-			"journey-leg-required:\(leg.host)": true & leg.required
-		}
 		uniqueFull: true & list.UniqueItems(_inputs.gate_registry.proof_sets.full)
 		for id in _inputs.gate_registry.proof_sets.full {
 			"full:\(id)": true & list.Contains(_gateIDs, id)
@@ -497,12 +469,6 @@ github: {
 				required:    false
 				type:        "string"
 				default:     ""
-			}
-			windows_legs: {
-				description: "Add the Windows host conformance legs to this run"
-				required:    false
-				type:        "boolean"
-				default:     false
 			}
 		}
 	}
@@ -676,17 +642,13 @@ github: {
 				}
 			}]])
 		}
-		// One job per suite leg, so the aggregate needs exactly the required legs and never reads
-		// the result of a leg that may fail.
+		// One job per suite leg, each needed by the aggregate.
 		for leg in suiteLegs {
 			(leg.job): {
 				name:              "suite \(leg.platform) / Python \(leg.python)"
 				"runs-on":         leg.runner
 				"timeout-minutes": timeoutMinutes.suite
 				if:                "${{ \(suiteRun) }}"
-				if !leg.required {
-					"continue-on-error": true
-				}
 				env: {
 					ETHOS_COMMIT_ALLOWED_SIGNERS: "${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}"
 					UV_PYTHON_INSTALL_DIR:        "${{ github.workspace }}/build/runtime/python"

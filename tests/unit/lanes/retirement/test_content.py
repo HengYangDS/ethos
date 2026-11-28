@@ -190,7 +190,6 @@ def test_reviewed_inventory_rejects_incomplete_or_unsafe_observation(
     assert not operation.operation_store(repo).exists()
 
 
-@pytest.mark.skipif(os.name != "posix", reason="native POSIX process-reference observation")
 @pytest.mark.parametrize("consumer", ["cwd", "file", "mapping", "hardlink", "writer", "index"])
 @pytest.mark.parametrize("detached", [False, True])
 def test_reviewed_retirement_preserves_content_held_by_live_process(

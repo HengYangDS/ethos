@@ -161,7 +161,7 @@ def run(session: Session) -> None:
 
 def _native_grype() -> Callable[[Path, Path], None]:
     supply = NativeSupply.read(ROOT, "grype")
-    executable = supply_tool(ROOT, "grype") / supply.executable_name
+    executable = supply_tool(ROOT, "grype") / supply.name
     database = native_tool_cache(ROOT) / "grype-db"
 
     def scan(inventory: Path, output: Path) -> None:

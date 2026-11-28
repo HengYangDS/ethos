@@ -683,13 +683,6 @@ ETHOS SHALL recognize an otherwise valid Git SSH signature status independent
 of whether the host emits LF or CRLF line endings, while malformed or
 unsuccessful verification remains untrusted.
 
-#### Scenario: Windows emits a valid CRLF signature status
-
-- **WHEN** Git successfully verifies an object and emits the trusted SSH status
-  with CRLF line endings
-- **THEN** ETHOS records the same principal and fingerprint as for LF output
-- **AND** no signature trust gap is reported.
-
 #### Scenario: Verification output is not a valid terminal status
 
 - **WHEN** Git fails verification or the successful output does not contain the
@@ -723,41 +716,6 @@ program.
   POSIX permission model
 - **THEN** ETHOS admits the protection fact
 - **AND** preserves the existing signature verification behavior.
-
-#### Scenario: Windows anchor is ACL-protected
-
-- **WHEN** a Windows trust anchor is owned by the current identity and its file and parent DACLs
-  grant write-like authority only to the current identity or operating-system administrative
-  identities
-- **THEN** ETHOS admits the protection fact independent of emulated POSIX mode bits.
-
-#### Scenario: Windows parent shell exports an incompatible module path
-
-- **WHEN** ETHOS observes or establishes Windows anchor protection from a parent process whose
-  `PSModulePath` belongs to another PowerShell edition, with `PATH` narrowed to Git
-- **THEN** it reads and writes the security descriptor without starting a child process
-- **AND** the inherited environment neither changes the result nor is modified.
-
-#### Scenario: Windows anchor is foreign-writable
-
-- **WHEN** the anchor or its parent grants write-like authority to another principal, or has no DACL
-- **THEN** ETHOS reports `git_object_trust_anchor_unprotected`
-- **AND** does not infer protection from `chmod`, platform name, or successful signature
-  verification alone.
-
-#### Scenario: Windows security facts are unavailable
-
-- **WHEN** the security descriptor of the anchor or its parent cannot be read, or holds an access
-  entry that ETHOS cannot classify
-- **THEN** ETHOS reports `git_object_trust_anchor_observation_unavailable` with the failed call and
-  native error number
-- **AND** does not admit the anchor.
-
-#### Scenario: Windows protection operation fails
-
-- **WHEN** the native Windows operation cannot establish the required DACL
-- **THEN** ETHOS fails closed with `git_object_trust_anchor_protection_failed`
-- **AND** preserves the failed call, native error number and bounded native error text.
 
 ### Requirement: Empty changed scope closes without historical intent
 

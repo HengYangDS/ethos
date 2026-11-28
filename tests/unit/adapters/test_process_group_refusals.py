@@ -10,7 +10,6 @@ import pytest
 import ethos.adapters.process as process_adapter
 
 
-@pytest.mark.skipif(os.name != "posix", reason="Darwin process-group semantics")
 @pytest.mark.parametrize("survivor", [False, True])
 def test_exited_group_waits_for_reaping_but_never_ignores_a_survivor(
     monkeypatch, *, survivor: bool
@@ -44,7 +43,6 @@ def _leader(*, exits_after_check: bool) -> Mock:
     return Mock(pid=4242, returncode=0, **{"poll.side_effect": poll, "wait.return_value": 0})
 
 
-@pytest.mark.skipif(os.name != "posix", reason="Darwin process-group semantics")
 @pytest.mark.parametrize("survivor", [False, True])
 def test_a_leader_that_exits_before_its_interrupt_leaves_the_group_to_its_bounded_close(
     monkeypatch, *, survivor: bool
@@ -65,7 +63,6 @@ def test_a_leader_that_exits_before_its_interrupt_leaves_the_group_to_its_bounde
     assert signals[:2] == [signal.SIGINT, signal.SIGKILL]
 
 
-@pytest.mark.skipif(os.name != "posix", reason="Darwin process-group semantics")
 def test_a_leader_still_exiting_when_refused_is_not_a_survivor(monkeypatch) -> None:
     """Darwin refuses a leader that is exiting before it can be reaped; the grace settles it."""
     signals: list[int] = []
@@ -82,7 +79,6 @@ def test_a_leader_still_exiting_when_refused_is_not_a_survivor(monkeypatch) -> N
     assert signals == [signal.SIGKILL, 0]
 
 
-@pytest.mark.skipif(os.name != "posix", reason="Darwin process-group semantics")
 def test_a_running_leader_that_refuses_its_interrupt_still_fails_cleanup(monkeypatch) -> None:
     """A refusal while the leader still runs is a survivor, which must not be ignored."""
 

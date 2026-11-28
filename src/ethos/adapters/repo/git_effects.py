@@ -119,7 +119,7 @@ def remove_untracked_tree(root: Path, path: str) -> None:
     if (
         not relative.parts
         or ".." in relative.parts
-        or any(part.is_symlink() or part.is_junction() for part in components)
+        or any(part.is_symlink() for part in components)
         or (target.exists() and not target.is_dir())
     ):
         msg = "git_effect_compensation_path_unsafe"

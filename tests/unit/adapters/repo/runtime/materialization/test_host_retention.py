@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import shutil
 from typing import TYPE_CHECKING
 
@@ -81,17 +80,7 @@ def test_a_rollback_supply_keeps_its_installation(tmp_path: Path) -> None:
     assert report["retired"] == []
 
 
-@pytest.mark.parametrize(
-    "left",
-    [
-        "nothing",
-        "parent-file",
-        "file",
-        pytest.param(
-            "link", marks=pytest.mark.skipif(os.name == "nt", reason="a link needs a privilege")
-        ),
-    ],
-)
+@pytest.mark.parametrize("left", ["nothing", "parent-file", "file", "link"])
 def test_a_consumer_whose_path_is_gone_keeps_its_record_and_installation(
     tmp_path: Path, left: str
 ) -> None:

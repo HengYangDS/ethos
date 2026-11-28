@@ -10,7 +10,6 @@ import platform
 import shutil
 import sys
 import tarfile
-import zipfile
 from importlib import import_module
 from importlib.metadata import Distribution
 from pathlib import Path
@@ -36,20 +35,14 @@ def locked_vale(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr(platform, "system", lambda: system)
         monkeypatch.setattr(platform, "machine", lambda: machine)
         package = tmp_path / asset
-        executable = "vale.exe" if system == "Windows" else "vale"
         body = b"locked native executable bytes\n"
-        if asset.endswith(".zip"):
-            with zipfile.ZipFile(package, "w") as archive:
-                archive.writestr(executable, body)
-                archive.writestr("LICENSE", b"Publisher license\n")
-        else:
-            with tarfile.open(package, "w:gz") as archive:
-                member = tarfile.TarInfo(executable)
-                member.size, member.mode = len(body), 0o755
-                archive.addfile(member, io.BytesIO(body))
-                license_member = tarfile.TarInfo("LICENSE")
-                license_member.size = len(b"Publisher license\n")
-                archive.addfile(license_member, io.BytesIO(b"Publisher license\n"))
+        with tarfile.open(package, "w:gz") as archive:
+            member = tarfile.TarInfo("vale")
+            member.size, member.mode = len(body), 0o755
+            archive.addfile(member, io.BytesIO(body))
+            license_member = tarfile.TarInfo("LICENSE")
+            license_member.size = len(b"Publisher license\n")
+            archive.addfile(license_member, io.BytesIO(b"Publisher license\n"))
         checksum = hashlib.sha256(package.read_bytes()).hexdigest()
         lock = config / "mise.lock"
         lock.write_text(
@@ -71,7 +64,6 @@ def locked_vale(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         ("Darwin", "x86_64", "macos-x64", "vale_3.24.0_macOS_64-bit.tar.gz"),
         ("Linux", "aarch64", "linux-arm64", "vale_3.24.0_Linux_arm64.tar.gz"),
         ("Linux", "x86_64", "linux-x64", "vale_3.24.0_Linux_64-bit.tar.gz"),
-        ("Windows", "AMD64", "windows-x64", "vale_3.24.0_Windows_64-bit.zip"),
     ],
 )
 def test_product_native_supply_reads_locked_platform_without_mutation(
@@ -86,8 +78,8 @@ def test_product_native_supply_reads_locked_platform_without_mutation(
 
     assert selected.backend == "github:vale-cli/vale"
     assert selected.version_output == "vale version 3.24.0"
-    assert selected.executable_name == ("vale.exe" if system == "Windows" else "vale")
-    assert selected.payload_bytes(archive)[selected.executable_name] == body
+    assert selected.name == "vale"
+    assert selected.payload_bytes(archive)[selected.name] == body
     assert {path: path.read_bytes() for path in original} == original
     assert not (root / "build").exists()
 
@@ -109,18 +101,13 @@ def test_locked_supply_rejects_another_release_owner(locked_vale) -> None:
     assert archive.read_bytes() == original
 
 
-@pytest.mark.parametrize(
-    ("system", "machine", "target", "asset"),
-    [
-        ("Darwin", "arm64", "macos-arm64", "vale_3.24.0_macOS_arm64.tar.gz"),
-        ("Windows", "AMD64", "windows-x64", "vale_3.24.0_Windows_64-bit.zip"),
-    ],
-)
 def test_product_projection_retains_native_executable_and_publisher_license(
-    locked_vale, tmp_path: Path, system: str, machine: str, target: str, asset: str
+    locked_vale, tmp_path: Path
 ) -> None:
     """A distributable native payload contains its executable and original license."""
-    root, archive, body, _lock = locked_vale(system, machine, target, asset)
+    root, archive, body, _lock = locked_vale(
+        "Darwin", "arm64", "macos-arm64", "vale_3.24.0_macOS_arm64.tar.gz"
+    )
     owner = import_module("ethos.adapters.repo.runtime.materialization.native_supply")
     selected = owner.NativeSupply.read(root, "vale")
     destination = tmp_path / "payload [literal]"
@@ -128,8 +115,8 @@ def test_product_projection_retains_native_executable_and_publisher_license(
 
     assert selected.project(archive, destination) == destination
 
-    assert {path.name for path in destination.iterdir()} == {selected.executable_name, "LICENSE"}
-    assert (destination / selected.executable_name).read_bytes() == body
+    assert {path.name for path in destination.iterdir()} == {selected.name, "LICENSE"}
+    assert (destination / selected.name).read_bytes() == body
     assert (destination / "LICENSE").read_bytes() == b"Publisher license\n"
     assert archive.read_bytes() == original
 
@@ -166,7 +153,6 @@ def test_package_projection_does_not_require_execution_only_dependencies(
         ("Darwin", "x86_64"): ("macos-x64", "vale_3.24.0_macOS_64-bit.tar.gz"),
         ("Linux", "aarch64"): ("linux-arm64", "vale_3.24.0_Linux_arm64.tar.gz"),
         ("Linux", "x86_64"): ("linux-x64", "vale_3.24.0_Linux_64-bit.tar.gz"),
-        ("Windows", "AMD64"): ("windows-x64", "vale_3.24.0_Windows_64-bit.zip"),
     }
     target, asset = targets[system, machine]
     root, archive, body, _lock = locked_vale(system, machine, target, asset)
@@ -190,8 +176,7 @@ supply.project(Path({str(archive)!r}), Path({str(destination)!r}))
     result = run_command(tmp_path, (sys.executable, "-B", "-I", "-c", script), timeout=20)
 
     assert result.returncode == 0, result.stdout + result.stderr
-    executable = "vale.exe" if system == "Windows" else "vale"
-    assert (destination / executable).read_bytes() == body
+    assert (destination / "vale").read_bytes() == body
     assert (destination / "LICENSE").read_bytes() == b"Publisher license\n"
 
 
@@ -216,7 +201,7 @@ def test_product_materializer_consumes_complete_cached_supply_without_download(
     assert owner.materialize_tool(root, "vale") == cache
 
     assert owner.prepared_tool_directories(root) == (cache,)
-    assert (cache / selected.executable_name).read_bytes() == body
+    assert (cache / selected.name).read_bytes() == body
     assert (cache / "LICENSE").read_bytes() == b"Publisher license\n"
     assert not list(cache.glob(".prepare-*"))
     assert not (root / "build").exists()
@@ -359,30 +344,7 @@ def test_native_archive_consumes_the_verified_descriptor(locked_vale, monkeypatc
 
     monkeypatch.setattr(tarfile, "open", replace_path)
 
-    assert selected.payload_bytes(archive)[selected.executable_name] == body
-
-
-def test_native_zip_requires_one_regular_executable(locked_vale) -> None:
-    """A ZIP symlink named as the tool is not an executable member."""
-    root, archive, _body, lock = locked_vale(
-        "Windows", "AMD64", "windows-x64", "vale_3.24.0_Windows_64-bit.zip"
-    )
-    with zipfile.ZipFile(archive, "w") as package:
-        entry = zipfile.ZipInfo("vale.exe")
-        entry.create_system = 3
-        entry.external_attr = 0o120777 << 16
-        package.writestr(entry, "/outside")
-    text = lock.read_text()
-    checksum = next(line for line in text.splitlines() if line.startswith("checksum = "))
-    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
-    lock.write_text(text.replace(checksum, f'checksum = "sha256:{digest}"'))
-    original = archive.read_bytes()
-    supply = import_module("ethos.adapters.repo.runtime.materialization.native_supply").NativeSupply
-
-    with pytest.raises(ValueError, match="native_tool_archive_executable_invalid:vale"):
-        supply.read(root, "vale").payload_bytes(archive)
-
-    assert archive.read_bytes() == original
+    assert selected.payload_bytes(archive)[selected.name] == body
 
 
 @pytest.mark.parametrize(
@@ -446,7 +408,7 @@ def test_prepared_native_supply_rejects_drift_without_repair(
     supply.project(archive, cache)
     cached_archive = cache / supply.archive
     shutil.copyfile(archive, cached_archive)
-    executable = cache / supply.executable_name
+    executable = cache / supply.name
     if effect == "payload":
         executable.write_bytes(b"unaccepted executable\n")
     elif effect == "archive":
@@ -499,7 +461,7 @@ def test_native_preparation_refuses_unsafe_or_ambiguous_supply(
     with pytest.raises(ValueError, match=reason):
         owner.materialize_tool(root, "vale", mise=tmp_path / "unused-mise")
     assert not (cache / supply.archive).exists()
-    assert not (cache / supply.executable_name).exists()
+    assert not (cache / supply.name).exists()
     assert not list(cache.glob(".prepare-*"))
 
 

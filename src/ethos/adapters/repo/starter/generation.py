@@ -10,7 +10,6 @@ import sys
 from pathlib import Path
 
 from ethos.adapters.process import run_command
-from ethos.adapters.repo.runtime.filesystem import is_junction
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.repository.paradigm.parameters import seconds
 
@@ -92,8 +91,6 @@ def _candidate_outputs(candidate: Path) -> tuple[dict[str, str], str, str]:
             for entry in entries:
                 path = Path(entry.path)
                 info = path.lstat()
-                if is_junction(path):
-                    return {}, "formation_starter_output_unsafe", str(path)
                 if stat.S_ISDIR(info.st_mode):
                     pending.append(path)
                 elif stat.S_ISREG(info.st_mode) and info.st_nlink == 1:

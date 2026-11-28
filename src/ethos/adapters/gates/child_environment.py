@@ -27,17 +27,8 @@ KEPT_NAMES = frozenset(
         "path",
         "tmpdir",
         "user",
-        "appdata",
-        "comspec",
-        "localappdata",
-        "pathext",
-        "systemdrive",
-        "systemroot",
         "temp",
         "tmp",
-        "username",
-        "userprofile",
-        "windir",
     }
 )
 # A class is read from the shape of a name, the first alternative first; a value is never read.
@@ -113,9 +104,7 @@ def names_a_path(word: str) -> bool:
 def command_origin(word: str, found: str | None, supply: Supply) -> CommandOrigin:
     """Name the executable that a declared command starts, and what supplied it."""
     started = Path(found).absolute() if found else None
-    baseline = host_command_baseline(
-        windows=os.name == "nt", system_root=os.environ.get("SYSTEMROOT", ""), git=None
-    )
+    baseline = host_command_baseline()
     supplier = (
         "declared"
         if names_a_path(word)

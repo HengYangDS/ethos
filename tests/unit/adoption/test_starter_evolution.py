@@ -218,10 +218,7 @@ def test_starter_evolution_rejects_linked_baseline_file(tmp_path: Path) -> None:
     """A claimed old generated file must be an actual regular Git blob."""
     repo = init_git_repo(tmp_path / "repo")
     target = repo / "pyproject.toml"
-    try:
-        target.symlink_to("../foreign.toml")
-    except OSError:
-        pytest.skip("file symlinks unavailable")
+    target.symlink_to("../foreign.toml")
     git(repo, "add", "pyproject.toml")
     git(repo, "commit", "-m", "chore: linked baseline")
     head = git(repo, "rev-parse", "HEAD")

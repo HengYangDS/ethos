@@ -168,22 +168,11 @@ def _workflow_runs(path: Path, content: bytes) -> Iterator[_WorkflowRun]:
     workflow_shell = workflow.get("defaults", {}).get("run", {}).get("shell", "")
     for name, job in workflow["jobs"].items():
         job_shell = job.get("defaults", {}).get("run", {}).get("shell", "")
-        labels = job.get("runs-on", ())
-        labels = [labels] if isinstance(labels, str) else labels
-        runner_shell = (
-            "pwsh"
-            if any(
-                isinstance(label, str)
-                and (label.lower() == "windows" or label.lower().startswith("windows-"))
-                for label in labels
-            )
-            else "bash"
-        )
         for index, step in enumerate(job.get("steps", ())):
             source = step.get("run")
             if source is None:
                 continue
-            shell = step.get("shell") or job_shell or workflow_shell or runner_shell
+            shell = step.get("shell") or job_shell or workflow_shell or "bash"
             if not isinstance(source, str) or not isinstance(shell, str):
                 message = "workflow_run_invalid"
                 raise TypeError(message)

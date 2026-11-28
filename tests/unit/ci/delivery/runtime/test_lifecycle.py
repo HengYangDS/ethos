@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import shlex
 import sys
 from concurrent.futures import Future
@@ -157,7 +156,6 @@ def test_one_acceptance_effect_observes_fresh_installation_and_repository_reuse(
     assert all(observation["state"] == "passed" for observation in lifecycle.values())
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX owned-group cancellation")
 def test_outer_cancellation_preserves_failure_before_slow_cleanup(tmp_path: Path) -> None:
     """The child retains failure before the native parent closes its cleanup window."""
     root = tmp_path / "attempt"

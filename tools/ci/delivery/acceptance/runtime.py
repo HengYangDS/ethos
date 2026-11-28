@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import shlex
 import shutil
 import sys
@@ -236,12 +235,8 @@ def require_version_identity(
     environment: Mapping[str, str],
 ) -> dict[str, object]:
     """Require the public version surface to expose the complete immutable identity."""
-    prefix = (
-        (python.as_posix(), *PYTHON_FLAGS, "-m", "ethos.cli")
-        if os.name == "nt"
-        else (python.with_name("ethos").as_posix(),)
-    )
-    command = (*prefix, "--version", "--json", "--root", repository.as_posix())
+    ethos = python.with_name("ethos").as_posix()
+    command = (ethos, "--version", "--json", "--root", repository.as_posix())
     returncode, payload, diagnostic = invoke(repository, command, environment=environment)
     data = payload.get("data")
     identity = data.get("identity") if isinstance(data, dict) else {}

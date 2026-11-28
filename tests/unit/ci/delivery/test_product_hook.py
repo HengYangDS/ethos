@@ -33,7 +33,6 @@ def _run(*command, cwd, env=None):
 _STEP = partial(prove_product_hook, environment=os.environ, run=_run)
 
 
-@pytest.mark.skipif(os.name == "nt", reason="POSIX stand-in runtime")
 @pytest.mark.parametrize(
     ("hook", "outcome"),
     # The layout rule passes; a hook that refuses every commit, as the incident's did, fails the

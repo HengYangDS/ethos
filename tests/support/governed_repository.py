@@ -233,7 +233,7 @@ def git(root: Path, *args: str) -> str:
     """Run test Git plumbing without activating repository hook integration.
 
     Through the process owner: it captures in files where the reader of a pipe would wait for a
-    process that outlives Git, as on every hosted Windows host, and it bounds the call.
+    process that outlives Git, and it bounds the call.
     """
     command = ["git", *args]
     if args[:1] != ("config",):

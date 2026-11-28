@@ -176,7 +176,7 @@ class Apply:
         if not stoned:
             return
         try:
-            commands = process_commands(self.repo, exclude_pid=os.getpid(), strict=True)
+            commands = process_commands(self.repo, exclude_pid=os.getpid())
             roots = running_writers(commands, self.writer_roots())
             writers = tuple(path.as_posix() for path in roots)
         except (OSError, ValueError):

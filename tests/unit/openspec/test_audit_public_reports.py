@@ -286,10 +286,7 @@ def test_first_change_accepts_no_prior_spec_directory(tmp_path: Path) -> None:
     write_file(linked / "openspec/config.yaml", "schema: spec-driven\n")
     existing = tmp_path / "existing-specs"
     existing.mkdir()
-    try:
-        (linked / "openspec/specs").symlink_to(existing, target_is_directory=True)
-    except OSError:
-        pytest.skip("directory symlinks unavailable")
+    (linked / "openspec/specs").symlink_to(existing, target_is_directory=True)
     linked_report = audit.compile_openspec_shape_report(
         linked,
         branch_intent=branch_intent,

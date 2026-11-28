@@ -303,18 +303,6 @@ def test_valid_external_predecessor_rebuilds_instead_of_reusing_private_invoker(
     assert selector.read_bytes() == before
 
 
-def test_pinned_runtime_path_leaves_room_for_native_windows_dependencies(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The installed path must not repeat a full digest before loading native modules."""
-    repo, selected, _ = _host_case(tmp_path, monkeypatch)
-
-    pinned = _pin(repo, selected.build, installed_runtime=selected.root)
-    relative = pinned.relative_to(tmp_path / "user-data").as_posix()
-    assert len(relative) <= 128, relative
-    assert relative.count(selected.digest) == 1
-
-
 def test_host_store_recovery_preserves_unowned_directory_with_a_valid_looking_marker(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

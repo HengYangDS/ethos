@@ -298,7 +298,7 @@ def _check_staged_python_format(
     )
     try:
         executable = Path(import_module("ruff").find_ruff_bin())
-        expected = runtime_scripts(Path(sys.prefix)) / ("ruff.exe" if os.name == "nt" else "ruff")
+        expected = runtime_scripts(Path(sys.prefix)) / "ruff"
         if executable.resolve() != expected.resolve() or not os.access(executable, os.X_OK):
             raise FileNotFoundError
     except (ImportError, OSError) as error:

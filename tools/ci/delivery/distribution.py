@@ -21,7 +21,6 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.materialization.python_image import render_console_script
-from ethos.adapters.repo.runtime.materialization.python_image import render_windows_console_script
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
@@ -46,8 +45,7 @@ CONSOLE_DIRECTORY = "ethos/bin"
 def archive_runtime(selected: SelectedRuntime) -> str:
     """Name the archive's runtime directory by the digest index that the host store also uses.
 
-    The manifest keeps the full digest. The short name leaves a deep install prefix room for the
-    Windows interpreter path, which Windows starts only within its path limit.
+    The manifest keeps the full digest.
     """
     return f"ethos/runtime/{selected.digest[:16]}"
 
@@ -121,7 +119,7 @@ def package_runtime(
         ):
             message = "local_install_distribution_changed"
             raise ValueError(message)
-        cask = None if selected.platform == "windows" else homebrew_cask(selected, url, digest)
+        cask = homebrew_cask(selected, url, digest)
         cask_path = _publish_outputs(archive_path, destination, cask, Path(work))
     return {
         "path": str(destination),
@@ -221,14 +219,8 @@ def _add_console(archive: tarfile.TarFile, selected: SelectedRuntime) -> None:
     directory.type, directory.mode = tarfile.DIRTYPE, 0o555
     archive.addfile(_metadata(directory))
     runtime = posixpath.relpath(f"{archive_runtime(selected)}/python", CONSOLE_DIRECTORY)
-    if selected.platform == "windows":
-        interpreter = runtime.replace("/", "\\") + "\\python.exe"
-        name = "ethos.cmd"
-        text = render_windows_console_script("ethos", interpreter).replace("\n", "\r\n")
-    else:
-        name, text = "ethos", render_console_script("ethos", f"{runtime}/bin/python")
-    payload = text.encode()
-    console = tarfile.TarInfo(f"{CONSOLE_DIRECTORY}/{name}")
+    payload = render_console_script("ethos", f"{runtime}/bin/python").encode()
+    console = tarfile.TarInfo(f"{CONSOLE_DIRECTORY}/ethos")
     console.size, console.mode = len(payload), 0o555
     archive.addfile(_metadata(console), io.BytesIO(payload))
 
@@ -385,8 +377,8 @@ def install_archive(
             raise ValueError(message)
         member = packed.extractfile(manifests[0])
         manifest = json.load(member) if member else {}
-    # Adopters label the tool with its product version, which also keeps a Windows install's
-    # paths within what `cmd` runs; the console must still report the exact distribution.
+    # Adopters label the tool with its product version; the console must still report the exact
+    # distribution.
     version = manifest.get("product_version", "")
     digest = file_sha256(archive) if sha256 is None else sha256
     # Mise strips the archive's one top directory, as it does for a release pinned on the forge.

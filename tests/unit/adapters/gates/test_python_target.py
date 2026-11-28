@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import shutil
 import subprocess
 import sys
@@ -123,7 +122,7 @@ def test_isolated_ruff_preserves_its_installed_supply(
         capture_output=True,
         timeout=30,
     )
-    interpreter = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    interpreter = environment / "bin/python"
     discovery = subprocess.run(
         (
             str(interpreter),

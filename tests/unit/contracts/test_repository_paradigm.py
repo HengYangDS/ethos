@@ -55,7 +55,7 @@ def test_packaged_paradigm_names_canonical_carriers() -> None:
     retention = paradigm.pipelines.retention
     assert retention.record == ".config/ci/retained-steps.toml"
     assert retention.classes == ("official-installer", "operating-system-glue")
-    assert retention.platforms == ("darwin", "linux", "windows")
+    assert retention.platforms == ("darwin", "linux")
 
 
 @pytest.mark.parametrize("role", ["profile", "release", "rules", "workspace"])

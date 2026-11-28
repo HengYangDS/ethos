@@ -104,10 +104,7 @@ def _report_case_identity(request: pytest.FixtureRequest) -> None:
 
 @pytest.fixture(scope="session", autouse=True)
 def _governance_executable_supply(tmp_path_factory: pytest.TempPathFactory):
-    """Share only a test-owned read-only POSIX binary, never mutable runtime state."""
-    if os.name == "nt":
-        yield
-        return
+    """Share only a test-owned read-only binary, never mutable runtime state."""
     executable = tmp_path_factory.mktemp("governance-python") / "python"
     shutil.copy(sys.executable, executable)
     executable.chmod(0o555)
@@ -148,11 +145,7 @@ def _hermetic_process_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     # Runtimes that product code pins during a test stay in that test's own host store, while
     # Mise keeps the data directory, and so the installed tool supply, it resolved before.
     if not os.environ.get("MISE_DATA_DIR"):
-        shared = os.environ.get("XDG_DATA_HOME") or (
-            os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData/Local")
-            if os.name == "nt"
-            else str(Path.home() / ".local/share")
-        )
+        shared = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local/share")
         monkeypatch.setenv("MISE_DATA_DIR", str(Path(shared) / "mise"))
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user-data"))
     # What mise loads or trusts during a test is recorded with that test, not for the host. As on

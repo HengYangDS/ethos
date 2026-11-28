@@ -11,9 +11,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
-import time
 import tomllib
-import zipfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -35,16 +33,8 @@ from ethos.adapters.toolchain.mise_install import install_locked
 
 MISE_RELEASE = "https://github.com/jdx/mise/releases/download/v{version}/{name}"
 CI_PROJECTION_POLICY = ".config/checks/ci-projection/policy.toml"
-MISE_SYSTEMS = {"Darwin": "macos", "Linux": "linux", "Windows": "windows"}
+MISE_SYSTEMS = {"Darwin": "macos", "Linux": "linux"}
 MISE_ARCHITECTURES = {"amd64": "x64", "x86_64": "x64", "arm64": "arm64", "aarch64": "arm64"}
-# What Windows raises while another process, such as its scanner, still holds a file open.
-_HELD_FILE_ERRORS = frozenset({5, 32})
-_HELD_FILE_ATTEMPTS = 10
-
-
-def _windows_host() -> bool:
-    """Name the official Windows executable with its native suffix."""
-    return os.name == "nt"
 
 
 def mise_executables(root: Path) -> dict[str, str]:
@@ -92,23 +82,9 @@ def _bound_executable(root: Path, executable: Path) -> None:
         raise ValueError(message)
 
 
-def _replace_once_released(source: Path, target: Path) -> None:
-    """Replace the target, waiting about 13 seconds at most while Windows holds the source."""
-    for attempt in range(_HELD_FILE_ATTEMPTS):
-        try:
-            source.replace(target)
-        except PermissionError as error:
-            held = getattr(error, "winerror", None) in _HELD_FILE_ERRORS
-            if not held or attempt + 1 == _HELD_FILE_ATTEMPTS:
-                raise
-            time.sleep(min(0.1 * 2**attempt, 2.0))
-        else:
-            return
-
-
 def _stage_mise(root: Path, version: str, candidate: Path) -> None:
     """Stage the official executable of this platform and verify its bound digest."""
-    name = f"mise-v{version}-{mise_target()}{'.exe' if _windows_host() else ''}"
+    name = f"mise-v{version}-{mise_target()}"
     url = MISE_RELEASE.format(version=version, name=name)
     command = ("curl", "-fsSL", "--proto", "=https", "--output", str(candidate), url)
     download_tool(command, root=candidate.parent)
@@ -153,7 +129,7 @@ def prepare_mise(root: Path) -> Path:
         / "bin"
     )
     ensure_native_directory(home)
-    executable = home / ("mise.exe" if _windows_host() else "mise")
+    executable = home / "mise"
     with FileLock(home / ".bootstrap.lock", timeout=30):
         if executable.is_file() and not executable.is_symlink() and os.access(executable, os.X_OK):
             _bound_executable(root, executable)
@@ -166,7 +142,7 @@ def prepare_mise(root: Path) -> Path:
             candidate = Path(directory) / executable.name
             _stage_mise(root, version, candidate)
             verify(candidate)
-            _replace_once_released(candidate, executable)
+            candidate.replace(executable)
     return executable
 
 
@@ -287,7 +263,6 @@ def main() -> int:
         KeyError,
         TypeError,
         tarfile.TarError,
-        zipfile.BadZipFile,
         subprocess.SubprocessError,
         Timeout,
     ) as error:

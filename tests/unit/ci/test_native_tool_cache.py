@@ -73,7 +73,6 @@ def _locked_gitleaks(root: Path, package: Path) -> None:
     )
 
 
-@pytest.mark.skipif(platform.system() not in {"Darwin", "Linux"}, reason="native supply target")
 @pytest.mark.parametrize(
     "cache_selector", [None, "ETHOS_CI_TOOL_CACHE_DIR", "ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR"]
 )
@@ -111,7 +110,7 @@ def test_linked_worktrees_reuse_one_locked_native_download(
     assert caches == (expected, expected)
     assert len(calls) == 1
     assert (expected / "gitleaks").read_bytes() == GITLEAKS_BODY
-    assert supply.payload_bytes(expected / package.name)[supply.executable_name] == GITLEAKS_BODY
+    assert supply.payload_bytes(expected / package.name)[supply.name] == GITLEAKS_BODY
     assert not (repo / "build/runtime/tool-cache/ci-tools").exists()
     assert not (linked / "build/runtime/tool-cache/ci-tools").exists()
     if cache_selector is not None:
@@ -160,7 +159,6 @@ def linked_node_supply(
     return repo, linked, package, body
 
 
-@pytest.mark.skipif(platform.system() not in {"Darwin", "Linux"}, reason="native supply target")
 def test_linked_worktrees_prepare_one_complete_node_runtime(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -201,7 +199,6 @@ def test_linked_worktrees_prepare_one_complete_node_runtime(
     assert not list(supply.cache(repo).glob(".prepare-*"))
 
 
-@pytest.mark.skipif(platform.system() not in {"Darwin", "Linux"}, reason="native supply target")
 @pytest.mark.parametrize("trusted", [False, True])
 def test_provisioning_carries_only_native_trust_to_its_copy(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, trusted: bool

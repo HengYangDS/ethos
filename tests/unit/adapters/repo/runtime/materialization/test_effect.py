@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import shutil
 import stat
 import subprocess
@@ -10,13 +9,11 @@ import sys
 from contextlib import nullcontext
 from functools import partial
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
 
 import ethos.adapters.repo.runtime.materialization.effect as materialization
-import ethos.adapters.repo.runtime.materialization.python_environment as runtime_python_environment
 import tests.support.runtime_scenarios as runtime_scenarios
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.host_store import host_store_root
@@ -365,31 +362,6 @@ def test_failed_runtime_verification_removes_only_its_new_generation(
     assert materialization.runtime_file_inventory(target) == preserved
 
 
-def test_runtime_generation_compares_windows_prefixes_as_paths(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    args, _observed, _commands = _generation_case(tmp_path, monkeypatch)
-    target = materialization.materialize_runtime_generation(*args, locked_requirements=None)
-    prefix = (target / "python").resolve().as_posix()
-    windows_spelling = prefix.replace("/", "\\").upper()
-    monkeypatch.setattr(
-        runtime_python_environment, "os", SimpleNamespace(name="nt", fspath=os.fspath)
-    )
-    for spelling in (windows_spelling, r"D:\external"):
-        monkeypatch.setattr(
-            materialization,
-            "observe_python_facts",
-            lambda _python, spelling=spelling: dict.fromkeys(("prefix", "base_prefix"), spelling),
-        )
-        expectation = (
-            nullcontext()
-            if spelling == windows_spelling
-            else pytest.raises(ValueError, match="hook_runtime_python_not_relocatable")
-        )
-        with expectation:
-            materialization.require_runtime_execution(target.as_posix())
-
-
 @pytest.mark.parametrize("shape", ["missing", "present", "sealed", "symlink"])
 def test_runtime_publication_is_nonexecuting_and_requires_unbound_owned_input(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, shape: str
@@ -483,7 +455,7 @@ def test_runtime_reuse_requires_current_supply_and_entry(tmp_path, monkeypatch, 
         materialization.remove_generated_tree(selected.root)
     elif fault == "wheel":
         next((selected.root.parent.parent / "packages").rglob("*.whl")).unlink()
-    invalid = fault in {"lock", "absent", "wheel"} or (fault != "valid" and os.name != "nt")
+    invalid = fault != "valid"
     reason = (
         (
             "hook_runtime_installed_supply_unavailable"

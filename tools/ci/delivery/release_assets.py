@@ -6,9 +6,7 @@ retains the runtime archive it built. The smoke evidence records the archive's S
 runtime, wheel and platform. Each job uploads that qualification as `release-runtime-<host>`
 for the one host platform its leg declares. This module checks those records against each
 job's bytes, names each archive for its host's Mise platform, and writes the checksums, the
-Mise declaration and the release notes that publication uploads. A host whose operating
-system emulates the runtime's architecture publishes that archive alone; only a native host
-publishes its wheel or stands in for a required platform. Each archive travels with the two
+Mise declaration and the release notes that publication uploads. Each archive travels with the two
 inventories its leg cataloged, an SPDX SBOM and a Syft JSON inventory, admitted only when both
 name its published file and digest. It uses only the standard library, so the publication job
 runs it with uv's Python and without the project environment.
@@ -21,16 +19,14 @@ import hashlib
 import json
 import re
 import shutil
-from operator import itemgetter
 from pathlib import Path
-from pathlib import PureWindowsPath
 from typing import TYPE_CHECKING
 from typing import Any
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-_SYSTEMS = {"darwin": "macos", "linux": "linux", "windows": "windows"}
+_SYSTEMS = {"darwin": "macos", "linux": "linux"}
 _MACHINES = {"arm64": "arm64", "x86_64": "x64"}
 _HOSTS = frozenset(f"{os}-{cpu}" for os in _SYSTEMS.values() for cpu in _MACHINES.values())
 _JOB = "release-runtime-"
@@ -93,13 +89,9 @@ def distribution_version(version: str) -> str:
     return f"{match[1]}{_STAGES[match[2]]}{match[3]}"
 
 
-def declared_hosts(required: str, optional: str) -> tuple[frozenset[str], frozenset[str]]:
-    """Read the pipeline's comma-separated required and optional release hosts."""
-
-    def hosts(text: str) -> frozenset[str]:
-        return frozenset(host.strip() for host in text.split(",") if host.strip())
-
-    return hosts(required), hosts(optional)
+def declared_hosts(text: str) -> frozenset[str]:
+    """Read the pipeline's comma-separated release hosts."""
+    return frozenset(host.strip() for host in text.split(",") if host.strip())
 
 
 def assemble(
@@ -109,15 +101,14 @@ def assemble(
     tag: str,
     base_url: str,
     changelog: Path,
-    required: frozenset[str],
-    optional: frozenset[str],
+    hosts: frozenset[str],
     expect_head: str,
 ) -> dict[str, str]:
     """Verify every qualified archive of the declared legs and write the publication's assets."""
     if _PRERELEASE.fullmatch(tag) is None:
         message = "release_assets_prerelease_required"
         raise ValueError(message)
-    if not required or required & optional or not required | optional <= _HOSTS:
+    if not hosts or not hosts <= _HOSTS:
         message = "release_assets_hosts_invalid"
         raise ValueError(message)
     if _HEAD.fullmatch(expect_head) is None:
@@ -125,24 +116,15 @@ def assemble(
         raise ValueError(message)
     version = tag.removeprefix("v")
     identity = (expect_head, distribution_version(version))
-    archives, left_out = _admitted_legs(
-        source, version, required=required, optional=optional, identity=identity
-    )
+    archives = _admitted_legs(source, version, hosts=hosts, identity=identity)
     notes = _release_notes(changelog, version)
-    if left_out:
-        hosts = ", ".join(item["host"] for item in left_out)
-        notes += (
-            f"\nNot published: {hosts}. An adopter that installs ETHOS on these hosts from its Mise"
-            " declaration keeps its current release until a later release publishes them.\n"
-        )
     assets = output / "assets"
     assets.mkdir(parents=True)
     sums = {}
     declaration = [f'[tools."http:ethos"]\nversion = "{version}"\n\n[tools."http:ethos".platforms]']
-    for platform, (archive, wheel, native, inventories) in sorted(archives.items()):
-        if native:
-            shutil.copy2(wheel, assets / wheel.name)
-            sums[wheel.name] = _sha256(assets / wheel.name)
+    for platform, (archive, wheel, inventories) in sorted(archives.items()):
+        shutil.copy2(wheel, assets / wheel.name)
+        sums[wheel.name] = _sha256(assets / wheel.name)
         published = f"ethos-{version}-{platform}.tar.gz"
         shutil.copy2(archive, assets / published)
         sums[published] = _sha256(assets / published)
@@ -161,25 +143,18 @@ def assemble(
         "".join(f"{digest}  {name}\n" for name, digest in sorted(sums.items())), encoding="utf-8"
     )
     (output / "notes.md").write_text(notes, encoding="utf-8")
-    (output / "left-out.json").write_text(json.dumps(left_out, indent=2) + "\n", encoding="utf-8")
     return sums
 
 
 def _admitted_legs(
-    source: Path,
-    version: str,
-    *,
-    required: frozenset[str],
-    optional: frozenset[str],
-    identity: tuple[str, str],
-) -> tuple[dict[str, tuple[Path, Path, bool, tuple[Path, ...]]], list[dict[str, str]]]:
-    """Admit each declared leg's qualified upload and name every optional host left out."""
-    archives, left_out = {}, []
+    source: Path, version: str, *, hosts: frozenset[str], identity: tuple[str, str]
+) -> dict[str, tuple[Path, Path, tuple[Path, ...]]]:
+    """Admit each declared leg's qualified upload; every declared host must publish."""
+    archives: dict[str, tuple[Path, Path, tuple[Path, ...]]] = {}
     for evidence in sorted(source.glob(f"{_JOB}*/evidence/local-install/release-smoke.json")):
         job = evidence.parents[2]
-        # The leg declares its host, so an emulated interpreter's reports cannot rename it.
         platform = job.name.removeprefix(_JOB)
-        if platform not in required | optional:
+        if platform not in hosts:
             message = f"release_assets_host_undeclared:{platform}"
             raise ValueError(message)
         distribution = json.loads(evidence.read_text(encoding="utf-8"))["distribution"]
@@ -191,9 +166,7 @@ def _admitted_legs(
             message = f"release_assets_identity_mismatch:{platform}"
             raise ValueError(message)
         runtime = f"{_SYSTEMS[distribution['platform']]}-{_MACHINES[distribution['architecture']]}"
-        native = platform == runtime
-        # Each runner records its own path syntax; Windows rules read both separators.
-        name = PureWindowsPath(distribution["path"]).name
+        name = Path(distribution["path"]).name
         wheel = _single(
             job.glob("artifacts/release/python/ethos-*.whl"),
             f"release_assets_wheel_invalid:{platform}",
@@ -202,11 +175,9 @@ def _admitted_legs(
             job.glob(f"artifacts/native/{distribution['runtime_digest']}/{name}"),
             f"release_assets_archive_invalid:{platform}",
         )
-        published_wheels = {other.name for _archive, other, own, _ in archives.values() if own}
         if (
-            platform not in _HOSTS
-            or runtime.partition("-")[0] != platform.partition("-")[0]
-            or (native and wheel.name in published_wheels)
+            runtime != platform
+            or wheel.name in {other.name for _archive, other, _ in archives.values()}
             or _sha256(archive) != distribution["sha256"]
             or _sha256(wheel) != distribution["wheel_sha256"]
             or distribution["product_version"] != version
@@ -214,40 +185,23 @@ def _admitted_legs(
             message = f"release_assets_distribution_mismatch:{platform}"
             raise ValueError(message)
         published = f"ethos-{version}-{platform}.tar.gz"
-        inventories = _inventories(
-            job,
-            platform,
-            name=published,
-            digest=distribution["sha256"],
-            optional=platform in optional,
-        )
-        if inventories is None:
-            left_out.append({"host": platform, "reason": "inventories_incomplete"})
-            continue
-        archives[platform] = (archive, wheel, native, inventories)
-    if missing := sorted(required - {name for name, (_, _, own, _) in archives.items() if own}):
+        inventories = _inventories(job, platform, name=published, digest=distribution["sha256"])
+        archives[platform] = (archive, wheel, inventories)
+    if missing := sorted(hosts - set(archives)):
         message = "release_assets_platform_missing:" + ",".join(missing)
         raise ValueError(message)
-    # A leg that failed before its upload left nothing behind, yet the release still names it.
-    named = set(archives) | {item["host"] for item in left_out}
-    left_out += [{"host": host, "reason": "leg_incomplete"} for host in optional - named]
-    left_out.sort(key=itemgetter("host"))
-    return archives, left_out
+    return archives
 
 
-def _inventories(
-    job: Path, platform: str, *, name: str, digest: str, optional: bool
-) -> tuple[Path, ...] | None:
-    """Return a leg's two admitted inventories; an optional host without them is left out."""
+def _inventories(job: Path, platform: str, *, name: str, digest: str) -> tuple[Path, ...]:
+    """Return a leg's two admitted inventories."""
     directory = job / "evidence/release"
     paths = tuple(directory / f"runtime{suffix}" for suffix in _INVENTORIES)
     declared = {path for suffix in _INVENTORIES for path in directory.glob(f"*{suffix}")}
-    # A second declaration is a pipeline defect or tampering, so no host may be left out for it.
+    # A second declaration is a pipeline defect or tampering.
     if declared - set(paths):
         message = f"release_assets_inventory_mismatch:{platform}"
         raise ValueError(message)
-    if optional and not all(path.is_file() for path in paths):
-        return None
     try:
         selected = tuple(
             _single((path,), f"release_assets_inventory_invalid:{platform}") for path in paths
@@ -313,8 +267,7 @@ def main(arguments: list[str] | None = None) -> int:
     # the default branch's workflow, and a renamed flag refuses that skew in either direction.
     parser.add_argument("--download-prefix", required=True)
     parser.add_argument("--changelog", type=Path, required=True)
-    parser.add_argument("--required", required=True)
-    parser.add_argument("--optional", default="")
+    parser.add_argument("--hosts", required=True)
     parser.add_argument("--expect-head", required=True)
     options = parser.parse_args(arguments)
     # Only the line ending is dropped, as the shell's read did; any other padding fails the
@@ -322,19 +275,16 @@ def main(arguments: list[str] | None = None) -> int:
     tag = options.tag
     if tag is None:
         tag = "v" + options.version_file.read_text(encoding="utf-8").rstrip("\n")
-    required, optional = declared_hosts(options.required, options.optional)
     sums = assemble(
         options.source,
         options.output,
         tag=tag,
         base_url=f"{options.download_prefix.rstrip('/')}/{tag}",
         changelog=options.changelog,
-        required=required,
-        optional=optional,
+        hosts=declared_hosts(options.hosts),
         expect_head=options.expect_head,
     )
-    left_out = json.loads((options.output / "left-out.json").read_text(encoding="utf-8"))
-    print(json.dumps({"left_out": left_out, "sums": sums}, indent=2, sort_keys=True))
+    print(json.dumps({"sums": sums}, indent=2, sort_keys=True))
     return 0
 
 

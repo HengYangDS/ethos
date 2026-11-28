@@ -4,15 +4,12 @@ The install smoke keeps each runtime archive it qualified and records its SHA-25
 reads that archive's bytes under its published name and writes two inventories: an SPDX 2.3 SBOM,
 which consumers read, and a Syft JSON inventory that captures Go symbols, which binary scans
 read. Both must name the archive and its digest, and hold every component that the runtime's
-owners declare: the bundled Go tools, uv, Node and each shipped Python distribution. Syft finds Node
-only in a file named `node`, so when it misses a Windows `node.exe`, the locked Node supply declares
-it in both inventories, bound to the shipped bytes.
+owners declare: the bundled Go tools, uv, Node and each shipped Python distribution.
 """
 
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import re
 import tarfile
@@ -20,7 +17,6 @@ import tomllib
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
-from pathlib import PureWindowsPath
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -43,16 +39,14 @@ if TYPE_CHECKING:
 
 ROOT = Path(__file__).resolve().parents[2]
 POLICY = ROOT / ".config/release/release-sbom/policy.toml"
-_SYSTEMS = {"darwin": "macos", "linux": "linux", "windows": "windows"}
+_SYSTEMS = {"darwin": "macos", "linux": "linux"}
 _MACHINES = {"arm64": "arm64", "x86_64": "x64"}
 _RUNTIME = re.compile(r"^/?ethos/runtime/[0-9a-f]{16}/")
 _MANIFEST = re.compile(r"ethos/runtime/[0-9a-f]{16}/manifest\.json")
 _DIST = re.compile(r"site-packages/([^/]+?)-([^/-]+)\.dist-info/METADATA$")
-_NATIVE = re.compile(r"ethos/resources/native/([^/]+)/\1(?:\.exe)?$")
-_UV = re.compile(r"(?:^|/)(?:bin/uv|Scripts/uv\.exe)$")
-_NODE = re.compile(r"ethos/resources/node/(?:bin/node|node\.exe)$")
-_DECLARER = "ethos-locked-supply"
-_UNIDENTIFIED = "no package identified in executable file"
+_NATIVE = re.compile(r"ethos/resources/native/([^/]+)/\1$")
+_UV = re.compile(r"(?:^|/)bin/uv$")
+_NODE = re.compile(r"ethos/resources/node/bin/node$")
 
 
 def native_syft(executable: Path) -> Callable[[tuple[str, ...]], None]:
@@ -156,160 +150,6 @@ def missing_components(
     return sorted(f"release_inventory_component_missing:{item}" for item in missing)
 
 
-def complete_inventory(
-    documents: tuple[dict[str, Any], dict[str, Any]],
-    manifest: Mapping[str, object],
-    *,
-    native: Mapping[str, str],
-    node: str,
-    shipped: Callable[[], tuple[str, str] | None],
-    locked: Callable[[], str],
-    creator: str,
-) -> tuple[list[dict[str, str]], list[str]]:
-    """Declare a locked Node that the catalog misses, then name each component still missing."""
-    missing = missing_components(documents[1], manifest, native=native, node=node)
-    member = (
-        shipped() if f"release_inventory_component_missing:node:node@{node}" in missing else None
-    )
-    if member is None:
-        return [], missing
-    record = declare_locked_node(
-        documents,
-        member=member[0],
-        digest=member[1],
-        locked=locked(),
-        version=node,
-        creator=creator,
-    )
-    return [record], missing_components(documents[1], manifest, native=native, node=node)
-
-
-def declare_locked_node(
-    documents: tuple[dict[str, Any], dict[str, Any]],
-    *,
-    member: str,
-    digest: str,
-    locked: str,
-    version: str,
-    creator: str,
-) -> dict[str, str]:
-    """Declare the shipped Node in both inventories from the locked supply that vouches for it.
-
-    The record carries Syft's identity fields, so Grype matches it by the same CPE, and names its
-    declarer. The shipped file is no longer an unidentified executable, as Syft marks one it found.
-    """
-    if digest != locked:
-        message = "release_inventory_component_unverified:node"
-        raise RuntimeError(message)
-    spdx, inventory = documents
-    path = "/" + member
-    identity = hashlib.sha256(f"{_DECLARER}/node/{version}/{member}".encode()).hexdigest()[:16]
-    cpe = f"cpe:2.3:a:nodejs:node.js:{version}:*:*:*:*:*:*:*"
-    purl = f"pkg:generic/node@{version}"
-    inventory.setdefault("artifacts", []).append(
-        {
-            "id": identity,
-            "name": "node",
-            "version": version,
-            "type": "binary",
-            "foundBy": _DECLARER,
-            "locations": [
-                {"path": path, "accessPath": path, "annotations": {"evidence": "primary"}}
-            ],
-            "licenses": [],
-            "language": "",
-            "cpes": [{"cpe": cpe, "source": "nvd-cpe-dictionary"}],
-            "purl": purl,
-        }
-    )
-    edges = inventory.setdefault("artifactRelationships", [])
-    if parent := (inventory.get("source") or {}).get("id"):
-        edges.append({"parent": parent, "child": identity, "type": "contains"})
-    for item in _sequence(inventory, "files"):
-        if isinstance(item, dict) and (item.get("location") or {}).get("path") == path:
-            notes = [note for note in item.get("unknowns") or () if _UNIDENTIFIED not in note]
-            item.pop("unknowns", None)
-            item.update({"unknowns": notes} if notes else {})
-            evidence = {"kind": "primary"}
-            edges.append(
-                {
-                    "parent": identity,
-                    "child": item["id"],
-                    "type": "evident-by",
-                    "metadata": evidence,
-                }
-            )
-    package = f"SPDXRef-Package-binary-node-{identity}"
-    spdx.setdefault("packages", []).append(
-        {
-            "name": "node",
-            "SPDXID": package,
-            "versionInfo": version,
-            "supplier": "NOASSERTION",
-            "downloadLocation": "NOASSERTION",
-            "filesAnalyzed": False,
-            "checksums": [{"algorithm": "SHA256", "checksumValue": digest}],
-            "sourceInfo": f"declared by ETHOS from its locked Node supply: {path}",
-            "licenseConcluded": "NOASSERTION",
-            "licenseDeclared": "NOASSERTION",
-            "copyrightText": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "SECURITY",
-                    "referenceType": "cpe23Type",
-                    "referenceLocator": cpe,
-                },
-                {
-                    "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceType": "purl",
-                    "referenceLocator": purl,
-                },
-            ],
-        }
-    )
-    relationships = spdx.setdefault("relationships", [])
-    roots = [
-        relation.get("relatedSpdxElement")
-        for relation in relationships
-        if relation.get("spdxElementId") == "SPDXRef-DOCUMENT"
-        and relation.get("relationshipType") == "DESCRIBES"
-    ]
-    relationships.extend(
-        {"spdxElementId": root, "relatedSpdxElement": package, "relationshipType": "CONTAINS"}
-        for root in roots
-    )
-    relationships.extend(
-        {
-            "spdxElementId": package,
-            "relatedSpdxElement": item["SPDXID"],
-            "relationshipType": "OTHER",
-            "comment": "evident-by: indicates the package's existence is evident by the given file",
-        }
-        for item in _sequence(spdx, "files")
-        if isinstance(item, dict) and item.get("fileName") == member
-    )
-    creators = spdx.setdefault("creationInfo", {}).setdefault("creators", [])
-    if f"Tool: {creator}" not in creators:
-        creators.append(f"Tool: {creator}")
-    return {
-        "name": "node",
-        "version": version,
-        "path": member,
-        "sha256": digest,
-        "source": "locked Node supply",
-    }
-
-
-def locked_node_digest(runtime: str) -> str:
-    """Return the SHA-256 of the locked Node executable for the archive's runtime platform."""
-    supply = NodeSupply.read(ROOT)
-    if supply.target != runtime:
-        message = "release_inventory_component_unverified:node"
-        raise RuntimeError(message)
-    directory = supply_tool(ROOT, "node")
-    return file_sha256(directory / ("node.exe" if runtime.startswith("windows-") else "node"))
-
-
 def run(session: Session) -> None:
     """Catalog the archive the install smoke kept and record the inventories' bounded claims."""
     parser = argparse.ArgumentParser(add_help=False, exit_on_error=False)
@@ -322,7 +162,7 @@ def run(session: Session) -> None:
         ROOT
         / "build/artifacts/native"
         / str(distribution["runtime_digest"])
-        / PureWindowsPath(str(distribution["path"])).name
+        / Path(str(distribution["path"])).name
     )
     digest = file_sha256(archive)
     if digest != distribution["sha256"]:
@@ -337,8 +177,8 @@ def run(session: Session) -> None:
     # YAML is a superset of JSON, so the policy's table is Syft's whole explicit configuration.
     config.write_text(json.dumps(policy["syft_config"], indent=2) + "\n", encoding="utf-8")
     supply = NativeSupply.read(ROOT, "syft")
-    syft = native_syft(supply_tool(ROOT, "syft") / supply.executable_name)
-    spdx, inventory = catalog(archive, name=name, outputs=outputs, config=config, run=syft)
+    syft = native_syft(supply_tool(ROOT, "syft") / supply.name)
+    _spdx, inventory = catalog(archive, name=name, outputs=outputs, config=config, run=syft)
     manifest = _manifest(archive)
     tools = {
         match[1]
@@ -347,20 +187,8 @@ def run(session: Session) -> None:
     }
     native = {tool: NativeSupply.read(ROOT, tool).version for tool in tools & set(NATIVE_BACKENDS)}
     node = NodeSupply.read(ROOT).version
-    declared, missing = complete_inventory(
-        (spdx, inventory),
-        manifest,
-        native=native,
-        node=node,
-        shipped=lambda: shipped_node(archive),
-        locked=lambda: locked_node_digest(runtime),
-        creator=f"ethos-{distribution['product_version']}",
-    )
-    if missing:
+    if missing := missing_components(inventory, manifest, native=native, node=node):
         raise RuntimeError(",".join(missing[:20]))
-    if declared:
-        for path, document in zip(outputs, (spdx, inventory), strict=True):
-            path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
     payload = {
         "schema_version": 2,
         "kind": "ethos_release_supply_chain_evidence",
@@ -379,7 +207,6 @@ def run(session: Session) -> None:
                 1 for path in _sequence(manifest, "runtime_files") if _DIST.search(str(path))
             ),
         },
-        "declared": declared,
         "generator": {"tool": "syft", "version": supply.version, "config": policy["syft_config"]},
         "not_claimed": policy["boundary"]["not_claimed"],
     }
@@ -388,20 +215,6 @@ def run(session: Session) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(rendered, encoding="utf-8")
     session.log(rendered)
-
-
-def shipped_node(archive: Path) -> tuple[str, str] | None:
-    """Return the archive's Node executable and its SHA-256, if the runtime ships one."""
-    with tarfile.open(archive) as packed:
-        for member in packed:
-            if member.isfile() and _RUNTIME.match(member.name) and _NODE.search(member.name):
-                stream = packed.extractfile(member)
-                if stream is not None:
-                    digest = hashlib.sha256()
-                    while chunk := stream.read(1 << 20):
-                        digest.update(chunk)
-                    return member.name, digest.hexdigest()
-    return None
 
 
 def _manifest(archive: Path) -> dict[str, Any]:

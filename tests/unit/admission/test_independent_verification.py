@@ -238,7 +238,6 @@ def test_provider_configuration_is_protected_outside_agent_identity(
         assert load_independent_verification_provider(config) == (None, [unreadable_gap])
 
 
-@pytest.mark.skipif(external.os.name != "posix", reason="POSIX host path semantics")
 def test_provider_rejects_replaceable_symlink_components(tmp_path: Path) -> None:
     """Protected system paths reach validation; user-owned aliases remain untrusted."""
     trusted = Path("/etc/hosts")

@@ -174,17 +174,6 @@ generated executable reports its image as sys.prefix and sys.base_prefix. Authen
 owner SHALL name those interpreter flags for every Python process ETHOS starts. Generated console
 scripts SHALL NOT define runtime identity, currentness or internal execution.
 
-#### Scenario: A Windows standalone interpreter is materialized
-
-- **WHEN** runtime activation copies an admitted Windows CPython image source
-- **THEN** `python.exe`, `Lib`, `DLLs`, and native runtime DLLs retain their platform-relative
-  layout
-- **AND** executing the copy reports a path-identical generated image root as both `sys.prefix` and
-  `sys.base_prefix`, regardless of equivalent Windows separator or case spelling
-- **AND** runtime post-observation and selected-runtime continuations execute
-  `python.exe -B -I -X utf8 -m ethos.cli`
-- **AND** relocating the generation does not depend on `Scripts/ethos.exe`.
-
 #### Scenario: Runtime module execution fails
 
 - **WHEN** the authenticated runtime Python cannot execute `ethos.cli`

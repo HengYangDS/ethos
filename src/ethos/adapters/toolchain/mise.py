@@ -550,36 +550,9 @@ def launch_supply(
     return _search_gaps(supply, search), supply
 
 
-# Git for Windows' bin directory also holds a shell; its cmd directory holds only launchers.
-_SHELLS = ("bash.exe", "sh.exe")
-
-
-def shell_free_git_directory(git: Path) -> Path | None:
-    """Name the directory of a Git launcher that holds no shell, preferring Git's own cmd."""
-    for directory in (git.parent.parent / "cmd", git.parent):
-        if (directory / git.name).is_file() and not any(
-            (directory / shell).exists() for shell in _SHELLS
-        ):
-            return directory
-    return None
-
-
-def host_command_baseline(*, windows: bool, system_root: str, git: Path | None) -> tuple[str, ...]:
-    """The host's own command directories that follow the locked tools.
-
-    POSIX keeps its default path. Windows names its system directories and Git's shell-free
-    launcher, never the current directory.
-    """
-    if not windows:
-        return tuple(os.defpath.split(os.pathsep))
-    system = (f"{system_root}\\System32", system_root) if system_root else ()
-    return (*system, *((str(git),) if git else ()))
-
-
-def _host_git_directory() -> Path | None:
-    """Locate the shell-free launcher of the Git that this ETHOS itself runs."""
-    git = shutil.which("git")
-    return shell_free_git_directory(Path(git).resolve()) if git else None
+def host_command_baseline() -> tuple[str, ...]:
+    """The host's own command directories that follow the locked tools: its default path."""
+    return tuple(os.defpath.split(os.pathsep))
 
 
 @contextmanager
@@ -605,18 +578,9 @@ def locked_environment(
         message = "mise_bin_paths_invalid"
         raise _refusal(message, root, executable)
     _require_contained_environment(root, files, executable, paths, supply)
-    windows = os.name == "nt"
-    baseline = host_command_baseline(
-        windows=windows,
-        system_root=os.environ.get("SYSTEMROOT", ""),
-        git=_host_git_directory() if windows else None,
-    )
+    baseline = host_command_baseline()
     with TemporaryDirectory(prefix="ethos-mise-bin-") as directory:
-        suffix = executable.suffix.lower()
-        alias_name = "mise"
-        if os.name == "nt":
-            alias_name += suffix if suffix in {".exe", ".cmd", ".bat"} else ".exe"
-        alias = Path(directory) / alias_name
+        alias = Path(directory) / "mise"
         try:
             alias.symlink_to(executable)
         except OSError:

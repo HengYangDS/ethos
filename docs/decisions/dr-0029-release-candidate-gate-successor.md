@@ -11,6 +11,7 @@ relations:
   updated_by:
     - DR-0030
     - DR-0035
+    - DR-0038
 ---
 
 # DR-0029: The Release Candidate Gate Gains the Law, and Its Dates Become Earliest Dates
@@ -65,7 +66,8 @@ For this record's subject: `批准，11-19 截止前给我看全文`. For the la
 - **The law freeze.** From beta.11's tag to 0.2.0, a narrowing or a ruled defect fix passes. A new
   rule, or a supply move that adds a gap, does not. (Added to by
   [DR-0035](dr-0035-release-candidate-gate-scope.md).) The gate's pin rows are the named exceptions,
-  each only in a release whose product ships its repair.
+  each only in a release whose product ships its repair. (Added to by
+  [DR-0038](dr-0038-windows-support-removed.md).)
 - **Tags and dates.** Five weekly tags: 2026-11-21, 11-28, 12-05 and 12-12, and a frozen beta on
   12-19 after which no row lands. The candidate is 2026-12-26 at the earliest and the stable release
   2027-01-02 at the earliest: the candidate needs every item's acceptance to hold or be waived,

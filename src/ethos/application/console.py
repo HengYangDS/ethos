@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import os
 import shlex
-import subprocess
 import sys
 from contextlib import contextmanager
 from contextlib import nullcontext
@@ -94,8 +93,6 @@ def run_console(argv: list[str], main: Callable[[], None]) -> EthosResult | None
             if Path(sys.executable).absolute() != selected.python.absolute():
                 executable = str(selected.python)
                 commandline = [executable, *PYTHON_FLAGS, "-m", "ethos.cli", *argv]
-                if sys.platform == "win32":
-                    raise SystemExit(subprocess.run(commandline, check=False).returncode)
                 os.execv(executable, commandline)
                 return None
             if command == "status":

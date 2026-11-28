@@ -2164,13 +2164,6 @@ imply recovery after loss of the supervisor or containment of deliberately detac
 - **AND** inherited output pipes do not leave the descendant running
 - **AND** the original exception and captured timeout output remain available
 
-#### Scenario: Windows command timeout with a descendant holding its output
-
-- **WHEN** a Windows command times out while a descendant it started keeps its output open
-- **THEN** the command ends and its caller returns within the cleanup bound
-- **AND** the output the command wrote before it ended remains available
-- **AND** the descendant is outside containment, which the result does not report as stopped
-
 #### Scenario: Native executable verification times out
 
 - **WHEN** a version-check executable has a ready descendant and exceeds its deadline
@@ -2605,13 +2598,6 @@ owned scratch.
 - **AND** staged bootstrap supply still requires its exact declared version
 - **AND** older, prerelease, malformed or warning-bearing observations cannot pass
 
-#### Scenario: Native Windows observation inherits another PowerShell's modules
-
-- **WHEN** ACL or process observation runs on Windows under an intermediate process that exports
-  another PowerShell edition's module path
-- **THEN** it starts no PowerShell child
-- **AND** the parent environment, native error and timeout boundaries remain intact
-
 #### Scenario: Native preparation fails or is interrupted
 
 - **WHEN** download, archive validation, executable validation or execution times out or fails
@@ -2634,12 +2620,6 @@ Adoption SHALL bind its write plan to exact UTF-8 bytes independently of host
 newline translation. Retained authored bindings SHALL preserve their original
 bytes and matching digest. New writes and compensation SHALL share the existing
 atomic writer, without claiming multi-file crash atomicity.
-
-#### Scenario: Native text mode would translate line endings
-
-- **WHEN** an admitted adoption writes new bindings on a platform with CRLF text mode
-- **THEN** actual file digests equal the declared write-plan digests
-- **AND** CLI, SDK and MCP retain the same exact-byte acceptance
 
 #### Scenario: Authored bindings use a different newline convention
 
@@ -2917,12 +2897,6 @@ Every thread's stack SHALL reach the run's log before the limit ends a test's pr
 
 - **WHEN** a test declares a limit at or above the declared one, or a limit that is not a literal
 - **THEN** the architecture regression fails
-
-#### Scenario: A Windows worker makes no progress
-
-- **WHEN** a test makes no progress inside a pytest-xdist worker on Windows, where the limit ends
-  the worker process
-- **THEN** every thread's stack is in the job log before the worker ends
 
 ### Requirement: Hosted check names are stable identities
 
@@ -3255,23 +3229,6 @@ event.
 - **WHEN** `dev` or a proposal ref is pushed to GitHub, or a pull or merge request is opened or
   updated
 - **THEN** that Forge runs every commit-scoped job and admits the event's range once
-
-#### Scenario: A proposal leaves Windows on Arm to the landed commit
-
-- **WHEN** a proposal ref is pushed
-- **THEN** GitHub runs every commit-scoped job except the Windows host conformance legs, the
-  emulated Windows on Arm leg among them, and admits the event's range
-- **AND** that leg runs for the landed commit, when a dispatch qualifies the batch head or the
-  drift schedule runs
-- **AND** only a newer push of the same proposal ref cancels those jobs
-
-#### Scenario: A push leaves the Windows legs to a typed dispatch
-
-- **WHEN** `dev` or a proposal ref is pushed
-- **THEN** GitHub runs every commit-scoped job without a Windows host conformance leg, native or
-  emulated, and admits the event's range
-- **AND** a dispatch that asks for the Windows legs, or that qualifies a batch head, runs them
-- **AND** only a newer push of the same proposal ref cancels those jobs
 
 #### Scenario: GitLab observes a ref published to both Forges
 
@@ -4032,11 +3989,6 @@ a push tier. A dispatch whose named head differs from its commit SHALL fail.
 - **THEN** no commit-scoped job runs
 - **AND** the aggregate check fails
 
-#### Scenario: The lane owner asks for the Windows legs
-
-- **WHEN** a dispatch sets the Windows input without naming a head
-- **THEN** the push tier and the Windows legs run
-
 ### Requirement: One aggregate check reports the per-push jobs
 
 GitHub's projection SHALL carry one aggregate job, `hosted checks`, that needs every required job
@@ -4081,11 +4033,6 @@ link observation or the Windows suite leg. Its result is a host observation, not
   per-push job succeeds
 - **THEN** its job keeps its report and fails by its declared tolerance without failing the run
 - **AND** `hosted checks`, which neither needs that job nor reads its result, succeeds
-
-#### Scenario: The Windows suite leg fails
-
-- **WHEN** the Windows x64 suite leg fails while every required job succeeds
-- **THEN** `hosted checks`, which neither needs that leg nor reads its result, succeeds
 
 ### Requirement: Hosted jobs bound their time and credentials
 
@@ -4315,12 +4262,6 @@ run the suite once for a release. The Linux legs SHALL be required; the Windows 
 
 - **WHEN** `dev` or a proposal ref is pushed, or a pull request is opened or updated
 - **THEN** no suite leg runs
-
-#### Scenario: The Windows leg fails
-
-- **WHEN** the Windows x64 leg fails while every required job succeeds
-- **THEN** the leg fails by its declared tolerance
-- **AND** the run does not fail
 
 #### Scenario: The test gate's deadline bounds a leg
 

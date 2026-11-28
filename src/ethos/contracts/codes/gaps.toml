@@ -429,7 +429,6 @@ git_object_tree_unreadable = { owner = "adapters.repo" }
 git_object_trust_anchor_inside_repository = { owner = "adapters.repo" }
 git_object_trust_anchor_missing = { owner = "adapters.repo" }
 git_object_trust_anchor_not_absolute = { owner = "adapters.repo" }
-git_object_trust_anchor_observation_unavailable = { owner = "adapters.repo", detail = "the value that follows the colon" }
 git_object_trust_anchor_protection_failed = { owner = "adapters.repo", detail = "the value that follows the colon" }
 git_object_trust_anchor_unprotected = { owner = "adapters.repo" }
 git_object_trust_changed_during_verification = { owner = "adapters.repo" }
@@ -511,7 +510,6 @@ holder_ref_invalid = { owner = "adapters.mutation" }
 hook_generation_root_invalid = { owner = "adapters.repo" }
 hook_install_failed = { owner = "application.hook", detail = "the value that follows the colon" }
 hook_launcher_declaration_invalid = { owner = "adapters.repo" }
-hook_launcher_platform_invalid = { owner = "adapters.repo" }
 hook_launcher_projection_invalid = { owner = "adapters.repo" }
 hook_name_invalid = { owner = "adapters.repo" }
 hook_runtime_activation_compensation_failed = { owner = "adapters.repo", detail = "the value that follows the colon" }
@@ -807,7 +805,6 @@ native_formatter_unavailable = { owner = "adapters.gates", detail = "the value t
 native_language_unsupported = { owner = "adapters.gates", detail = "the value that follows the colon" }
 native_node_archive_checksum_mismatch = { owner = "adapters.repo" }
 native_node_archive_identity_invalid = { owner = "adapters.repo" }
-native_node_archive_members_invalid = { owner = "adapters.repo" }
 native_node_archive_root_invalid = { owner = "adapters.repo" }
 native_node_archive_runtime_incomplete = { owner = "adapters.repo" }
 native_node_archive_unavailable = { owner = "adapters.repo" }
@@ -823,7 +820,6 @@ native_output_invalid = { owner = "contracts" }
 native_output_unsafe = { owner = "adapters.gates" }
 native_process_observer_unavailable = { owner = "adapters" }
 native_prose_not_read_only_clean = { owner = "adapters.gates" }
-native_security_api_missing = { owner = "adapters.repo" }
 native_selection_invalid = { owner = "adapters.gates" }
 native_source_changed = { owner = "adapters.gates" }
 native_source_unexercised = { owner = "adapters.gates", detail = "the value that follows the colon" }
@@ -1667,7 +1663,6 @@ unknown_proof_scope = { owner = "application.proof", detail = "the value that fo
 unknown_required_fact = { owner = "adapters.mutation" }
 unknown_rule_gate = { owner = "repository.policy", detail = "the value that follows the colon" }
 unknown_without_required_gaps = { owner = "ethos" }
-unsupported_access_entry = { owner = "adapters.repo" }
 untracked_content_snapshot_drift = { owner = "adapters.repo" }
 work_lane_already_merged_use_retire_landed = { owner = "adapters.mutation" }
 work_lane_dirty = { owner = "ethos", meaning = "The work lane's tree holds uncommitted change." }

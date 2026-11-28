@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import subprocess
 from typing import TYPE_CHECKING
@@ -15,9 +14,6 @@ import ethos.adapters.toolchain.mise as mise
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from pathlib import Path
-
-# The installs are POSIX executables; the refusal logic itself is platform-neutral.
-pytestmark = pytest.mark.skipif(os.name != "posix", reason="POSIX executable installs")
 
 GRAPH_LOCK = """[[tools.npm]]
 version = "12.2.1"

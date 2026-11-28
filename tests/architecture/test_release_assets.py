@@ -76,10 +76,14 @@ def test_ci_supply_provides_the_declared_linux_signing_tool() -> None:
 def test_direct_python_bounds_equal_the_locked_resolution(monkeypatch: pytest.MonkeyPatch) -> None:
     """Each direct requirement is one lower bound, with any marker, equal to its locked version."""
     assert dependency_hygiene.declaration_gaps() == []
-    declared = ["pywin32>=312; sys_platform == 'win32'", "pywin32>=312,<313"]
+    # One locked requirement, once with a marker and once with a second bound.
+    lock = tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))
+    (version,) = (row["version"] for row in lock["package"] if row["name"] == "filelock")
+    held = f"filelock>={version}"
+    declared = [f"{held}; sys_platform == 'linux'", f"{held},<99"]
     monkeypatch.setattr(dependency_hygiene, "_declared_requirements", lambda: declared)
     assert dependency_hygiene.declaration_gaps() == [
-        "direct_dependency_not_single_lower_bound:pywin32>=312,<313"
+        f"direct_dependency_not_single_lower_bound:{held},<99"
     ]
 
 

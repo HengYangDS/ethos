@@ -15,16 +15,13 @@ from typing import TypedDict
 
 from filelock import Timeout
 
-from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import process_listing_command
 from ethos.adapters.process import run_command
-from ethos.adapters.process import windows_command_lines
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.binding import load_hook_contract
 from ethos.adapters.repo.hook.binding import require_hook_projection
-from ethos.adapters.repo.runtime.filesystem import is_junction
 from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
@@ -51,7 +48,7 @@ class GenerationCleanup(TypedDict):
 
 def _directory_identity(path: Path) -> tuple[int, int, int, int]:
     metadata = path.lstat()
-    if not stat.S_ISDIR(metadata.st_mode) or is_junction(path):
+    if not stat.S_ISDIR(metadata.st_mode):
         refuse("hook_runtime_generation_root_invalid")
     return metadata.st_dev, metadata.st_ino, metadata.st_mtime_ns, metadata.st_ctime_ns
 
@@ -66,26 +63,11 @@ def _generations(common: Path) -> tuple[Path, ...]:
     return tuple(sorted(candidates))
 
 
-def process_commands(
-    root: Path,
-    *,
-    platform_name: str | None = None,
-    exclude_pid: int | None = None,
-    strict: bool = False,
-) -> str:
+def process_commands(root: Path, *, exclude_pid: int | None = None) -> str:
     """Observe native running commands within a bounded, fail-closed boundary.
 
-    `exclude_pid` leaves out one process, such as the observer itself. `strict` makes a process
-    whose command line the platform withholds an unknown observation instead of a skipped one.
+    `exclude_pid` leaves out one process, such as the observer itself.
     """
-    if (platform_name or os.name) == "nt":
-        try:
-            lines = windows_command_lines(
-                timeout=seconds("probe"), exclude_pid=exclude_pid, strict=strict
-            )
-        except ProcessExecutionError:
-            refuse("hook_runtime_consumers_unknown")
-        return "\n".join(lines)
     listing = process_listing_command(with_pid=exclude_pid is not None)
     completed = run_command(root, listing, timeout=seconds("probe"), remove_env_prefixes=("GIT_",))
     if completed.returncode or completed.stderr:
@@ -100,7 +82,7 @@ def _interpreter_bindings(worktree: Path) -> tuple[str, ...]:
     environment = worktree / ".venv"
     if not environment.exists() and not environment.is_symlink():
         return ()
-    if not environment.is_dir() or is_junction(environment):
+    if not environment.is_dir():
         refuse("hook_runtime_consumers_unknown")
     references = [environment.resolve(strict=True).as_posix()]
     metadata = environment / "pyvenv.cfg"
@@ -114,10 +96,9 @@ def _interpreter_bindings(worktree: Path) -> tuple[str, ...]:
             and parts[0].strip().casefold() in {"home", "executable"}
             for value in (parts[2],)
         )
-    for relative in ("bin/python", "Scripts/python.exe"):
-        executable = environment / relative
-        if executable.exists() or executable.is_symlink():
-            references.append(executable.resolve(strict=True).as_posix())
+    executable = environment / "bin/python"
+    if executable.exists() or executable.is_symlink():
+        references.append(executable.resolve(strict=True).as_posix())
     return tuple(references)
 
 
@@ -137,7 +118,7 @@ def _operational_references(root: Path) -> str:
             refuse("hook_runtime_consumers_unknown")
         references.append(config.stdout)
         references.extend(_interpreter_bindings(worktree))
-    return "\n".join(references).replace("\\", "/")
+    return "\n".join(references)
 
 
 def operational_reference_paths(root: Path) -> frozenset[Path]:
@@ -145,12 +126,9 @@ def operational_reference_paths(root: Path) -> frozenset[Path]:
     return _reference_paths(_operational_references(root))
 
 
-def process_reference_paths(
-    root: Path, *, exclude_pid: int | None = None, strict: bool = False
-) -> frozenset[Path]:
-    """Return the paths that running commands alone refer to, in either separator."""
-    commands = process_commands(root, exclude_pid=exclude_pid, strict=strict)
-    return _reference_paths(commands.replace("\\", "/"))
+def process_reference_paths(root: Path, *, exclude_pid: int | None = None) -> frozenset[Path]:
+    """Return the paths that running commands alone refer to."""
+    return _reference_paths(process_commands(root, exclude_pid=exclude_pid))
 
 
 def retirement_plan(root: Path, *, references: frozenset[Path]) -> dict[str, list[Any]]:

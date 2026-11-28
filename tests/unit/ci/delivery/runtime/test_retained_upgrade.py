@@ -182,9 +182,7 @@ def _change_staged_bytes(indexed: Path) -> None:
         "none",
         "hook-config",
         "hook-bytes",
-        pytest.param(
-            "hook-mode", marks=pytest.mark.skipif(os.name == "nt", reason="POSIX executable mode")
-        ),
+        "hook-mode",
         "user-file",
         "index",
         "selector",
@@ -380,7 +378,6 @@ def test_snapshot_observes_deleted_tracked_file(tmp_path: Path) -> None:
     assert ("README.md", None) in deleted.files_sha256
 
 
-@pytest.mark.skipif(os.name == "nt", reason="POSIX symbolic links")
 def test_snapshot_preserves_raw_symlink_target(tmp_path: Path) -> None:
     repository = init_git_repo(tmp_path / "adopter")
     brownfield_acceptance.seed_retained_state(
@@ -395,7 +392,6 @@ def test_snapshot_preserves_raw_symlink_target(tmp_path: Path) -> None:
     assert brownfield_acceptance.retained_repository(repository) != before
 
 
-@pytest.mark.skipif(os.name == "nt", reason="POSIX file permissions")
 def test_snapshot_distinguishes_user_file_permission_change(tmp_path: Path) -> None:
     repository = init_git_repo(tmp_path / "adopter")
     brownfield_acceptance.seed_retained_state(

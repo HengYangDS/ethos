@@ -28,7 +28,7 @@ from ethos.repository.paradigm.parameters import seconds
 # A named path that a formatter could read as a pattern is rendered alone.
 _PATTERN_CHARACTERS = frozenset("*?[]{}")
 _PRETTIER_SKIPPED_DIRECTORIES = frozenset({".git", ".hg", ".jj", ".sl", ".svn", "node_modules"})
-# Paths per native check run stay far below the Windows command-line limit.
+# Paths per native check run stay far below a host's command-line limit.
 _CHECK_ARGUMENT_BUDGET = 6000
 _TAPLO_COLLECTED = re.compile(rb"found files total=(\d+) excluded=(\d+)")
 _ANSI_ESCAPE = re.compile(rb"\x1b\[[0-9;]*m")
@@ -218,8 +218,8 @@ def _checked_paths(
         return set()
     if owner == "taplo":
         # Taplo exits cleanly when it collects no file, so its run vouches only for a chunk it
-        # reports collecting whole. It globs each named path, so a name holding a backslash, and
-        # on Windows hosted conformance every name, reaches no file.
+        # reports collecting whole. It globs each named path, so a name holding a backslash
+        # reaches no file.
         collected = _TAPLO_COLLECTED.findall(_ANSI_ESCAPE.sub(b"", completed.stderr))
         whole = [(str(len(chunk)).encode(), b"0")]
         return set(chunk) if completed.returncode == 0 and collected == whole else set()

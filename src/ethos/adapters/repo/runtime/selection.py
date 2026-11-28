@@ -339,8 +339,8 @@ def require_selected_runtime(
     """Validate one immutable package runtime and return its executable identity.
 
     Stores name a runtime by its digest. A package carrier may name it by the digest's first 16
-    hexadecimal digits, the index the host store also uses, which keeps a Windows interpreter path
-    short; the manifest's digest must begin with that index and is the identity returned.
+    hexadecimal digits, the index the host store also uses; the manifest's digest must begin with
+    that index and is the identity returned.
     """
     name = (expected_root or runtime).name
     if (

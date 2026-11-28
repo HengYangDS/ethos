@@ -152,7 +152,7 @@ def _lychee_report(root: Path, *, gate_id: str, online: bool, candidate: bool) -
                 product_root != source.root and path.is_relative_to(product_root)
             ):
                 source.read(path.relative_to(source.root).as_posix())
-        tool = runtime_scripts(Path(sys.prefix)) / ("lychee.exe" if os.name == "nt" else "lychee")
+        tool = runtime_scripts(Path(sys.prefix)) / "lychee"
         _require_link_inputs(files, tool)
         inputs = tuple(str(source.root / relative) for relative in files)
         literal = _native_link_inputs(inputs)
@@ -183,7 +183,7 @@ def _lychee_report(root: Path, *, gate_id: str, online: bool, candidate: bool) -
                 "--offline=false" if online else "--offline",
             )
             _require_native_link_selection(source.root, command, inputs)
-            # Lychee writes UTF-8 on every platform, not the Windows ANSI code page.
+            # Lychee writes UTF-8.
             if not online:
                 dumped = run_command(
                     source.root,

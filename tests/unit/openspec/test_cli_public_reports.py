@@ -297,7 +297,7 @@ def test_official_batch_preserves_native_output_order_failure_and_unexecuted_tai
     monkeypatch.setattr(cli, "run_command", native)
     actual = cli.run_json_batch(root, None, commands)
     assert native.call_count == 1
-    if task_count > 1 and os.name == "posix":
+    if task_count > 1:
         transport = list(actual[0]["transport"]["command"])
         transport[3] = "0.5"
         with subprocess.Popen(

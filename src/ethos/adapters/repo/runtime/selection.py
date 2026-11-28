@@ -22,7 +22,6 @@ from ethos.adapters.repo.runtime.filesystem import runtime_python
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.manifest import canonical_architecture
 from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
-from ethos.adapters.repo.runtime.manifest import process_machine
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
 from ethos.contracts.digest import is_hex
 from ethos.contracts.digest import is_object_id
@@ -366,7 +365,7 @@ def require_selected_runtime(
     if (
         not identity.digest.startswith(name)
         or identity.environment.platform != platform.system().lower()
-        or identity.environment.architecture != canonical_architecture(process_machine())
+        or identity.environment.architecture != canonical_architecture(platform.machine())
         or (expected_build is not None and identity.build != expected_build)
     ):
         raise ValueError(_MANIFEST_INVALID)

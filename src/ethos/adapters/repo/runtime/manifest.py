@@ -84,7 +84,7 @@ def runtime_environment(
         python_implementation,
         dependency_lock_sha256,
         platform_name or platform.system().lower(),
-        canonical_architecture(architecture_name or process_machine()),
+        canonical_architecture(architecture_name or platform.machine()),
     )
     if not all(environment) or not is_sha256_hex(environment.dependency_lock_sha256):
         raise ValueError(_ENVIRONMENT_INVALID)
@@ -281,11 +281,6 @@ def canonical_architecture(value: str) -> str:
         "amd64": "x86_64",
         "x64": "x86_64",
     }.get(normalized, normalized)
-
-
-def process_machine() -> str:
-    """Name the machine this interpreter executes."""
-    return platform.machine()
 
 
 def _valid_inventory_path(value: str) -> bool:

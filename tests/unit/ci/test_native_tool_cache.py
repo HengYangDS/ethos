@@ -16,7 +16,6 @@ import pytest
 import ethos.adapters.repo.runtime.materialization.native_supply as native_supply
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.runtime.manifest import process_machine
 from ethos.adapters.repo.runtime.materialization.native_supply import NativeSupply
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
 from ethos.adapters.toolchain.mise import MISE_CONFIG
@@ -48,7 +47,7 @@ def _served_downloads(monkeypatch: pytest.MonkeyPatch, package: Path) -> list[tu
 
 def _locked_gitleaks(root: Path, package: Path) -> None:
     """Lock gitleaks 8.30.1 for this host to one archive that ships it and its license."""
-    machine = process_machine()
+    machine = platform.machine()
     arch = "arm64" if machine in {"arm64", "aarch64"} else "x86_64"
     system = "macos" if platform.system() == "Darwin" else "linux"
     target = f"{system}-{'x64' if arch == 'x86_64' else arch}"
@@ -126,7 +125,7 @@ def linked_node_supply(
         monkeypatch.delenv(name, raising=False)
     repo = init_git_repo(tmp_path / "repo")
     version = "26.10.0"
-    arch = "arm64" if process_machine() in {"arm64", "aarch64"} else "x64"
+    arch = "arm64" if platform.machine() in {"arm64", "aarch64"} else "x64"
     family = "macos" if platform.system() == "Darwin" else "linux"
     upstream = "darwin" if family == "macos" else family
     prefix = f"node-v{version}-{upstream}-{arch}"

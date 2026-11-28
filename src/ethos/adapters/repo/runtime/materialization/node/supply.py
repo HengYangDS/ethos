@@ -14,7 +14,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from ethos.adapters.repo.runtime.manifest import process_machine
 from ethos.adapters.toolchain.mise import MISE_CONFIG
 from ethos.adapters.toolchain.mise import MISE_LOCK
 from ethos.adapters.toolchain.mise import native_tool_cache
@@ -99,7 +98,7 @@ class NodeSupply:
             family, upstream, wheel = platforms[platform.system()]
             if family == "linux":
                 _require_linux_host()
-            arch = architectures[process_machine().lower()]
+            arch = architectures[platform.machine().lower()]
             version = tomllib.loads((root / MISE_CONFIG).read_text(encoding="utf-8"))["tools"][
                 "node"
             ]

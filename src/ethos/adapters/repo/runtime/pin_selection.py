@@ -152,7 +152,7 @@ def receipt_departure(repo: Path, target: SelectedRuntime, reason: str) -> dict[
 def mise_platform() -> str:
     """Name this host as Mise keys a lock entry's platforms, as `linux-x64`."""
     system = platform.system().lower().replace("darwin", "macos")
-    machine = manifest.canonical_architecture(manifest.process_machine())
+    machine = manifest.canonical_architecture(platform.machine())
     return f"{system}-{machine.replace('x86_64', 'x64')}"
 
 

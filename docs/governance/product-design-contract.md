@@ -385,10 +385,11 @@ operation is deterministic and offline after bootstrap. An explicitly selected i
 supplies ETHOS; the target repository supplies its intent, policy, source and project toolchain.
 Product identity, repository selection and project environments are distinct. No adopter needs an
 ETHOS checkout or developer environment. Native macOS and Linux are the supported platforms.
-Homebrew is a supported installation channel; packaging internals do not dictate repository semantics. CLI, SDK, MCP and
-Skills expose the same current context, available capabilities, gaps and safe continuation. Adoption
-is previewable, idempotent, minimally invasive, reversible before first governed effect, and cleanly
-uninstallable without leaving hooks, generated truth, or a second control plane.
+Homebrew is a supported installation channel; packaging internals do not dictate repository
+semantics. CLI, SDK, MCP and Skills expose the same current context, available capabilities, gaps
+and safe continuation. Adoption is previewable, idempotent, minimally invasive, reversible before
+first governed effect, and cleanly uninstallable without leaving hooks, generated truth, or a second
+control plane.
 
 Continuation coordinates are typed by route: an execution session, execution
 cell, and thread operation are not interchangeable. A long mutation writes its

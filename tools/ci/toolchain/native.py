@@ -20,7 +20,6 @@ from filelock import Timeout
 from packaging.version import Version
 
 from ethos.adapters.process import run_command
-from ethos.adapters.repo.runtime.manifest import process_machine
 from ethos.adapters.repo.runtime.materialization.native_supply import NATIVE_BACKENDS
 from ethos.adapters.repo.runtime.materialization.native_supply import download_tool
 from ethos.adapters.repo.runtime.materialization.native_supply import ensure_native_directory
@@ -68,9 +67,9 @@ def mise_executables(root: Path) -> dict[str, str]:
 def mise_target() -> str:
     """Name this host's official executable platform."""
     system = MISE_SYSTEMS.get(platform.system())
-    arch = MISE_ARCHITECTURES.get(process_machine().lower())
+    arch = MISE_ARCHITECTURES.get(platform.machine().lower())
     if system is None or arch is None:
-        message = f"mise_platform_unsupported:{platform.system()}-{process_machine()}"
+        message = f"mise_platform_unsupported:{platform.system()}-{platform.machine()}"
         raise ValueError(message)
     return f"{system}-{arch}"
 
@@ -126,7 +125,7 @@ def prepare_mise(root: Path) -> Path:
         native_tool_cache(root)
         / "mise"
         / version
-        / f"{platform.system()}_{process_machine()}"
+        / f"{platform.system()}_{platform.machine()}"
         / "bin"
     )
     ensure_native_directory(home)

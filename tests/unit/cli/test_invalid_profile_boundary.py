@@ -311,8 +311,9 @@ def test_public_boundary_normalizes_contract_failures_without_traceback(
 def test_a_host_other_than_macos_or_linux_is_refused_first(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys, entrypoint
 ) -> None:
-    """Both entries refuse the host before a process reads the root."""
+    """Both entries refuse the host before a process reads the root or anything writes it."""
     # The refusal's own runtime identity still reads ETHOS's source, so only the root is banned.
+    before = sorted(tmp_path.rglob("*"))
     popen = subprocess.Popen
 
     def reads_no_root(args: Any, *rest: Any, **options: Any) -> Any:
@@ -326,3 +327,4 @@ def test_a_host_other_than_macos_or_linux_is_refused_first(
         monkeypatch, capsys, "status", "--root", str(tmp_path), "--json", entrypoint=entrypoint
     )
     assert payload["required_gaps"] == ["host_platform_unsupported:Windows"]
+    assert sorted(tmp_path.rglob("*")) == before

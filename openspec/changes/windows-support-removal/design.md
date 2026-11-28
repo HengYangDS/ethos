@@ -180,7 +180,9 @@ DR-0035).
   console, `python -m ethos.cli` and the Git hook entry that the hook launcher runs refuse such a
   host with `host_platform_unsupported:<platform>` before they read the repository; the MCP server
   starts through the CLI. The check has one owner, `ethos.adapters.host`, beneath all three. The
-  modules whose Windows branch left keep no host check of their own.
+  modules whose Windows branch left keep no host check of their own. The Nox child
+  `python -m ethos.domain.quality.nox` keeps none either: it reaches no removed branch (it runs Ruff
+  through the standard library and writes one record), and the domain layer imports no adapters.
   - _Rests on:_ the lane's model review of 2026-11-28 found nine paths where, with the branch gone,
     a host without POSIX process groups, permission bits, `ps` or `lsof` would continue rather than
     refuse (its comments F50, F60 to F62, F65, F69 to F71). One owner refuses them all, and a test

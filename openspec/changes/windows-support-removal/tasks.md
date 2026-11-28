@@ -6,10 +6,10 @@
       requirement titles and the 32 scenario names of the design's tables. Done when the search
       names none, or each Change it names is re-homed first; the search is repeated before the
       landing.
-- [ ] 1.2 Remove the 32 scenarios that the design lists from the accepted specifications, in a
-      commit that changes nothing else. Done when a script that compares the accepted specifications
-      before and after the commit names exactly the listed pairs of requirement title and scenario
-      name, no added line and no changed statement, and `openspec validate --specs --strict` passes.
+- [ ] 1.2 Remove the 32 scenarios that the design lists from the accepted specifications, by
+      deletions only. Done when a script that compares the accepted specifications at the lane's
+      base and head names exactly the listed pairs of requirement title and scenario name, no added
+      line and no changed statement, and `openspec validate --specs --strict` passes.
 - [ ] 1.3 Put the retired, reworded and added accepted text to the owner with its Chinese meaning:
       the 32 retired scenarios and the 6 that leave with a removed requirement, by name and text;
       the reworded statements and scenarios; the two added requirements; the contract's two

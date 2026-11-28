@@ -62,7 +62,6 @@ def _declared(root: Path) -> dict[str, str]:
         "GIT_CONFIG_GLOBAL": str(root / "gitconfig"),
         "GIT_CONFIG_NOSYSTEM": "1",
         "GIT_ATTR_NOSYSTEM": "1",
-        "GIT_TEMPLATE_DIR": fresh["GIT_TEMPLATE_DIR"],
     }
     return fresh | git
 

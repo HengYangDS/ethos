@@ -137,7 +137,7 @@ def install_declared(
     run(mise, project, ("install", "--locked"), forge)
     installed = Path(run(mise, project, ("where", declared.key), scoped).strip())
     entries = sorted(path.name for path in (installed / "bin").iterdir())
-    if entries not in (["ethos"], ["ethos.cmd"]):
+    if entries != ["ethos"]:
         message = f"shared_supply_path_entries_invalid:{','.join(entries)}"
         raise RuntimeError(message)
     console = run(mise, project, ("exec", "--locked", "--", "ethos", "--version"), scoped)

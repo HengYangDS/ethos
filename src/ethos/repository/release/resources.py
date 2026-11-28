@@ -64,15 +64,13 @@ def require_packaged_resource(relative: str | PurePosixPath) -> Path:
             raise ValueError(message)
         entry = entries[0]
         if (
-            os.path.normcase(str(Path(str(metadata.locate_file(entry))).absolute()))
-            != os.path.normcase(str(path))
+            Path(str(metadata.locate_file(entry))).absolute() != path
             or entry.hash is None
             or entry.hash.mode != "sha256"
             or not path.is_file()
         ):
             raise ValueError(message)
-        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
-        with os.fdopen(os.open(path, flags), "rb") as stream:
+        with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW), "rb") as stream:
             observed = os.fstat(stream.fileno())
             digest = base64.urlsafe_b64encode(hashlib.file_digest(stream, "sha256").digest())
             if (

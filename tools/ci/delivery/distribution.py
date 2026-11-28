@@ -123,7 +123,7 @@ def package_runtime(
         cask_path = _publish_outputs(archive_path, destination, cask, Path(work))
     return {
         "path": str(destination),
-        "homebrew_cask": str(cask_path) if cask_path is not None else None,
+        "homebrew_cask": str(cask_path),
         "published": False,
         "sha256": digest,
         "runtime_digest": selected.digest,
@@ -147,11 +147,8 @@ def retain_qualified_distribution(
     return retained
 
 
-def _publish_outputs(archive: Path, destination: Path, cask: str | None, work: Path) -> Path | None:
+def _publish_outputs(archive: Path, destination: Path, cask: str, work: Path) -> Path:
     """Replace the archive only after its companion Cask is staged and recoverable."""
-    if cask is None:
-        archive.replace(destination)
-        return None
     cask_path = destination.parent / "homebrew" / "Casks" / "ethos.rb"
     if any(path.is_symlink() for path in (cask_path.parent.parent, cask_path.parent, cask_path)):
         message = "distribution_cask_destination_invalid"

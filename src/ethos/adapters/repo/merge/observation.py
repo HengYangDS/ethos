@@ -37,9 +37,7 @@ def metadata_bytes(path: Path) -> bytes | None:
         if not S_ISREG(named_before.st_mode):
             message = "merge_metadata_unsafe"
             raise ValueError(message)
-        descriptor = os.open(
-            path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
-        )
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     except FileNotFoundError:
         return None
     try:

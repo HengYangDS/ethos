@@ -43,11 +43,11 @@ digests for two platforms, and tests that simulated a host which no gate require
   earlier than the next release, by the owner's decision recorded in the Change that arms it. Shell,
   PowerShell and `cmd` are still detected as script kinds: that is a rule about files, not support
   for a platform.
-- The accepted specifications lose 27 scenarios that describe Windows behaviour, by one direct edit
-  that the design lists scenario by scenario; eight of them return reworded, for a promise that
-  holds on every host. Three further requirements, with six scenarios, leave by `REMOVED`: two
-  return under new titles without a platform, and one has no successor. One requirement is renamed,
-  and one loses a step.
+- The accepted specifications lose 32 scenarios that describe Windows behaviour, by one direct edit
+  that the design lists scenario by scenario; ten of them return reworded, for a promise that holds
+  on every host. Three further requirements, with six scenarios, leave by `REMOVED`: two return
+  under new titles without a platform, and one has no successor. Two requirements are renamed, and
+  one loses a step.
 - The locks resolve for macOS and Linux only: the Mise lock loses its Windows platform records and
   the Python lock declares its two environments.
 - **BREAKING**: a release from this Change on publishes no Windows archive and no Windows wheel. A

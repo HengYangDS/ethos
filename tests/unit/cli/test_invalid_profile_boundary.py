@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import platform
 import subprocess
 import sys
 from contextlib import nullcontext
@@ -303,3 +304,17 @@ def test_public_boundary_normalizes_contract_failures_without_traceback(
         assert schema["expected_state"] == "current"
         assert schema["observed_state"] in {"absent", "current", "legacy", "incompatible"}
         assert payload["next_action"].startswith("ethos hook install --root ")
+
+
+@pytest.mark.parametrize("entrypoint", [main, console_main])
+def test_a_host_other_than_macos_or_linux_is_refused_first(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys, entrypoint
+) -> None:
+    """Both entries refuse the host before a command reads or writes its root."""
+    before = sorted(tmp_path.rglob("*"))
+    monkeypatch.setattr(platform, "system", lambda: "Windows")
+    payload = _invoke(
+        monkeypatch, capsys, "status", "--root", str(tmp_path), "--json", entrypoint=entrypoint
+    )
+    assert payload["required_gaps"] == ["host_platform_unsupported:Windows"]
+    assert sorted(tmp_path.rglob("*")) == before

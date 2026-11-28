@@ -160,11 +160,15 @@ def test_runtime_identity_distinguishes_canonical_architectures() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("machine", "architecture"),
+    [("aarch64", "arm64"), ("arm64", "arm64"), ("x86_64", "x86_64")],
+)
 def test_runtime_identity_names_the_machine_its_interpreter_executes(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, machine: str, architecture: str
 ) -> None:
     """A runtime's environment names the machine that its own process reports."""
-    monkeypatch.setattr(runtime_manifest.platform, "machine", lambda: "aarch64")
+    monkeypatch.setattr(runtime_manifest.platform, "machine", lambda: machine)
     environment = runtime_environment(
         python_abi="cpython-314",
         python_version="3.14.7",
@@ -172,7 +176,7 @@ def test_runtime_identity_names_the_machine_its_interpreter_executes(
         dependency_lock_sha256="d" * 64,
     )
 
-    assert environment.architecture == runtime_manifest.canonical_architecture("aarch64")
+    assert environment.architecture == architecture
 
 
 @pytest.mark.parametrize("manifest_kind", ["legacy", "private"])

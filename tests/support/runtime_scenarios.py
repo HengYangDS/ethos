@@ -26,6 +26,7 @@ from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.authority import runtime_build_identity
 from ethos.adapters.repo.runtime.filesystem import runtime_executable
 from ethos.adapters.repo.runtime.filesystem import runtime_python
+from ethos.adapters.repo.runtime.filesystem import runtime_scripts
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.manifest import runtime_digest
 from ethos.adapters.repo.runtime.manifest import runtime_environment
@@ -143,13 +144,13 @@ def create_fixture_python(
     native_executables: Mapping[str, Path] | None = None,
 ) -> None:
     """Bind fixture children to the invoking candidate and shared dependencies."""
-    scripts = target / "bin"
+    scripts = runtime_scripts(target)
     scripts.mkdir(parents=True)
     entry = scripts / "ethos"
     entry.write_text(runtime_materialization.render_console_script("ethos"))
     entry.chmod(0o755)
     source_python = Path(sys.executable).absolute()
-    fixture_python = scripts / "python"
+    fixture_python = runtime_python(target)
     if shared_executable is None:
         shutil.copy(source_python, fixture_python)
         fixture_python.chmod(0o755)

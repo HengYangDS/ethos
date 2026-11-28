@@ -335,11 +335,14 @@ def test_an_incomplete_record_admits_nothing(tmp_path: Path, fields: dict[str, o
     )
 
 
-def test_a_record_naming_a_leaving_platform_is_read_and_reported(tmp_path: Path) -> None:
+@pytest.mark.parametrize("platforms", [["linux", "windows"], ["windows"]], ids=["mixed", "alone"])
+def test_a_record_naming_a_leaving_platform_is_read_and_reported(
+    tmp_path: Path, platforms: list[str]
+) -> None:
     """A platform that left the catalogue keeps its record's step retained for one release."""
     files = {
         ".gitlab-ci.yml": _GLUE_STEP,
-        _RECORD: _record(_GLUE, platforms=["linux", "windows"]),
+        _RECORD: _record(_GLUE, platforms=platforms),
     }
     gaps = dict(_gaps(tmp_path, files))
     assert gaps == {

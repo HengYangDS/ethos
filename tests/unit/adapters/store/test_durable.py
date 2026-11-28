@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 def test_a_durable_replacement_syncs_the_file_and_its_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The bytes and, on POSIX, the directory entry are synced; no staging file remains."""
+    """The bytes and the directory entry are synced; no staging file remains."""
     synced: list[int] = []
     real = os.fsync
 
@@ -32,5 +32,5 @@ def test_a_durable_replacement_syncs_the_file_and_its_directory(
     durable.replace_durably(target, b"new")
 
     assert target.read_bytes() == b"new"
-    assert len(synced) == (2 if os.name == "posix" else 1)
+    assert len(synced) == 2
     assert [path.name for path in target.parent.iterdir()] == ["record.json"]

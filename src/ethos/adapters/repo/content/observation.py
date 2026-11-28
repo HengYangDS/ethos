@@ -53,9 +53,6 @@ def read_regular_bytes(
     Native aliases above the selected root resolve once; its canonical descriptor
     chain and repository-relative components are opened without following links.
     """
-    nonblock = getattr(os, "O_NONBLOCK", 0)
-    if not nonblock:
-        raise ValueError(unsafe_gap)
     file_descriptor: int | None = None
     try:
         with _parent_descriptors(root, relative, unsafe_gap) as (
@@ -64,7 +61,7 @@ def read_regular_bytes(
             directories,
         ):
             file_descriptor = os.open(
-                components[-1], os.O_RDONLY | os.O_NOFOLLOW | nonblock, dir_fd=directories[-1]
+                components[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directories[-1]
             )
             before = os.fstat(file_descriptor)
             if not stat.S_ISREG(before.st_mode) or (
@@ -124,9 +121,8 @@ def _parent_descriptors(
     root: Path, relative: str, gap: str
 ) -> Generator[tuple[Path, tuple[str, ...], list[int]]]:
     path = PurePosixPath(relative)
-    nofollow = getattr(os, "O_NOFOLLOW", 0)
-    directory = getattr(os, "O_DIRECTORY", 0)
-    if not all((nofollow, directory)) or _member_path_invalid(root, relative):
+    nofollow, directory = os.O_NOFOLLOW, os.O_DIRECTORY
+    if _member_path_invalid(root, relative):
         raise ValueError(gap)
     directories: list[int] = []
     try:

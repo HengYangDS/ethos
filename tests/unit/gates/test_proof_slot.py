@@ -281,10 +281,14 @@ def test_the_host_load_is_the_one_minute_load_where_the_host_reports_it(
     expected: float | None,
 ) -> None:
     """The 5-minute average lags a finished run by minutes; two calm 1-minute samples admit."""
-    if averages is not None:
-        monkeypatch.setattr(proof_slot.os, "getloadavg", lambda: averages)
-    else:
-        monkeypatch.delattr(proof_slot.os, "getloadavg")
+
+    def reading() -> tuple[float, float, float]:
+        if averages is None:
+            # What the host raises when its load average is unobtainable.
+            raise OSError
+        return averages
+
+    monkeypatch.setattr(proof_slot.os, "getloadavg", reading)
 
     assert proof_slot.host_load() == expected
 

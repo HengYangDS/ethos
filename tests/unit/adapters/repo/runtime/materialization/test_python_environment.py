@@ -327,3 +327,27 @@ def test_python_image_requires_relocatable_library_links(tmp_path, link, admitte
     _python(library / "libpython3.14.1.dylib")
     (library / "libpython3.14.dylib").symlink_to("libpython3.14.1.dylib")
     assert python_environment.python_image_source_capable(source, _facts(source)) is admitted
+
+
+@pytest.mark.parametrize(
+    ("candidate", "contained"),
+    [("python/bin/python", True), ("python-other/bin/python", False), ("bin/python", False)],
+)
+def test_python_containment_uses_path_boundaries_not_name_prefixes(tmp_path, candidate, contained):
+    """A sibling whose name only extends the boundary's name lies outside it."""
+    boundary = tmp_path / "python"
+    assert python_environment.python_path_within(tmp_path / candidate, boundary) is contained
+
+
+@pytest.mark.parametrize("linked", ["none", "home", "interpreter", "stdlib"])
+def test_python_image_requires_a_real_home_interpreter_and_standard_library(tmp_path, linked):
+    """A linked prefix, interpreter or standard-library directory is not a copyable image."""
+    home = tmp_path / "image"
+    source = _image(home)
+    target = {"home": home, "interpreter": source, "stdlib": home / "lib/python3.14"}.get(linked)
+    if target is not None:
+        saved = target.with_name(target.name + "-saved")
+        target.rename(saved)
+        target.symlink_to(saved, target_is_directory=saved.is_dir())
+    capable = python_environment.python_image_source_capable(source, _facts(source))
+    assert capable is (linked == "none")

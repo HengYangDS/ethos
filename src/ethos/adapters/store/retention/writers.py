@@ -28,9 +28,7 @@ _ENTRIES = re.compile(r"ethos|python[0-9.]*", re.IGNORECASE)
 
 def _leading_path(text: str) -> tuple[Path, str] | None:
     """Return the existing absolute path that begins `text` and the rest; names may hold spaces."""
-    text = text.replace("\\", "/")
-    match = re.match(r"(?:[A-Za-z]:)?/", text)
-    if match is None:
+    if not text.startswith("/"):
         return None
     found: tuple[Path, str] | None = None
     for end in [m.start() for m in re.finditer(r" ", text)] + [len(text)]:

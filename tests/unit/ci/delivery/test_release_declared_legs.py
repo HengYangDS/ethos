@@ -33,6 +33,8 @@ def test_the_command_line_takes_the_declared_hosts():
     """The workflow passes the list once, comma-separated, as the pipeline declares it."""
     hosts = release_assets.declared_hosts("linux-arm64,linux-x64,")
     assert hosts == frozenset({"linux-arm64", "linux-x64"})
+    with pytest.raises(ValueError, match="release_assets_hosts_invalid"):
+        release_assets.declared_hosts("linux-x64,linux-x64")
 
 
 def test_the_workflow_reads_one_declaration_of_the_release_legs():

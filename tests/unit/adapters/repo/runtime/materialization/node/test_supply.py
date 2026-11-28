@@ -20,7 +20,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _archive(path: Path, prefix: str, *, licensed: bool = True) -> Path:
+def _archive(
+    path: Path, prefix: str, *, licensed: bool = True, links: tuple[tuple[str, str], ...] = ()
+) -> Path:
     with tarfile.open(path, "w:gz") as archive:
         for name, data, mode in (
             ("bin/node", b"native Node bytes", 0o755),
@@ -30,6 +32,12 @@ def _archive(path: Path, prefix: str, *, licensed: bool = True) -> Path:
             member = tarfile.TarInfo(f"{prefix}/{name}")
             member.size, member.mode = len(data), mode
             archive.addfile(member, io.BytesIO(data))
+        for name, target in links:
+            member = tarfile.TarInfo(f"{prefix}/{name}")
+            member.type, member.linkname, member.size = (
+                (tarfile.SYMTYPE, target, 0) if target else (tarfile.REGTYPE, "", 6)
+            )
+            archive.addfile(member, io.BytesIO(b"escape"))
     return path
 
 
@@ -213,3 +221,19 @@ def test_projection_requires_the_complete_licensed_runtime(tmp_path: Path) -> No
     archive = _archive(tmp_path / f"{prefix}.tar.gz", prefix, licensed=False)
     with pytest.raises(ValueError, match="native_node_archive_runtime_incomplete"):
         _supply(archive).project(archive, tmp_path / "native")
+
+
+@pytest.mark.parametrize(
+    "links",
+    [(("../../escape.txt", ""),), (("outside", "../.."), ("outside/escape.txt", ""))],
+    ids=["escaping-member", "link-outside"],
+)
+def test_archive_members_stay_inside_the_destination(
+    tmp_path: Path, links: tuple[tuple[str, str], ...]
+) -> None:
+    """An escaping member or a link out of the destination is refused; nothing lands outside."""
+    prefix = "node-v26.10.0-darwin-arm64"
+    archive = _archive(tmp_path / f"{prefix}.tar.gz", prefix, links=links)
+    with pytest.raises(tarfile.FilterError):
+        _supply(archive).project(archive, tmp_path / "native")
+    assert not (tmp_path / "escape.txt").exists()

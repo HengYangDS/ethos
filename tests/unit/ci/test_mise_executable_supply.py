@@ -29,7 +29,7 @@ def without_operator_supply(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _executable(observed: str = VERSION) -> bytes:
-    return f"#!{sys.executable}\nprint({f'{observed} linux-x64'!r})\n".encode()
+    return f"#!{sys.executable}\nprint({f'{observed} {native.mise_target()}'!r})\n".encode()
 
 
 def _source(root: Path, *, digest: str, executables: bool = True) -> None:

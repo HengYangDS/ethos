@@ -249,9 +249,6 @@ def test_native_node_custody_does_not_follow_rejected_symlink(
     """Rejected raw links never copy unrelated target bytes into retained evidence."""
     sentinel = tmp_path / "foreign"
     sentinel.write_bytes(b"unrelated bytes must not be read")
-    link = tmp_path / "capability"
-    link.symlink_to(sentinel)
-    link.unlink()
     monkeypatch.setenv("ETHOS_CUSTODY_SENTINEL", str(sentinel))
     repo = committed_source_repo(
         tmp_path,

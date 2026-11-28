@@ -144,7 +144,7 @@ GATE_SUFFIX = ".gate"
 
 def opened_descriptor(path: Path, *, create: bool) -> int:
     """Open one ticket's lock file, non-inheritable until an admitted child is given it."""
-    flags = os.O_RDWR | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    flags = os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK
     return os.open(path, flags | (os.O_CREAT if create else 0), 0o600)
 
 
@@ -254,8 +254,7 @@ class HostQueue:
                 }
                 partial.write_text(json.dumps(record), encoding="utf-8")
                 partial.replace(self.directory / f"{ticket.name}.json")
-                if held != named:
-                    held.replace(named)
+                held.replace(named)
             except BaseException:
                 # The gate is still held, so nothing has counted this file or will meet it.
                 # A removal that fails stays silent: the caller hears the entry's own failure,

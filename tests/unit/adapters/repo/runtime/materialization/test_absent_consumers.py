@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import shutil
 from typing import TYPE_CHECKING
 
@@ -108,11 +107,7 @@ def test_a_place_the_host_cannot_look_at_is_unknown_and_is_never_planned(
     ("left", "reason"),
     [
         ("file", "not_a_directory"),
-        pytest.param(
-            "link",
-            "dangling_link",
-            marks=pytest.mark.skipif(os.name == "nt", reason="a link needs a privilege"),
-        ),
+        ("link", "dangling_link"),
     ],
 )
 def test_the_preview_names_a_record_whose_consumer_it_could_not_read(

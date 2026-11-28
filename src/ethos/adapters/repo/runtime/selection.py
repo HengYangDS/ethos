@@ -65,6 +65,12 @@ class SelectedRuntime(NamedTuple):
     build: BuildIdentity
     repository_private: bool
 
+    @property
+    def site_packages(self) -> Path:
+        """Return the selected interpreter's site-packages directory."""
+        version = ".".join(self.python_version.split(".")[:2])
+        return self.root / "python" / f"lib/python{version}/site-packages"
+
 
 _INSPECTION_RUNTIME: ContextVar[tuple[Path, SelectedRuntime] | None] = ContextVar(
     "inspection_runtime", default=None

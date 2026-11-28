@@ -2,16 +2,16 @@
 
 ## 1. The accepted specifications
 
-- [ ] 1.1 Search the specification deltas of every open Change at the lane's base for the 20
-      requirement titles and the 27 scenario names of the design's tables. Done when the search
+- [ ] 1.1 Search the specification deltas of every open Change at the lane's base for the 22
+      requirement titles and the 32 scenario names of the design's tables. Done when the search
       names none, or each Change it names is re-homed first; the search is repeated before the
       landing.
-- [ ] 1.2 Remove the 27 scenarios that the design lists from the accepted specifications, in a
+- [ ] 1.2 Remove the 32 scenarios that the design lists from the accepted specifications, in a
       commit that changes nothing else. Done when a script that compares the accepted specifications
       before and after the commit names exactly the listed pairs of requirement title and scenario
       name, no added line and no changed statement, and `openspec validate --specs --strict` passes.
 - [ ] 1.3 Put the retired, reworded and added accepted text to the owner with its Chinese meaning:
-      the 27 retired scenarios and the 6 that leave with a removed requirement, by name and text;
+      the 32 retired scenarios and the 6 that leave with a removed requirement, by name and text;
       the reworded statements and scenarios; the two added requirements; the contract's two
       sentences; the decision record; and by name the two effects that no earlier release reported
       (a pipeline declaration naming `windows` stops compiling; a bind with a Mise pin that keeps
@@ -19,7 +19,7 @@
       decision of 2026-11-26). Done when his answer is recorded in the decision record; the lane
       does not land before.
 - [ ] 1.4 Have the lane's independent review rerun the comparison of task 1.2 on the retiring commit
-      and answer, for each of the 33 scenarios of the design's tables, whether the product still
+      and answer, for each of the 38 scenarios of the design's tables, whether the product still
       does it or which title states it. Done when the design's section "Review of the retirements"
       names the reviewer and the commit and resolves each answer that differs.
 

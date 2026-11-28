@@ -23,7 +23,7 @@ from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.protocol import blocked_report
 from ethos.adapters.repo.hook.protocol import passed_report
-from ethos.adapters.repo.runtime.filesystem import runtime_scripts
+from ethos.adapters.repo.runtime.filesystem import runtime_executable
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import current_runtime
@@ -298,7 +298,7 @@ def _check_staged_python_format(
     )
     try:
         executable = Path(import_module("ruff").find_ruff_bin())
-        expected = runtime_scripts(Path(sys.prefix)) / "ruff"
+        expected = runtime_executable(Path(sys.prefix), "ruff")
         if executable.resolve() != expected.resolve() or not os.access(executable, os.X_OK):
             raise FileNotFoundError
     except (ImportError, OSError) as error:

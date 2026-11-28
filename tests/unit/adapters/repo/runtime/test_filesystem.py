@@ -39,8 +39,7 @@ def test_owned_removal_changes_only_required_directory_permissions(
     remove_owned_path(target)
 
     assert not target.exists()
-    if os.name == "posix":
-        assert changed == ([] if mode == 0o755 else [runtime])
+    assert changed == ([] if mode == 0o755 else [runtime])
     remove_owned_path(target)
 
 

@@ -37,7 +37,6 @@ if TYPE_CHECKING:
 
 PROCESS_CREATION_FAILED = "process_creation_failed"
 NATIVE_PROCESS_OBSERVER_UNAVAILABLE = "native_process_observer_unavailable"
-# The idle and system processes have no command line and run no program.
 # Darwin needs a moment to reap an exited group's members before it can report the group absent.
 _GROUP_REAPING_GRACE_SECONDS = 0.5
 _GROUP_REAPING_POLL_SECONDS = 0.01

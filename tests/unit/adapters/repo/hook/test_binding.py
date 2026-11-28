@@ -275,7 +275,18 @@ def test_launcher_drift_fails_closed(tmp_path: Path, payload: bytes) -> None:
 
 @pytest.mark.parametrize(
     "defect",
-    ["toml", "extra", "empty", "duplicate", "name", "platforms", "absolute", "parent", "template"],
+    [
+        "toml",
+        "extra",
+        "empty",
+        "duplicate",
+        "name",
+        "platforms",
+        "unknown-platform",
+        "absolute",
+        "parent",
+        "template",
+    ],
 )
 def test_malformed_hook_declaration_is_rejected(tmp_path: Path, defect: str) -> None:
     """Only the closed data grammar may produce launcher bytes."""
@@ -291,6 +302,8 @@ def test_malformed_hook_declaration_is_rejected(tmp_path: Path, defect: str) -> 
         values["scripts"] = ["../unowned"]
     elif defect == "platforms":
         values["python"] = {"nt": "python/python.exe"}
+    elif defect == "unknown-platform":
+        values["python"]["other"] = "python/bin/python"
     elif defect in {"absolute", "parent"}:
         values["python"]["posix"] = "/external/python" if defect == "absolute" else "../python"
     elif defect == "template":
@@ -299,6 +312,16 @@ def test_malformed_hook_declaration_is_rejected(tmp_path: Path, defect: str) -> 
     declaration.write_text("invalid = [" if defect == "toml" else tomli_w.dumps(values))
     with pytest.raises(ValueError, match=r"Invalid value|hook_launcher_declaration_invalid"):
         hook_contract.load_hook_contract(declaration)
+
+
+def test_hook_declaration_admits_a_python_table_without_nt(tmp_path: Path) -> None:
+    """The reader needs `posix` alone; `nt` is a kept entry it reads past, not a requirement."""
+    values = tomllib.loads(Path(hook_contract.__file__).with_suffix(".toml").read_text())
+    values["python"] = {"posix": "python/bin/python"}
+    declaration = tmp_path / "binding.toml"
+    declaration.write_text(tomli_w.dumps(values))
+    loaded = hook_contract.load_hook_contract(declaration)
+    assert loaded["launchers"] == hook_contract.load_hook_contract()["launchers"]
 
 
 def test_selected_hook_declaration_read_failure_is_nonarming(
@@ -393,9 +416,14 @@ def test_binding_primitives_and_unavailable_source_fail_closed(
 
 
 def test_the_shipped_launchers_keep_the_generation_that_earlier_releases_installed() -> None:
-    """A changed launcher changes what an activation across releases compares."""
+    """A changed launcher changes what an activation across releases compares.
+
+    The reader of 0.2.0-beta.12 refuses a shipped declaration whose `python` table lacks `nt`.
+    """
     released = "1a8c9526f69b1338a4a544fc03e44f7ca17a1a8208887e535acde7bb2170e6c5"
     assert hook_contract.load_hook_contract()["generation_digest"] == released
+    shipped = tomllib.loads(Path(hook_contract.__file__).with_suffix(".toml").read_text())
+    assert shipped["python"] == {"posix": "python/bin/python", "nt": "python/python.exe"}
 
 
 def test_pure_hook_query_does_not_initialize_runtime_or_policy() -> None:

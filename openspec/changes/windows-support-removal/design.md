@@ -69,7 +69,7 @@ DR-0035).
   - _Considered:_ keeping the branches unreached behind one constant. Rejected: the owner asked for
     no residue, and an unreached branch is tested by nothing.
 - **Scenarios leave accepted requirements by a retiring edit.** The Change's first commit edits the
-  accepted specifications directly: it deletes exactly the 27 scenarios listed below from 20
+  accepted specifications directly: it deletes exactly the 32 scenarios listed below from 22
   requirements and changes nothing else (no line added, statements untouched, every requirement
   keeps at least one scenario). The delta specifications then carry only what is reworded or new.
   - _Rests on:_ OpenSpec 2.0.0 refuses a `MODIFIED` block that omits a scenario of the current
@@ -84,14 +84,15 @@ DR-0035).
       retired pairs from the two trees; the lane's independent review runs it again on the commit
       and compares its output with the tables. The product's present signal for a removed step,
       `openspec_spec_obligation_removed`, does not see a step written as a list item, which is every
-      step of these specifications: fed this edit's 82 removed step lines it names none. That defect
-      enters the repository as a known-defect entry with this Change.
+      step of these specifications: fed the edit's 82 removed step lines as first drafted, it names
+      none, and the 16 added on 2026-11-28 are list items too. That defect enters the repository as
+      a known-defect entry with this Change.
     - The owner's acceptance: the product's acceptance covers delta entries only, so the retired
       names and texts go to the owner in person, with the reworded and the added text, before the
       landing; the lane does not land without his answer.
     - The review question, "does the product still do this, or which title now states it?": the
       tables give the author's answer for each scenario. The independent review answers it again for
-      each of the 33, and the section "Review of the retirements" below records the reviewer, the
+      each of the 38, and the section "Review of the retirements" below records the reviewer, the
       commit and each answer that differs, resolved before the archive.
     - A commit of its own: the first commit, which holds nothing else.
     - Open deltas: no open Change's delta names one of the 20 titles or a retired scenario (searched
@@ -100,8 +101,8 @@ DR-0035).
   - _Considered:_ keeping each scenario's name and rewriting its body, as the Change
     `ci-emulation-retirement` did on 2026-11-02 (its design: "keeps its name"). Rejected: a scenario
     that is named for Windows and says that Windows is not supported is residue and retirement
-    vocabulary (resolution 5.2). _Considered:_ `REMOVED` and `ADDED` under a new title for all 20
-    requirements. Rejected: it changes 20 identities that keep their promise.
+    vocabulary (resolution 5.2). _Considered:_ `REMOVED` and `ADDED` under a new title for all 22
+    requirements. Rejected: it changes 22 identities that keep their promise.
 - **A requirement that would keep no scenario leaves by `REMOVED` and names its successor.** Three
   leave, with 6 scenarios. "Native metadata comparisons preserve observation semantics" (one
   scenario, on a Windows difference in change times) and "Runtime cleanup uses native host process
@@ -159,17 +160,34 @@ DR-0035).
     backslash is an ordinary name character and no name is drive-anchored; the absolute-path and
     `..` checks stay.
   - The read path without descriptor chains: macOS and Linux always provide the chain, so the path
-    was reached on no supported host. The reader still refuses a host without `O_NONBLOCK`.
+    was reached on no supported host. The flags `O_NOFOLLOW`, `O_NONBLOCK` and `O_DIRECTORY` are
+    read directly, at every open that used them, rather than tolerated as absent: a host without
+    them is refused at the command entry.
   - Zip member checks of Node and native tools: ETHOS reads no zip archive any more; the tar member
     checks stay.
-  - The access-control reading of a trust anchor: permission bits and ownership decide alone, as
-    they did on POSIX. A refused permission change now carries
+  - The access-control reading of a trust anchor: the permission bits decide alone, as they did on
+    POSIX, where ownership was never read. A refused permission change now carries
     `git_object_trust_anchor_protection_failed:<reason>`, which only the Windows path did before.
 - **Release assembly takes one list of hosts.** `--hosts` replaces the required and optional lists;
   the record of legs left out and its sentence in the notes leave, as does the dispatch input that
   added the Windows legs to a push. A leg that carries another machine's runtime is refused with
   `release_assets_distribution_mismatch`, where the emulated leg was once admitted by declaration.
-  Only ETHOS's own pipeline calls release assembly.
+  Only ETHOS's own pipeline calls release assembly. With no optional leg left, the requirement that
+  named the platforms a release leaves out is renamed "A release publishes every declared platform",
+  and an archive without both inventories is refused like any other. The inventory owner no longer
+  declares a Node that the catalog misses: the catalog missed only a Windows `node.exe`.
+- **One refusal at the command entry stands for every host that is not macOS or Linux.** The `ethos`
+  console and `python -m ethos.cli` refuse such a host with `host_platform_unsupported:<platform>`
+  before a command observes or changes anything; the hook launcher and the MCP server start through
+  them. The modules whose Windows branch left keep no host check of their own.
+  - _Rests on:_ the lane's model review of 2026-11-28 found nine paths where, with the branch gone,
+    a host without POSIX process groups, permission bits, `ps` or `lsof` would continue rather than
+    refuse (its comments F50, F60 to F62, F65, F69 to F71). One owner refuses them all, and a test
+    drives it.
+  - _Considered:_ a guard in each of the nine modules. Rejected: nine copies of one fact, each
+    reached by no supported host and tested by nothing.
+  - _Follows:_ ETHOS's own CI tools refuse such a host before an operator's Mise is used, since they
+    start no `ethos` command first.
 - **The locks resolve for macOS and Linux.** The Python lock declares its two environments; the
   constraint `uv<0.13.9` leaves with its reason, a Windows defect of that resolver; the Mise lock
   loses its Windows platform records.
@@ -242,17 +260,22 @@ path any more. A scenario name in that column is the reworded successor in the s
 
 `distribution`
 
-| Requirement                                                          | Retired scenario                                 | Still done, or stated by |
-| -------------------------------------------------------------------- | ------------------------------------------------ | ------------------------ |
-| Content-addressed package publication is host portable               | Windows publishes an immutable package           | No                       |
-| Native trust preflight preserves identity and failure meaning        | A foreign SID has no resolvable account name     | No                       |
-| Platform support is established by native delivered behavior         | An emulating host qualifies an x64 runtime       | No                       |
-| Platform support is established by native delivered behavior         | An emulated interpreter selects its runtime      | No                       |
-| Hosted package construction uses runner supply and one Node resolver | Windows build resolves the installed Node layout | No                       |
-| Release platforms catalog their archives on every hosted commit run  | A commit's Windows leg catalogs its archive      | No                       |
-| One owner gives every journey child a fresh environment              | A Windows host runs a stage                      | No                       |
-| Windows runtime archives fit the Windows path limit                  | A deep install root runs the interpreter         | No                       |
-| Windows runtime archives fit the Windows path limit                  | The archive layout outgrows the budget           | No                       |
+| Requirement                                                          | Retired scenario                                 | Still done, or stated by                |
+| -------------------------------------------------------------------- | ------------------------------------------------ | --------------------------------------- |
+| Content-addressed package publication is host portable               | Windows publishes an immutable package           | No                                      |
+| Native trust preflight preserves identity and failure meaning        | A foreign SID has no resolvable account name     | No                                      |
+| Platform support is established by native delivered behavior         | An emulating host qualifies an x64 runtime       | No                                      |
+| Platform support is established by native delivered behavior         | An emulated interpreter selects its runtime      | No                                      |
+| Hosted package construction uses runner supply and one Node resolver | Windows build resolves the installed Node layout | No                                      |
+| A published runtime archive declares what it ships                   | An optional archive's declaration is incomplete  | An archive lacks one of its inventories |
+| A published runtime archive declares what it ships                   | The catalog misses a locked executable           | No                                      |
+| A published runtime archive declares what it ships                   | A declared executable differs from its supply    | No                                      |
+| A release names each declared platform that it does not publish      | An optional leg fails before it uploads          | No                                      |
+| A release names each declared platform that it does not publish      | The workflow tolerates only optional failures    | The workflow tolerates no failed leg    |
+| Release platforms catalog their archives on every hosted commit run  | A commit's Windows leg catalogs its archive      | No                                      |
+| One owner gives every journey child a fresh environment              | A Windows host runs a stage                      | No                                      |
+| Windows runtime archives fit the Windows path limit                  | A deep install root runs the interpreter         | No                                      |
+| Windows runtime archives fit the Windows path limit                  | The archive layout outgrows the budget           | No                                      |
 
 `proof-hosts`
 
@@ -426,7 +449,7 @@ state is migrated.
 
 ## Review of the retirements
 
-(Written by task 1.4: the reviewer, the retiring commit, and each of the 33 answers that differs
+(Written by task 1.4: the reviewer, the retiring commit, and each of the 38 answers that differs
 from the tables above, with its resolution.)
 
 ## Open Questions

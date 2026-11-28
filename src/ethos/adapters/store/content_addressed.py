@@ -48,7 +48,7 @@ def _adopt(path: Path, payload: bytes, collision: str) -> None:
     try:
         if not S_ISREG(path.lstat().st_mode):
             raise ValueError(collision)
-        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        flags = os.O_RDONLY | os.O_NOFOLLOW
         existing_descriptor = os.open(path, flags)
         with os.fdopen(existing_descriptor, "rb") as stream:
             if not S_ISREG(os.fstat(stream.fileno()).st_mode):

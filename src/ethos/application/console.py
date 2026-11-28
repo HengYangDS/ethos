@@ -9,6 +9,7 @@ oversized detail of its result.
 from __future__ import annotations
 
 import os
+import platform
 import shlex
 import sys
 from contextlib import contextmanager
@@ -71,6 +72,13 @@ def resolved_root() -> Path | None:
     return _RESOLVED_ROOT.get()
 
 
+def require_supported_host() -> None:
+    """Refuse a host other than macOS or Linux before a command observes or changes anything."""
+    if (system := platform.system()) not in {"Darwin", "Linux"}:
+        message = f"host_platform_unsupported:{system}"
+        raise ValueError(message)
+
+
 def run_console(argv: list[str], main: Callable[[], None]) -> EthosResult | None:
     """Run `main` under the target repository's selected runtime, re-executing into it if needed.
 
@@ -78,6 +86,7 @@ def run_console(argv: list[str], main: Callable[[], None]) -> EthosResult | None
     """
     command = "version" if "--version" in ethos_options(argv) else root_command(argv) or "ethos"
     try:
+        require_supported_host()
         target = _argument_root(argv)
         if (
             _creates_root(argv)

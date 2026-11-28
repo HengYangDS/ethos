@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.repo.runtime.materialization.effect as materialization
+from tests.support.closed_directory import NEEDS_A_CLOSED_DIRECTORY
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -35,3 +36,20 @@ def test_runtime_mutation_rejects_hardlinks_without_changing_the_external_inode(
 
     assert stat.S_IMODE(external.stat().st_mode) == 0o644
     assert runtime.is_dir()
+
+
+@NEEDS_A_CLOSED_DIRECTORY
+def test_generated_tree_cleanup_reports_a_refused_removal_unless_told_to_ignore_it(
+    tmp_path: Path,
+) -> None:
+    """A removal the filesystem refuses propagates; only `ignore_errors=True` swallows it."""
+    generated = tmp_path / "parent" / "generated"
+    generated.mkdir(parents=True)
+    generated.parent.chmod(0o555)
+    try:
+        with pytest.raises(PermissionError):
+            materialization.remove_generated_tree(generated)
+        materialization.remove_generated_tree(generated, ignore_errors=True)
+        assert generated.is_dir()
+    finally:
+        generated.parent.chmod(0o755)

@@ -69,9 +69,7 @@ def runtime_binding(
             )
             selected_identity = invoking_build_identity()
             native_source = schema_root == source_root / "system/schemas"
-            version = ".".join(selected.python_version.split(".")[:2])
-            site = selected.root / "python" / f"lib/python{version}/site-packages"
-            package = site / "ethos"
+            package = selected.site_packages / "ethos"
             native_package = (
                 runner_module_path == package / "__init__.py"
                 and schema_root == package / "resources/system/schemas"

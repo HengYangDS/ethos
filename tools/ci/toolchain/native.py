@@ -116,6 +116,7 @@ def prepare_mise(root: Path) -> Path:
             )
             raise ValueError(message)
 
+    mise_target()  # an operator's Mise does not admit a host the official table leaves out
     if installed := shutil.which("mise"):
         executable = Path(installed)
         verify(executable, exact=False)
@@ -176,7 +177,7 @@ def locked_go_bin(root: Path, mise: Path, version: str) -> Path:
         )
         raise ValueError(msg)
     go = Path(selected.stdout.strip())
-    gofmt = go.with_name(f"gofmt{go.suffix}")
+    gofmt = go.with_name("gofmt")
     if not (
         go.is_absolute()
         and go.is_file()

@@ -121,26 +121,41 @@ def test_product_projection_retains_native_executable_and_publisher_license(
     assert archive.read_bytes() == original
 
 
-def test_missing_publisher_license_refuses_projection_without_destination(locked_vale, tmp_path):
-    """The locked checksum does not waive a complete distributable payload."""
+@pytest.mark.parametrize(
+    ("link", "reason"),
+    [
+        ("", "native_tool_archive_license_invalid:vale"),
+        ("/outside", "native_tool_archive_executable_invalid:vale"),
+    ],
+    ids=["missing-license", "linked-executable"],
+)
+def test_incomplete_payload_refuses_projection_without_destination(
+    locked_vale, tmp_path, link, reason
+):
+    """The locked checksum waives neither one regular executable nor the publisher license."""
     root, archive, body, lock = locked_vale(
         "Darwin", "arm64", "macos-arm64", "vale_3.24.0_macOS_arm64.tar.gz"
     )
     with tarfile.open(archive, "w:gz") as package:
         member = tarfile.TarInfo("vale")
-        member.size = len(body)
+        if link:
+            member.type, member.linkname = tarfile.SYMTYPE, link
+        else:
+            member.size = len(body)
         package.addfile(member, io.BytesIO(body))
     text = lock.read_text()
     checksum = next(line for line in text.splitlines() if line.startswith("checksum = "))
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()
     lock.write_text(text.replace(checksum, f'checksum = "sha256:{digest}"'))
     owner = import_module("ethos.adapters.repo.runtime.materialization.native_supply")
-    destination = tmp_path / "missing-license"
+    destination = tmp_path / "incomplete"
+    original = archive.read_bytes()
 
-    with pytest.raises(ValueError, match="native_tool_archive_license_invalid:vale"):
+    with pytest.raises(ValueError, match=reason):
         owner.NativeSupply.read(root, "vale").project(archive, destination)
 
     assert not destination.exists()
+    assert archive.read_bytes() == original
 
 
 def test_package_projection_does_not_require_execution_only_dependencies(

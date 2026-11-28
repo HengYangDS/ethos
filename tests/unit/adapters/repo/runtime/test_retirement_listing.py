@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-import ethos.adapters.process as process_adapter
 import ethos.adapters.repo.runtime.retirement as retirement
 from tests.support.closed_directory import NEEDS_A_CLOSED_DIRECTORY
+from tests.support.runtime_scenarios import answer_which
 from tests.support.runtime_scenarios import fixture_runtime_generation
 from tests.unit.adapters.repo.runtime.support import generation_tree
 
@@ -185,16 +185,6 @@ def test_a_listing_can_leave_out_one_process(tmp_path: Path) -> None:
     assert excluded.strip()
 
 
-def _replace_process_lister(monkeypatch: pytest.MonkeyPatch, found: str | None) -> None:
-    """Answer the lookup of `ps` alone; every other program resolves as the host resolves it."""
-    native = process_adapter.shutil.which
-
-    def resolve(name: str, **options: object) -> str | None:
-        return found if name == "ps" else native(name, **options)
-
-    monkeypatch.setattr(process_adapter.shutil, "which", resolve)
-
-
 @pytest.mark.parametrize(
     "lister", ["exit 3", "echo unreadable >&2"], ids=["fails", "writes-errors"]
 )
@@ -208,7 +198,7 @@ def test_a_failing_process_lister_leaves_consumers_unknown(
     native.parent.mkdir()
     native.write_text(f"#!/bin/sh\n{lister}\n")
     native.chmod(0o700)
-    _replace_process_lister(monkeypatch, native.as_posix())
+    answer_which(monkeypatch, ps=native.as_posix())
 
     with pytest.raises(ValueError, match="hook_runtime_consumers_unknown"):
         retirement.process_commands(tmp_path)
@@ -225,7 +215,7 @@ def test_a_host_without_a_process_lister_removes_no_generation(
     """Without a lister on the host's default path the observation is refused, not read as empty."""
     repo, hooks, runtime = generation_tree(tmp_path / "repo")
     unused = fixture_runtime_generation(runtime, "b" * 64)
-    _replace_process_lister(monkeypatch, None)
+    answer_which(monkeypatch, ps=None)
 
     with pytest.raises(ValueError, match="native_process_observer_unavailable"):
         retirement.process_commands(tmp_path)

@@ -295,7 +295,7 @@ def _artifact(path: Path, package_dir: Path, kind: str) -> dict[str, str]:
 
 def _copy_regular_file(source: str | Path, target: str | Path) -> None:
     source, target = Path(source), Path(target)
-    descriptor = os.open(source, os.O_RDONLY | os.O_NONBLOCK | getattr(os, "O_NOFOLLOW", 0))
+    descriptor = os.open(source, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW)
     with os.fdopen(descriptor, "rb") as reader:
         if not stat.S_ISREG(os.fstat(reader.fileno()).st_mode):
             message = f"handoff_artifact_unsafe:{source.name}"

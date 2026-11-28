@@ -81,8 +81,11 @@ def test_locked_environment_exposes_only_selected_mise_during_native_execution(
         assert alias is not None
         assert Path(alias).read_bytes() == selected.read_bytes()
         assert shutil.which("go", path=environment["PATH"]) == str(locked_go)
-        # Prepared supply follows mise's own installs and precedes the host baseline.
-        assert environment["PATH"].split(os.pathsep)[1:3] == [str(locked_bin), str(prepared)]
+        # Prepared supply follows mise's own installs and precedes the host baseline, which is
+        # the host's default command path and nothing else; no entry is relative.
+        entries = environment["PATH"].split(os.pathsep)
+        assert entries[1:] == [str(locked_bin), str(prepared), *os.defpath.split(os.pathsep)]
+        assert all(Path(entry).is_absolute() for entry in entries)
         assert shutil.which("unrelated", path=environment["PATH"]) is None
         assert str(operator) not in environment["PATH"].split(os.pathsep)
         alias_root = Path(alias).parent

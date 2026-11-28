@@ -18,6 +18,7 @@ from pydantic import Field
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
+from ethos.adapters.repo.runtime.filesystem import runtime_executable
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 
 if TYPE_CHECKING:
@@ -102,7 +103,7 @@ class RuffInvocation(BaseModel):
     def require(self, runtime: PythonRuntime, root: Path, output: NativeOutput) -> None:
         """Explicit native config and binary must belong to the observed child."""
         selected = root / output.configuration
-        expected = Path(runtime.prefix) / "bin/ruff"
+        expected = runtime_executable(Path(runtime.prefix), "ruff")
         try:
             arguments = self.argv
             config = arguments[arguments.index("--config") + 1]
@@ -248,8 +249,7 @@ class PythonRuntime(BaseModel):
                 and result["sync"]["action"] == "check"
                 and result["sync"]["changes"] == []
                 and Path(environment["path"]).resolve() == Path(self.prefix).resolve()
-                and os.path.normcase(str(Path(python["path"]).absolute()))
-                == os.path.normcase(str(Path(self.executable).absolute()))
+                and Path(python["path"]).absolute() == Path(self.executable).absolute()
                 and tuple(int(part) for part in python["version"].split(".")) == tuple(self.version)
             )
         except (KeyError, TypeError, AttributeError, ValueError) as error:

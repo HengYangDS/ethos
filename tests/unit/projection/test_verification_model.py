@@ -367,6 +367,7 @@ def test_product_common_verification_preserves_additive_offline_jobs(tmp_path, c
             {"parameters": {"gitlab": {"runners": {"macos": {"variables": {"GIT_DEPTH": "1"}}}}}},
             "GIT_DEPTH",
         ),
+        ({"parameters": {"gitlab": {"runners": {"macos": {"system": "windows"}}}}}, "system"),
         ({"parameters": {"evidence_paths": ["build/evidence/../secret"]}}, "evidence_paths"),
         (
             {"providers": {"gitlab": {"verify:macos:protected": {"script": ["echo bypass"]}}}},

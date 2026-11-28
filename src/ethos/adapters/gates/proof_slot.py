@@ -94,7 +94,7 @@ def host_load() -> float | None:
     """Observe the 1-minute load average, or None where the host reports none."""
     try:
         return os.getloadavg()[0]
-    except (AttributeError, OSError):
+    except OSError:
         return None
 
 

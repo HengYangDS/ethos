@@ -125,12 +125,13 @@ def test_an_owned_place_that_the_host_will_not_answer_for_is_a_place_not_read(
 
 
 @pytest.mark.parametrize("gone", [FileNotFoundError, NotADirectoryError])
-def test_a_place_that_went_is_no_owned_directory_and_no_refusal(
+def test_a_link_or_a_place_that_went_is_no_owned_directory_and_no_refusal(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, gone: type[OSError]
 ) -> None:
-    """Nothing at a listing is nothing, as at a status."""
-    for name in ("gate-results", "operations/lane-retirement"):
+    """A link to a directory is left out; nothing at a listing is nothing, as at a status."""
+    for name in ("elsewhere", "gate-results", "operations/lane-retirement"):
         (tmp_path / name).mkdir(parents=True)
+    (tmp_path / "artifacts").symlink_to(tmp_path / "elsewhere", target_is_directory=True)
     listing = Path.iterdir
 
     def went(path: Path) -> object:

@@ -26,8 +26,16 @@ def test_a_push_runs_the_push_tier_and_only_a_dispatch_or_schedule_runs_more(git
     )
     assert github["on"]["schedule"] == [{"cron": "0 19 * * 6"}]
     inputs = github["on"]["workflow_dispatch"]["inputs"]
-    assert inputs["qualify_head"]["type"] == "string"
-    assert set(inputs) >= {"qualify_head"}
+    assert {name: value["type"] for name, value in inputs.items()} == {
+        "supply_image": "boolean",
+        "release_tag": "string",
+        "release_head": "string",
+        "journey_tag": "string",
+        "journey_previous": "string",
+        "scan_tag": "string",
+        "qualify_head": "string",
+        "rehearse_head": "string",
+    }
 
 
 def test_every_hosted_job_bounds_its_time_credentials_and_permissions(github, gitlab) -> None:

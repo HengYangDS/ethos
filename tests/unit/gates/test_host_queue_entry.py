@@ -10,7 +10,6 @@ import sys
 import time
 from contextlib import ExitStack
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -69,11 +68,9 @@ def test_a_later_arrival_cannot_enter_while_an_entry_is_half_made(tmp_path: Path
             early.append(bool(select.select([later.stdout], [], [], _HALF_MADE_SECONDS)[0]))
         return descriptor
 
-    # Only the queue's own `os.open` is hooked; every other reader of `os` keeps the real one.
-    seen = SimpleNamespace(**{**vars(os), "open": half_made})
     try:
         with pytest.MonkeyPatch.context() as patch:
-            patch.setattr(host_admission, "os", seen)
+            patch.setattr(os, "open", half_made)
             entered.append(queue.enter(tmp_path, "renderer"))
         (ticket,), (later,) = entered, arrivals
         assert later.stdout is not None

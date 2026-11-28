@@ -90,8 +90,12 @@ def distribution_version(version: str) -> str:
 
 
 def declared_hosts(text: str) -> frozenset[str]:
-    """Read the pipeline's comma-separated release hosts."""
-    return frozenset(host.strip() for host in text.split(",") if host.strip())
+    """Read the pipeline's comma-separated release hosts; a host named twice is refused."""
+    names = [host.strip() for host in text.split(",") if host.strip()]
+    if len(names) != len(set(names)):
+        message = "release_assets_hosts_invalid"
+        raise ValueError(message)
+    return frozenset(names)
 
 
 def assemble(
@@ -165,7 +169,8 @@ def _admitted_legs(
         ) != identity:
             message = f"release_assets_identity_mismatch:{platform}"
             raise ValueError(message)
-        runtime = f"{_SYSTEMS[distribution['platform']]}-{_MACHINES[distribution['architecture']]}"
+        system, machine = distribution["platform"], distribution["architecture"]
+        runtime = f"{_SYSTEMS.get(system)}-{_MACHINES.get(machine)}"
         name = Path(distribution["path"]).name
         wheel = _single(
             job.glob("artifacts/release/python/ethos-*.whl"),

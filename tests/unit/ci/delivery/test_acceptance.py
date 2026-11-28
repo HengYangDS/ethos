@@ -125,7 +125,7 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
             (
                 "/installed/ethos/__init__.py",
                 "ethos 0.2.0-alpha.3",
-                {"state": "passed", "native_git_loss": "not_qualified"},
+                {"state": "passed", "native_git_loss": "passed"},
             ),
         ),
         (effect, "observe_independent_command_plane", {"external_governance_available": False}),

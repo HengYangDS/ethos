@@ -108,9 +108,10 @@ def _static_execution(
     if execution.cwd != root.resolve() or execution.argv[1:] != command[1:]:
         message = "python_native_selection_invalid"
         raise ValueError(message)
-    if not execution.executable or os.path.normcase(
-        str(Path(execution.executable).absolute())
-    ) != os.path.normcase(str(Path(sys.executable).absolute())):
+    if (
+        not execution.executable
+        or Path(execution.executable).absolute() != Path(sys.executable).absolute()
+    ):
         message = "python_native_toolchain_unbound"
         raise ValueError(message)
     return execution

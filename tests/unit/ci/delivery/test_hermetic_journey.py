@@ -131,6 +131,21 @@ def test_the_supply_block_restores_every_name_it_set_also_when_it_raises(
     assert (os.environ.get(SUPPLY), os.environ.get("HELD")) == (None, "before")
 
 
+def test_a_stage_that_cannot_hold_a_declared_executable_refuses_before_it_creates_its_root(
+    tmp_path: Path,
+) -> None:
+    """The executable is named, and nothing exists under the root afterwards."""
+    refused = tmp_path / "refused"
+    absent = "ethos-absent-executable"
+    unavailable = f"required executable is unavailable: {absent}"
+    with (
+        pytest.raises(RuntimeError, match=unavailable),
+        host_environment.hermetic_environment(refused, (*EXECUTABLES, absent)),
+    ):
+        pass
+    assert not refused.exists()
+
+
 # Each way a stage's environment can show a child more than was declared, and what is named.
 CHANGES: dict[str, tuple[Callable[[Path], object], str]] = {
     "nothing": (lambda _root: None, ""),

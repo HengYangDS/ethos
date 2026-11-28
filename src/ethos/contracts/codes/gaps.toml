@@ -569,6 +569,7 @@ host_admission_unavailable = { owner = "adapters.gates" }
 host_command_failed = { owner = "application", detail = "the value that follows the colon" }
 host_declaration_invalid = { owner = "adapters.gates", detail = "the value that follows the colon" }
 host_declaration_unreadable = { owner = "adapters.gates" }
+host_platform_unsupported = { owner = "application", detail = "the value that follows the colon", repair = "run ETHOS on macOS or Linux" }
 host_reservation_exceeded = { owner = "application", detail = "the value that follows the colon" }
 host_reservation_invalid = { owner = "application", detail = "the value that follows the colon" }
 host_root_unavailable = { owner = "adapters.gates" }

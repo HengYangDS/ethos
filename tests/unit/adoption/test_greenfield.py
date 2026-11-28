@@ -14,6 +14,7 @@ import ethos.adapters.repo.starter.conformance as conformance
 import ethos.application.console as console
 import ethos.cli as product_cli
 from ethos.adapters.repo.git_attributes import checkout_line_endings
+from ethos.adapters.repo.runtime.filesystem import runtime_executable
 from ethos.application.adoption import adopt_repository
 from ethos.repository.paradigm.gap import ParadigmGap
 from ethos.repository.paradigm.repair import RepairPlan
@@ -32,7 +33,7 @@ ROOT = Path(__file__).resolve().parents[3]
 def test_brownfield_public_adopt_remains_two_binding_only(tmp_path: Path) -> None:
     """Minimal adoption is not silently upgraded into a project scaffolder."""
     root = init_git_repo(tmp_path / "existing")
-    console = Path(sys.prefix) / "bin/ethos"
+    console = runtime_executable(Path(sys.prefix), "ethos")
 
     def invoke(*options: str) -> dict[str, object]:
         completed = subprocess.run(
@@ -106,7 +107,7 @@ def test_greenfield_preview_is_public_cli_output(tmp_path: Path) -> None:
         starter="foundation",
         **signer,
     )
-    console = Path(sys.prefix) / "bin/ethos"
+    console = runtime_executable(Path(sys.prefix), "ethos")
     completed = subprocess.run(
         [
             str(console),
@@ -146,7 +147,7 @@ def test_greenfield_console_refuses_linked_target_before_runtime_selection(tmp_p
     """An existing linked target cannot select its own product to judge creation."""
     target = tmp_path / "linked-project"
     target.symlink_to(ROOT, target_is_directory=True)
-    console = Path(sys.prefix) / "bin/ethos"
+    console = runtime_executable(Path(sys.prefix), "ethos")
     completed = subprocess.run(
         [
             str(console),

@@ -229,6 +229,14 @@ class StepRetention(BaseModel):
     platforms: FrozenTuple[str] = Field(min_length=1)
     leaving_platforms: FrozenTuple[str] = ()
 
+    @model_validator(mode="after")
+    def require_leaving_outside_platforms(self) -> Self:
+        """Never report a platform that the paradigm still names as one to remove."""
+        if set(self.platforms) & set(self.leaving_platforms):
+            message = "a leaving platform must not be a retained platform"
+            raise ValueError(message)
+        return self
+
 
 class PipelineModel(BaseModel):
     """Where a repository that runs CI on several Forges keeps its one pipeline model."""

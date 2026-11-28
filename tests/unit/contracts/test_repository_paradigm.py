@@ -11,6 +11,7 @@ from pygments.lexers import get_lexer_by_name
 
 from ethos.contracts.paradigm.declaration import BindingRole
 from ethos.contracts.paradigm.declaration import RepositoryParadigm
+from ethos.contracts.paradigm.declaration import StepRetention
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 
@@ -56,6 +57,20 @@ def test_packaged_paradigm_names_canonical_carriers() -> None:
     assert retention.record == ".config/ci/retained-steps.toml"
     assert retention.classes == ("official-installer", "operating-system-glue")
     assert retention.platforms == ("darwin", "linux")
+    assert retention.leaving_platforms == ("windows",)
+
+
+def test_a_retained_platform_is_never_also_a_leaving_one() -> None:
+    """A platform that a retention record may still name is not reported as one that leaves."""
+    declared = {
+        "record": ".config/ci/retained-steps.toml",
+        "classes": ["official-installer"],
+        "platforms": ["darwin", "linux"],
+    }
+    assert StepRetention.model_validate(declared | {"leaving_platforms": ["windows"]})
+    retained = "a leaving platform must not be a retained platform"
+    with pytest.raises(ValidationError, match=retained):
+        StepRetention.model_validate(declared | {"leaving_platforms": ["linux"]})
 
 
 @pytest.mark.parametrize("role", ["profile", "release", "rules", "workspace"])

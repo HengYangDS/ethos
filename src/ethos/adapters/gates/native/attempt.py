@@ -51,7 +51,7 @@ def _read_output(directory: Path, name: str) -> bytes:
     if not S_ISREG(before.st_mode) or before.st_size > 32 * 1024 * 1024:
         msg = "native_output_unsafe"
         raise ValueError(msg)
-    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
     with os.fdopen(descriptor, "rb") as stream:
         opened = os.fstat(stream.fileno())
         if (before.st_dev, before.st_ino) != (opened.st_dev, opened.st_ino):

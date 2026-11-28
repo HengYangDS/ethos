@@ -165,7 +165,7 @@ def _reference_paths(references: str) -> frozenset[Path]:
     """
     paths: set[Path] = set()
     for field in re.split(r"[\n\x00]", references):
-        for start in re.finditer(r"(?<![\w./:-])(?:[A-Za-z]:)?/", field):
+        for start in re.finditer(r"(?<![\w./:-])/", field):
             paths.update(_native_path_prefixes(Path(start.group()), field[start.end() :]))
     return frozenset(paths)
 

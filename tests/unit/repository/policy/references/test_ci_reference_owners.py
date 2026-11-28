@@ -314,8 +314,9 @@ def _retention(text: str, jobs: tuple[str, ...] = ("native-macos",)) -> str:
         (_retention(GLUE, ("native-linux",)), UNRETAINED),
         (_retention(GLUE + "Write-Host done\n"), UNRETAINED),
         (_retention(GLUE).replace("darwin", "plan9"), UNRETAINED),
+        (_retention(GLUE).replace("darwin", "windows"), {"git"}),
     ],
-    ids=["recorded", "other-job", "other-text", "incomplete"],
+    ids=["recorded", "other-job", "other-text", "incomplete", "leaving-platform"],
 )
 def test_recorded_glue_is_owned_by_its_retention_record(record: str, expected: set[str]) -> None:
     """A step the retention record binds by file, job and text is owned, not read as commands."""

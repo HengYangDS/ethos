@@ -250,8 +250,8 @@ def _command_tokens(tokens: tuple[str, ...], *, shell_context: bool = False) -> 
 
 def python_module(tokens: tuple[str, ...]) -> str:
     """Resolve the interpreter-selected module without loading candidate code."""
-    executable = tokens[0].rsplit("/", maxsplit=1)[-1] if tokens else ""
-    if not re.fullmatch(r"python(?:\d+(?:\.\d+)*)?", executable):
+    executable = tokens[0].replace("\\", "/").rsplit("/", maxsplit=1)[-1] if tokens else ""
+    if not re.fullmatch(r"python(?:\d+(?:\.\d+)*)?(?:\.exe)?", executable):
         return ""
     index = 1
     while index < len(tokens):

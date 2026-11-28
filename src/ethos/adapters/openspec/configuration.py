@@ -42,7 +42,6 @@ def official_config_report(root: Path, *, initialize: bool = False) -> dict[str,
             environment = {"PATH": os.environ["PATH"]} if "PATH" in os.environ else {}
             environment.update(
                 HOME=temporary,
-                USERPROFILE=temporary,
                 XDG_DATA_HOME=temporary,
                 XDG_CONFIG_HOME=temporary,
                 OPENSPEC_TELEMETRY="0",

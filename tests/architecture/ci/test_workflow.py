@@ -84,12 +84,14 @@ def test_native_workflow_gate_preserves_large_input_and_semantic_rejections(
 
 
 @pytest.mark.parametrize(
-    ("workflow_shell", "job_shell", "step_shell", "runner", "expected"),
+    ("workflow_shell", "job_shell", "step_shell", "expected"),
     [
-        ("", "", "", "ubuntu-latest", "bash"),
-        ("sh", "", "", "ubuntu-latest", "sh"),
-        ("sh", "bash", "", "macos-latest", "bash"),
-        ("bash", "sh", "bash {0}", "ubuntu-latest", "bash"),
+        ("", "", "", "bash"),
+        ("sh", "", "", "sh"),
+        ("sh", "bash", "", "bash"),
+        ("bash", "sh", "bash {0}", "bash"),
+        # A shell that shellcheck does not read is valid on every runner and is reported instead.
+        ("bash", "sh", "pwsh", "pwsh"),
     ],
 )
 def test_workflow_shell_projection_preserves_native_precedence(
@@ -97,17 +99,16 @@ def test_workflow_shell_projection_preserves_native_precedence(
     workflow_shell: str,
     job_shell: str,
     step_shell: str,
-    runner: str,
     expected: str,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Platform defaults do not override a step, job or workflow shell declaration."""
+    """A step's shell wins over its job's and its workflow's, and the default is bash."""
     workflow = {
         "defaults": {"run": {"shell": workflow_shell}},
         "jobs": {
             "build": {
-                "runs-on": runner,
+                "runs-on": "ubuntu-latest",
                 "defaults": {"run": {"shell": job_shell}},
                 "steps": [{"shell": step_shell, "run": "echo '${{ '中文' }}'"}],
             }

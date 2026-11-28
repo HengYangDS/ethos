@@ -142,10 +142,9 @@ def run_runtime_tool(
     """Run locked uv; only a source build requires full native Node supply."""
     executable = python or Path(sys.executable)
     # An environment is its prefix: two environments can share one base interpreter file.
-    invoking = os.path.normcase(Path(sys.executable).absolute())
     prefix = (
         Path(sys.prefix)
-        if os.path.normcase(executable.absolute()) == invoking
+        if executable.absolute() == Path(sys.executable).absolute()
         else Path(observe_python_facts(executable)["prefix"])
     )
     environment: dict[str, str] = {

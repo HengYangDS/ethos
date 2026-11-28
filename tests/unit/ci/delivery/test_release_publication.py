@@ -189,16 +189,26 @@ def test_release_assets_publish_only_the_qualified_bytes(tmp_path):
         release_assets.assemble(inputs, tmp_path / "partial", **options)
 
 
-def test_a_leg_publishes_only_the_runtime_of_its_declared_host(tmp_path):
+# A leg whose smoke record names a runtime other than its host's; each keeps its own wheel tag, so
+# no duplicate wheel name is what refuses it.
+_FOREIGN = {
+    "machine": ("linux-arm64", ("linux", "x86_64", "linux_aarch64")),
+    "system": ("macos-arm64", ("linux", "arm64", "macosx_14_0_arm64")),
+    "system outside the tables": ("macos-arm64", ("windows", "arm64", "macosx_14_0_arm64")),
+}
+
+
+@pytest.mark.parametrize("case", _FOREIGN)
+def test_a_leg_publishes_only_the_runtime_of_its_declared_host(tmp_path, case):
     """A leg's runtime runs the operating system and the machine that its host declares."""
     inputs, changelog = tmp_path / "inputs", tmp_path / "CHANGELOG.md"
     changelog.write_text(_CHANGELOG, encoding="utf-8")
-    for host, leg in LEGS.items():
-        qualified_leg(inputs, host, *leg)
-    shutil.rmtree(inputs / "release-runtime-linux-arm64")
-    qualified_leg(inputs, "linux-arm64", "linux", "x86_64", "linux_x86_64")
-    with pytest.raises(ValueError, match="release_assets_distribution_mismatch:linux-arm64"):
+    host, foreign = _FOREIGN[case]
+    for name, leg in (LEGS | {host: foreign}).items():
+        qualified_leg(inputs, name, *leg)
+    with pytest.raises(ValueError, match=f"release_assets_distribution_mismatch:{host}"):
         release_assets.assemble(inputs, tmp_path / "foreign", **_options(changelog))
+    assert not (tmp_path / "foreign").exists()
 
 
 def test_each_release_leg_declares_the_host_its_runner_provides():

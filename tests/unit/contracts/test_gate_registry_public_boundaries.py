@@ -287,7 +287,7 @@ def test_resolved_python_module_gate_binds_exact_source(options: tuple[str, ...]
     )
 
 
-@pytest.mark.parametrize("interpreter", ["python", "/runtime/python"])
+@pytest.mark.parametrize("interpreter", ["python.exe", r"C:\runtime\python.exe", "/runtime/python"])
 def test_python_module_binding_is_portable(interpreter: str) -> None:
     """The executable identity is identical for source binding and runtime admission."""
     gate = Gate(id="portable", kind="test", command=(interpreter, "-B", "-m", "tools.check"))

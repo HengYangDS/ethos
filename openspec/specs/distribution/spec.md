@@ -958,12 +958,6 @@ Each hosted release SHALL publish two inventories for every runtime archive: an 
 - **WHEN** a release leg's inventories name its archive's published name and digest and list its expected components
 - **THEN** the release publishes both beside the archive, covered by `SHA256SUMS` and the build provenance attestation
 
-#### Scenario: An optional archive's declaration is incomplete
-
-- **WHEN** an optional release leg uploads only one of its two inventories
-- **THEN** that archive is not published
-- **AND** the release notes and the assembler's output name its host
-
 #### Scenario: A binding does not match
 
 - **WHEN** any release leg's inventory names another digest or file, or a second declaration sits beside the two
@@ -979,21 +973,6 @@ Each hosted release SHALL publish two inventories for every runtime archive: an 
 - **WHEN** the catalog lacks the locked `uv` crate, a declared Go tool's module or a shipped Python
   distribution
 - **THEN** the inventory owner refuses and names the missing component
-
-#### Scenario: The catalog misses a locked executable
-
-- **WHEN** the catalog lacks the shipped Node executable, and its SHA-256 equals the executable of
-  the locked Node supply on that host
-- **THEN** both inventories list Node at the locked version, bound to that digest and marked as
-  declared from the locked supply
-- **AND** the binary scan no longer reports that file as an unidentified executable
-- **AND** the supply-chain evidence lists Node apart from the cataloged components
-
-#### Scenario: A declared executable differs from its supply
-
-- **WHEN** the catalog lacks the shipped Node executable, and its SHA-256 differs from the locked
-  supply's for the archive's runtime platform
-- **THEN** the inventory owner refuses with `release_inventory_component_unverified:node`
 
 #### Scenario: The catalog finds the executable itself
 
@@ -1030,13 +1009,6 @@ an artifact for an undeclared platform. A declared optional platform that a rele
 SHALL be named, with its cause, in the assembler's output and in the release notes, with the rule
 that an adopter installing ETHOS on it keeps its current release.
 
-#### Scenario: An optional leg fails before it uploads
-
-- **WHEN** a declared optional release leg fails before it uploads its artifact
-- **THEN** the release publishes the other platforms
-- **AND** `left-out.json` names that platform with the cause `leg_incomplete`
-- **AND** the release notes name it and state the adopter rule
-
 #### Scenario: A required leg publishes nothing
 
 - **WHEN** a declared required release leg uploads no admitted archive
@@ -1046,12 +1018,6 @@ that an adopter installing ETHOS on it keeps its current release.
 
 - **WHEN** an uploaded artifact names a platform that no release leg declares
 - **THEN** assembly fails with `release_assets_host_undeclared:<host>`
-
-#### Scenario: The workflow tolerates only optional failures
-
-- **WHEN** the release workflow is projected from the declared legs
-- **THEN** only the optional legs may fail without failing the run
-- **AND** the assembler receives exactly the declared required and optional platforms
 
 ### Requirement: Release platforms catalog their archives on every hosted commit run
 

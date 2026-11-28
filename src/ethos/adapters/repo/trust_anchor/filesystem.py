@@ -5,6 +5,8 @@ from __future__ import annotations
 import stat
 from typing import TYPE_CHECKING
 
+from ethos.contracts.outcome import os_error_gap
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -23,8 +25,8 @@ def protect_for_current_identity(path: Path) -> None:
     try:
         path.chmod(0o700 if path.is_dir() else 0o600)
     except OSError as error:
-        message = f"git_object_trust_anchor_protection_failed:{error.strerror or error}"
-        raise OSError(message) from error
+        gap = os_error_gap("git_object_trust_anchor_protection_failed", error)
+        raise type(error)(gap) from error
 
 
 def _posix_protected(path: Path) -> bool:
